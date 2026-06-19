@@ -1,7 +1,8 @@
 import { writable, get } from 'svelte/store';
 
 export interface TabData {
-    id: string;
+    id: string;      // タブごとのユニークなID
+    path: string;    // ファイルの実際のパス
     title: string;
     content: string;
     isEditing: boolean;
@@ -13,24 +14,64 @@ export const activeTabId = writable<string | null>(null);
 
 export const workspaces = writable<any[]>([]);
 export const currentWorkspace = writable<any | null>(null);
+export const editorFont = writable<string>('sans-serif'); 
 
-export const editorFont = writable<string>('sans-serif');
+// 💥 タブを切り替えるときに、すべてのタブをビューモード（isEditing = false）に戻す
+export function switchTab(tabId: string) {
+    openTabs.update(tabs => tabs.map(t => ({ ...t, isEditing: false })));
+    activeTabId.set(tabId);
+}
 
+// 左クリック：今のタブを上書き
+export function openFileInCurrentTab(filePath: string, title: string, initialContent: string) {
+    const tabs = get(openTabs);
+    const currentId = get(activeTabId);
+    
+    // 全てをビューモードにリセットした配列を作る
+    const resetTabs = tabs.map(t => ({ ...t, isEditing: false }));
 
-// 🔽 今回追加した部分 🔽
-export function createNewTab() {
+    if (currentId && resetTabs.length > 0) {
+        openTabs.set(resetTabs.map(tab => 
+            tab.id === currentId 
+                ? { ...tab, path: filePath, title, content: initialContent, isDirty: false }
+                : tab
+        ));
+    } else {
+        openFileInNewTab(filePath, title, initialContent);
+    }
+}
+
+// 右クリック：新しいタブ（同じファイルでも気にせず新規作成）
+export function openFileInNewTab(filePath: string, title: string, initialContent: string) {
+    const newId = "tab-" + Date.now() + Math.random();
     openTabs.update(tabs => {
-        const id = "new-" + Date.now();
-        const newTab = { 
-            id, 
+        const resetTabs = tabs.map(t => ({ ...t, isEditing: false }));
+        return [...resetTabs, {
+            id: newId,
+            path: filePath,
+            title,
+            content: initialContent,
+            isEditing: false,
+            isDirty: false
+        }];
+    });
+    activeTabId.set(newId);
+}
+
+export function createNewTab() {
+    const newId = "new-" + Date.now();
+    openTabs.update(tabs => {
+        const resetTabs = tabs.map(t => ({ ...t, isEditing: false }));
+        return [...resetTabs, { 
+            id: newId, 
+            path: "", 
             title: "無題のファイル", 
             content: "", 
             isEditing: true, 
             isDirty: true 
-        };
-        activeTabId.set(id);
-        return [...tabs, newTab];
+        }];
     });
+    activeTabId.set(newId);
 }
 
 export function closeTab(idToClose: string) {
@@ -44,47 +85,4 @@ export function closeTab(idToClose: string) {
         });
         return filtered;
     });
-}
-
-// 左クリック用：今のタブを上書きして開く
-export function openFileInCurrentTab(filePath: string, title: string, initialContent: string) {
-    const tabs = get(openTabs);
-    const currentId = get(activeTabId);
-    
-    // すでに同じファイルがどこかのタブで開かれていたら、そこに移動するだけ
-    if (tabs.find(t => t.id === filePath)) {
-        activeTabId.set(filePath);
-        return;
-    }
-
-    if (currentId && tabs.length > 0) {
-        // 現在のタブを上書き
-        openTabs.update(t => t.map(tab => 
-            tab.id === currentId 
-                ? { id: filePath, title, content: initialContent, isEditing: false, isDirty: false }
-                : tab
-        ));
-        activeTabId.set(filePath);
-    } else {
-        // タブが1つもない場合は新規に開く
-        openFileInNewTab(filePath, title, initialContent);
-    }
-}
-
-// 右クリック用：新しいタブとして開く
-export function openFileInNewTab(filePath: string, title: string, initialContent: string) {
-    const tabs = get(openTabs);
-    if (tabs.find(t => t.id === filePath)) {
-        activeTabId.set(filePath);
-        return;
-    }
-    
-    openTabs.update(t => [...t, {
-        id: filePath,
-        title,
-        content: initialContent,
-        isEditing: false,
-        isDirty: false
-    }]);
-    activeTabId.set(filePath);
 }

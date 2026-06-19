@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fs;
-use tauri::{AppHandle, Manager}; 
+use tauri::{AppHandle, Manager};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LinkItem {
@@ -17,7 +17,7 @@ pub struct Workspace {
     pub name: String,
     pub category: String,
     pub nodes: Vec<VirtualNode>,
-    #[serde(default)] 
+    #[serde(default)]
     pub links: Vec<LinkItem>,
 }
 
@@ -79,7 +79,7 @@ fn save_workspaces(app: AppHandle, workspaces: Vec<Workspace>) -> Result<(), Str
     // OS標準のアプリデータ保存場所を取得
     let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     fs::create_dir_all(&app_data_dir).map_err(|e| e.to_string())?;
-    
+
     let path = app_data_dir.join("workspaces.json");
     let json = serde_json::to_string(&workspaces).map_err(|e| e.to_string())?;
     fs::write(path, json).map_err(|e| e.to_string())?;
@@ -90,16 +90,15 @@ fn save_workspaces(app: AppHandle, workspaces: Vec<Workspace>) -> Result<(), Str
 fn load_workspaces(app: AppHandle) -> Result<Vec<Workspace>, String> {
     let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let path = app_data_dir.join("workspaces.json");
-    
+
     if !path.exists() {
         return Ok(Vec::new()); // なければ空のリストを返す
     }
-    
+
     let json = fs::read_to_string(path).map_err(|e| e.to_string())?;
     let workspaces: Vec<Workspace> = serde_json::from_str(&json).map_err(|e| e.to_string())?;
     Ok(workspaces)
 }
-
 
 #[tauri::command]
 fn read_file_content(path: String) -> Result<String, String> {
@@ -113,7 +112,11 @@ fn read_directory(path: String) -> Result<Vec<VirtualNode>, String> {
 
     for entry in entries.flatten() {
         let path = entry.path();
-        let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+        let name = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
 
         if path.is_dir() {
             nodes.push(VirtualNode::Folder {
@@ -129,7 +132,7 @@ fn read_directory(path: String) -> Result<Vec<VirtualNode>, String> {
             });
         }
     }
-    
+
     // フォルダが上に、ファイルが下にくるようにソート
     nodes.sort_by(|a, b| {
         let is_dir_a = matches!(a, VirtualNode::Folder { .. });
@@ -143,6 +146,8 @@ fn read_directory(path: String) -> Result<Vec<VirtualNode>, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_window_state::Builder::new().build())
+        .plugin(tauri_plugin_window_state::Builder::default().build()) 
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
@@ -150,7 +155,7 @@ pub fn run() {
             save_workspaces,
             load_workspaces,
             read_file_content,
-            read_directory      
+            read_directory
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

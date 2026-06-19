@@ -57,11 +57,17 @@
     }
   });
 
-  onMount(async () => {
+onMount(async () => {
     try {
       workspaces = await invoke('load_workspaces');
       if (workspaces.length === 0) {
-        workspaces = [{ id: Date.now().toString(), name: '作業中', category: 'Active', nodes: [] }];
+        workspaces = [{ id: Date.now().toString(), name: '作業中', category: 'Active', nodes: [], links: [] }];
+      } else {
+        // 💥 ロード直後に全ワークスペースをスキャンして最新にする
+        for (let ws of workspaces) {
+          ws.nodes = await refreshTree(ws.nodes);
+        }
+        workspaces = [...workspaces];
       }
     } catch (e) {
       console.error("ロード失敗:", e);
@@ -169,6 +175,43 @@
   }
   function closeLinkMenu() { linkContextMenu.show = false; }
 
+// 💥 フォルダのツリーを再帰的に最新状態に更新する関数
+  async function refreshTree(nodes: any[]): Promise<any[]> {
+    const updatedNodes = [];
+    for (let node of nodes) {
+      if (node.type === 'Folder' && node.original_path) {
+        try {
+          const freshChildren: any[] = await invoke('read_directory', { path: node.original_path });
+          
+          // 既に展開されていたサブフォルダがあれば、その状態（children）を引き継いで再帰更新
+          if (node.children && node.children.length > 0) {
+            const oldFolders = new Map(node.children.filter((c:any) => c.type === 'Folder').map((c:any) => [c.original_path, c]));
+            
+            for (let fresh of freshChildren) {
+              if (fresh.type === 'Folder' && oldFolders.has(fresh.original_path)) {
+                fresh.children = oldFolders.get(fresh.original_path).children;
+                fresh.children = await refreshTree(fresh.children); // 深い階層も更新
+              }
+            }
+          }
+          node.children = freshChildren;
+        } catch (e) {
+          console.error("フォルダ更新失敗:", e);
+        }
+      }
+      updatedNodes.push(node);
+    }
+    return updatedNodes;
+  }
+
+  // 手動更新ボタン用の処理
+  async function handleRefresh() {
+    if (!workspaces[currentIndex]) return;
+    workspaces[currentIndex].nodes = await refreshTree(workspaces[currentIndex].nodes);
+    workspaces = [...workspaces];
+    await saveData();
+  }
+
 </script>
 
 <svelte:window on:mousemove={doResize} on:mouseup={stopResize} />
@@ -182,6 +225,9 @@
     <div class="p-3 border-b border-gray-700 font-bold flex justify-between items-center text-gray-300">
       <span class="truncate pr-2">{workspaces[currentIndex]?.name || 'リスト'}</span>
       <div class="flex gap-2 shrink-0">
+        <!-- 💥 この更新ボタンを追加 -->
+        <button on:click={handleRefresh} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded transition" title="フォルダを最新に更新">↻</button>
+        
         <button on:click={addFile} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded transition" title="ファイル追加">📄</button>
         <button on:click={addFolder} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded transition" title="フォルダ追加">📁</button>
       </div>

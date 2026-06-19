@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { openTabs, activeTabId, createNewTab, closeTab, editorFont } from '$lib/stores';
+    import { openTabs, activeTabId, createNewTab, closeTab, switchTab, editorFont } from '$lib/stores';
     import { convertFileSrc } from '@tauri-apps/api/core';
     import { marked } from 'marked';
 
@@ -51,19 +51,18 @@
 <div class="h-full flex flex-col bg-gray-900">
     
     <!-- 💥 タブバーエリア -->
-    <div class="flex bg-[#1e1e1e] border-b border-gray-700 overflow-x-auto select-none no-scrollbar">
+<!-- 💥 タブバーエリア -->
+    <!-- flex-wrap をつけて、溢れたら段を変えるようにしました -->
+    <div class="flex bg-[#1e1e1e] border-b border-gray-700 flex-wrap select-none">
         {#each $openTabs as tab}
-            <!-- svelte-ignore a11y-click-events-have-key-events -->
-            <!-- svelte-ignore a11y-no-static-element-interactions -->
             <div 
-                class="flex items-center px-3 py-1.5 text-sm max-w-[160px] cursor-pointer border-r border-gray-700 transition-colors
+                class="flex items-center px-2 py-1 text-xs max-w-[120px] cursor-pointer border-r border-gray-700 border-b border-b-gray-800 transition-colors
                        { $activeTabId === tab.id ? 'bg-gray-800 text-gray-200 border-t-2 border-t-blue-500' : 'bg-[#1e1e1e] text-gray-500 hover:bg-gray-800' }"
-                on:click={() => activeTabId.set(tab.id)}
+                on:click={() => switchTab(tab.id)} 
             >
-                <!-- 💥 長い文字は truncate で ... に省略される -->
-                <span class="truncate flex-1">{tab.title}</span>
+                <span class="truncate flex-1" title={tab.title}>{tab.title}</span>
                 <button 
-                    class="ml-2 w-5 h-5 flex items-center justify-center rounded-full hover:bg-gray-600 hover:text-red-400 transition"
+                    class="ml-1 w-4 h-4 flex items-center justify-center rounded-full hover:bg-gray-600 hover:text-red-400 transition"
                     on:click|stopPropagation={() => closeTab(tab.id)}
                 >
                     ×
@@ -71,9 +70,8 @@
             </div>
         {/each}
         
-        <!-- 💥 タブ追加（＋）ボタン -->
         <button 
-            class="px-4 py-1.5 text-gray-500 hover:text-gray-200 hover:bg-gray-800 transition"
+            class="px-3 py-1 text-gray-500 hover:text-gray-200 hover:bg-gray-800 transition text-sm"
             title="新しいタブを開く"
             on:click={createNewTab}
         >

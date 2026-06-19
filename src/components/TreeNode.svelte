@@ -8,8 +8,10 @@
 
   const { removeNode } = getContext('workspaceActions') as any;
 
-  // 現在アクティブなファイルかどうかを判定
-  $: isActive = $activeTabId === node.path;
+  // 現在アクティブなタブの path と一致しているか判定
+  import { openTabs } from '../lib/stores';
+  $: activeTab = $openTabs.find(t => t.id === $activeTabId);
+  $: isActive = activeTab && activeTab.path === node.path;
 
   // 💥 右クリックメニューの状態
   let showMenu = false;
