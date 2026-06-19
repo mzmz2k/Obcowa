@@ -1,38 +1,88 @@
-import { writable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 
-// タブのデータ構造
 export interface TabData {
-    id: string;        // ファイルパスをIDとして代用するのがおすすめ
+    id: string;
     title: string;
-    content: string;   // ファイルのテキストデータ
-    isEditing: boolean;// 編集モードかプレビューモードか
-    isDirty: boolean;  // 変更が保存されていないか
+    content: string;
+    isEditing: boolean;
+    isDirty: boolean;
 }
 
-// 開いているすべてのタブ
 export const openTabs = writable<TabData[]>([]);
-// 現在アクティブなタブのID
 export const activeTabId = writable<string | null>(null);
 
-// ワークスペース一覧
 export const workspaces = writable<any[]>([]);
 export const currentWorkspace = writable<any | null>(null);
 
-// 💡 提案：タブを開く処理を共通化し、既に開いていればアクティブにするだけに留める
-export function openFileInTab(filePath: string, title: string, initialContent: string) {
+
+// 🔽 今回追加した部分 🔽
+export function createNewTab() {
     openTabs.update(tabs => {
-        const existingTab = tabs.find(t => t.id === filePath);
-        if (existingTab) {
-            activeTabId.set(filePath);
-            return tabs;
-        }
-        activeTabId.set(filePath);
-        return [...tabs, { 
-            id: filePath, 
-            title, 
-            content: initialContent, 
-            isEditing: false, 
-            isDirty: false 
-        }];
+        const id = "new-" + Date.now();
+        const newTab = { 
+            id, 
+            title: "無題のファイル", 
+            content: "", 
+            isEditing: true, 
+            isDirty: true 
+        };
+        activeTabId.set(id);
+        return [...tabs, newTab];
     });
+}
+
+export function closeTab(idToClose: string) {
+    openTabs.update(tabs => {
+        const filtered = tabs.filter(t => t.id !== idToClose);
+        activeTabId.update(current => {
+            if (current === idToClose) {
+                return filtered.length > 0 ? filtered[filtered.length - 1].id : null;
+            }
+            return current;
+        });
+        return filtered;
+    });
+}
+
+// 左クリック用：今のタブを上書きして開く
+export function openFileInCurrentTab(filePath: string, title: string, initialContent: string) {
+    const tabs = get(openTabs);
+    const currentId = get(activeTabId);
+    
+    // すでに同じファイルがどこかのタブで開かれていたら、そこに移動するだけ
+    if (tabs.find(t => t.id === filePath)) {
+        activeTabId.set(filePath);
+        return;
+    }
+
+    if (currentId && tabs.length > 0) {
+        // 現在のタブを上書き
+        openTabs.update(t => t.map(tab => 
+            tab.id === currentId 
+                ? { id: filePath, title, content: initialContent, isEditing: false, isDirty: false }
+                : tab
+        ));
+        activeTabId.set(filePath);
+    } else {
+        // タブが1つもない場合は新規に開く
+        openFileInNewTab(filePath, title, initialContent);
+    }
+}
+
+// 右クリック用：新しいタブとして開く
+export function openFileInNewTab(filePath: string, title: string, initialContent: string) {
+    const tabs = get(openTabs);
+    if (tabs.find(t => t.id === filePath)) {
+        activeTabId.set(filePath);
+        return;
+    }
+    
+    openTabs.update(t => [...t, {
+        id: filePath,
+        title,
+        content: initialContent,
+        isEditing: false,
+        isDirty: false
+    }]);
+    activeTabId.set(filePath);
 }
