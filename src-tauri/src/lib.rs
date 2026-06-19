@@ -5,11 +5,20 @@ use std::fs;
 use tauri::{AppHandle, Manager}; 
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LinkItem {
+    pub id: String,
+    pub title: String,
+    pub url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Workspace {
     pub id: String,
     pub name: String,
     pub category: String,
     pub nodes: Vec<VirtualNode>,
+    #[serde(default)] 
+    pub links: Vec<LinkItem>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -3,6 +3,8 @@
     import { convertFileSrc } from '@tauri-apps/api/core';
     import { marked } from 'marked';
 
+     marked.use({ breaks: true });
+
     $: activeTab = $openTabs.find(t => t.id === $activeTabId);
 
     // 💥 追加：冒頭のプロパティ（Frontmatter）を削除する関数

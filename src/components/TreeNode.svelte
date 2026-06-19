@@ -62,6 +62,12 @@
     on:click={handleClick}
     on:contextmenu={handleContextMenu}
   >
+
+    <span class="mr-1 w-3 text-center text-xs text-gray-500">
+      {#if node.type === 'Folder'}
+        {isOpen ? '▼' : '▶'}
+      {/if}
+    </span>
     <span class="mr-1 w-4 text-center">
       {#if node.type === 'Folder'}
         {isOpen ? '📂' : '📁'}
@@ -69,6 +75,8 @@
         📄
       {/if}
     </span>
+
+
     <span class="truncate">{node.name}</span>
   </div>
 
@@ -90,7 +98,7 @@
           新しいタブで開く
         </button>
       {/if}
-      
+
       <button 
         class="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition"
         on:click={() => removeNode(node)}

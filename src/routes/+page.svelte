@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount, setContext } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
-  import { open } from '@tauri-apps/plugin-dialog';
+  import { open as openDialog } from '@tauri-apps/plugin-dialog';
+  import { openUrl } from '@tauri-apps/plugin-opener';
   import Editor from '../components/Editor.svelte';
   import TreeNode from '../components/TreeNode.svelte';
   import { editorFont } from '../lib/stores';
@@ -77,7 +78,7 @@
 
   async function addFolder() {
     if (!workspaces[currentIndex]) return;
-    const selectedPath = await open({ directory: true, multiple: false });
+    const selectedPath = await openDialog({ directory: true, multiple: false });
     if (typeof selectedPath === 'string') {
       const name = selectedPath.split(/[/\\]/).pop() || '新規フォルダ';
       workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, { type: "Folder", name, original_path: selectedPath, children: [] }];
@@ -87,7 +88,7 @@
 
   async function addFile() {
     if (!workspaces[currentIndex]) return;
-    const selectedPath = await open({ directory: false, multiple: false });
+    const selectedPath = await openDialog({ directory: false, multiple: false }); 
     if (typeof selectedPath === 'string') {
       const name = selectedPath.split(/[/\\]/).pop() || '新規ファイル';
       workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, { type: "File", name, path: selectedPath }];
@@ -111,6 +112,63 @@
     const target = e.target as HTMLSelectElement;
     currentIndex = parseInt(target.value, 10);
   }
+
+// --- 💥 リンク用の状態と処理 ---
+  let isLinkModalOpen = false;
+  let editingLinkId: string | null = null;
+  let linkTitle = '';
+  let linkUrl = '';
+
+  let linkContextMenu = { show: false, x: 0, y: 0, link: null as any };
+
+  function openLinkModal(linkToEdit?: any) {
+    if (linkToEdit) {
+      editingLinkId = linkToEdit.id;
+      linkTitle = linkToEdit.title;
+      linkUrl = linkToEdit.url;
+    } else {
+      editingLinkId = null;
+      linkTitle = '';
+      linkUrl = '';
+    }
+    isLinkModalOpen = true;
+  }
+
+  async function saveLink() {
+    if (!linkTitle || !linkUrl) return;
+    
+    // URLが http から始まっていなければ自動補完
+    if (!linkUrl.startsWith('http')) linkUrl = 'https://' + linkUrl;
+
+    const ws = workspaces[currentIndex];
+    if (!ws.links) ws.links = []; // 古いデータ対策
+
+    if (editingLinkId) {
+      const idx = ws.links.findIndex((l:any) => l.id === editingLinkId);
+      if (idx !== -1) ws.links[idx] = { id: editingLinkId, title: linkTitle, url: linkUrl };
+    } else {
+      ws.links.push({ id: Date.now().toString(), title: linkTitle, url: linkUrl });
+    }
+    
+    workspaces = [...workspaces];
+    await saveData();
+    isLinkModalOpen = false;
+  }
+
+  async function deleteLink(id: string) {
+    const ws = workspaces[currentIndex];
+    ws.links = ws.links.filter((l:any) => l.id !== id);
+    workspaces = [...workspaces];
+    await saveData();
+    closeLinkMenu();
+  }
+
+  function handleLinkContextMenu(e: MouseEvent, link: any) {
+    e.preventDefault();
+    linkContextMenu = { show: true, x: e.clientX, y: e.clientY, link };
+  }
+  function closeLinkMenu() { linkContextMenu.show = false; }
+
 </script>
 
 <svelte:window on:mousemove={doResize} on:mouseup={stopResize} />
@@ -130,6 +188,7 @@
     </div>
     
     <!-- ツリー表示エリア -->
+    <!-- 💥 ツリー表示エリア（上部） -->
     <div class="flex-1 p-2 overflow-auto">
       {#if workspaces.length > 0 && workspaces[currentIndex]}
         {#each workspaces[currentIndex].nodes as node}
@@ -142,6 +201,30 @@
         <p class="text-sm text-gray-500 p-2">データを読み込み中...</p>
       {/if}
     </div>
+
+    <!-- 💥 リンクエリア（下部） -->
+    {#if workspaces[currentIndex]}
+      <div class="border-t border-gray-700 flex flex-col max-h-48 shrink-0">
+        <div class="flex justify-between items-center p-2 text-xs font-bold text-gray-400 bg-gray-800">
+          <span>🔗 リンク</span>
+          <button on:click={() => openLinkModal()} class="px-2 py-0.5 bg-gray-700 hover:bg-gray-600 rounded text-white transition">＋</button>
+        </div>
+        <div class="p-2 overflow-y-auto space-y-1">
+          {#each workspaces[currentIndex].links || [] as link}
+            <!-- svelte-ignore a11y-click-events-have-key-events -->
+            <!-- svelte-ignore a11y-no-static-element-interactions -->
+            <div 
+              class="text-sm text-blue-400 hover:text-blue-300 hover:underline cursor-pointer truncate pl-1"
+              on:click={() => openUrl(link.url)}
+              on:contextmenu={(e) => handleLinkContextMenu(e, link)}
+              title={link.url}
+            >
+              {link.title}
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
 
     <!-- 💥 左下のワークスペース切り替えUI -->
     <div class="p-2 border-t border-gray-700 bg-gray-800 flex items-center gap-1">
@@ -212,6 +295,44 @@
       <div class="flex justify-end gap-2">
         <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition" on:click={() => isSettingsOpen = false}>キャンセル</button>
         <button class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm transition" on:click={saveSettings}>保存</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- 💥 リンクの右クリックメニュー -->
+{#if linkContextMenu.show}
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <div class="fixed inset-0 z-40" on:click={closeLinkMenu} on:contextmenu|preventDefault={closeLinkMenu}></div>
+  <div 
+    class="fixed bg-gray-800 border border-gray-600 rounded shadow-xl z-50 py-1 w-32"
+    style="left: {linkContextMenu.x}px; top: {linkContextMenu.y}px;"
+  >
+    <button class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition" on:click={() => { openLinkModal(linkContextMenu.link); closeLinkMenu(); }}>編集</button>
+    <button class="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition" on:click={() => deleteLink(linkContextMenu.link.id)}>削除</button>
+  </div>
+{/if}
+
+<!-- 💥 リンク追加/編集モーダル -->
+{#if isLinkModalOpen}
+  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center text-gray-200">
+    <div class="bg-gray-800 p-6 rounded shadow-lg border border-gray-600 w-96">
+      <h2 class="text-lg font-bold mb-4">{editingLinkId ? 'リンクを編集' : 'リンクを追加'}</h2>
+      
+      <div class="mb-4">
+        <label class="block text-sm text-gray-400 mb-1">表示テキスト</label>
+        <input type="text" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm outline-none focus:border-blue-500" bind:value={linkTitle} placeholder="例: Google" />
+      </div>
+
+      <div class="mb-6">
+        <label class="block text-sm text-gray-400 mb-1">URL</label>
+        <input type="text" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm outline-none focus:border-blue-500" bind:value={linkUrl} placeholder="例: https://google.com" />
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition" on:click={() => isLinkModalOpen = false}>キャンセル</button>
+        <button class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm transition" on:click={saveLink}>保存</button>
       </div>
     </div>
   </div>
