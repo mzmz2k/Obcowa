@@ -4,6 +4,20 @@
   import { open } from '@tauri-apps/plugin-dialog';
   import Editor from '../components/Editor.svelte';
   import TreeNode from '../components/TreeNode.svelte';
+  import { editorFont } from '../lib/stores';
+
+    // 💥 設定モーダル用の状態
+  let isSettingsOpen = false;
+  let tempFont = '';
+
+  function openSettings() {
+    tempFont = $editorFont;
+    isSettingsOpen = true;
+  }
+  function saveSettings() {
+    $editorFont = tempFont;
+    isSettingsOpen = false;
+  }
 
   // --- ドラッグリサイズ用の状態 ---
   let sidebarWidth = 260;
@@ -130,26 +144,31 @@
     </div>
 
     <!-- 💥 左下のワークスペース切り替えUI -->
-    <div class="p-3 border-t border-gray-700 bg-gray-800 flex flex-col gap-2">
-      <span class="text-xs text-gray-400 font-bold">リストの切り替え</span>
-      <div class="flex gap-2">
-        <select 
-          class="flex-1 bg-gray-700 text-sm text-gray-200 rounded p-1 outline-none border border-gray-600 focus:border-blue-500"
-          value={currentIndex}
-          on:change={changeWorkspace}
-        >
-          {#each workspaces as ws, index}
-            <option value={index}>{ws.name}</option>
-          {/each}
-        </select>
-        <button 
-          on:click={createNewWorkspace} 
-          class="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded transition"
-          title="新しくリストを作る"
-        >
-          ＋
-        </button>
-      </div>
+    <div class="p-2 border-t border-gray-700 bg-gray-800 flex items-center gap-1">
+      <select 
+        class="w-32 bg-gray-700 text-xs text-gray-200 rounded py-1 px-1 outline-none border border-gray-600 focus:border-blue-500"
+        value={currentIndex}
+        on:change={changeWorkspace}
+      >
+        {#each workspaces as ws, index}
+          <option value={index}>{ws.name}</option>
+        {/each}
+      </select>
+      <button 
+        on:click={createNewWorkspace} 
+        class="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded transition flex-shrink-0"
+        title="新しくリストを作る"
+      >
+        ＋
+      </button>
+      <div class="flex-1"></div> <!-- 余白を埋めて歯車を右に押しやる -->
+      <button 
+        on:click={openSettings}
+        class="px-2 py-1 text-gray-400 hover:text-white transition flex-shrink-0"
+        title="設定"
+      >
+        ⚙️
+      </button>
     </div>
 
   </div>
@@ -172,3 +191,28 @@
   </div>
 
 </main>
+
+<!-- 💥 設定モーダル -->
+{#if isSettingsOpen}
+  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center text-gray-200">
+    <div class="bg-gray-800 p-6 rounded shadow-lg border border-gray-600 w-96">
+      <h2 class="text-lg font-bold mb-4">設定</h2>
+      
+      <div class="mb-6">
+        <label class="block text-sm text-gray-400 mb-2">エディタのフォント</label>
+        <input 
+          type="text" 
+          class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm outline-none focus:border-blue-500"
+          bind:value={tempFont}
+          placeholder="例: sans-serif, 'Meiryo', 'Consolas'"
+        />
+        <p class="text-xs text-gray-500 mt-1">PCにインストールされているフォント名を入力してください。</p>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition" on:click={() => isSettingsOpen = false}>キャンセル</button>
+        <button class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm transition" on:click={saveSettings}>保存</button>
+      </div>
+    </div>
+  </div>
+{/if}

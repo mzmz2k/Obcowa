@@ -14,6 +14,8 @@ export const activeTabId = writable<string | null>(null);
 export const workspaces = writable<any[]>([]);
 export const currentWorkspace = writable<any | null>(null);
 
+export const editorFont = writable<string>('sans-serif');
+
 
 // 🔽 今回追加した部分 🔽
 export function createNewTab() {

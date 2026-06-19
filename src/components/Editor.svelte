@@ -1,9 +1,15 @@
 <script lang="ts">
-    import { openTabs, activeTabId, createNewTab, closeTab } from '$lib/stores';
+    import { openTabs, activeTabId, createNewTab, closeTab, editorFont } from '$lib/stores';
     import { convertFileSrc } from '@tauri-apps/api/core';
     import { marked } from 'marked';
 
     $: activeTab = $openTabs.find(t => t.id === $activeTabId);
+
+    // 💥 追加：冒頭のプロパティ（Frontmatter）を削除する関数
+    function removeFrontmatter(content: string) {
+        // 先頭が --- で始まり、次の --- が来るまでの間を消去する
+        return content.replace(/^---\n[\s\S]*?\n---\n/, '');
+    }
 
     function parseObsidianImages(content: string) {
         return content.replace(/!\[\[(.*?)\]\]/g, (match, filename) => {
@@ -14,7 +20,7 @@
     }
 
     $: renderedHtml = activeTab 
-        ? marked(parseObsidianImages(activeTab.content)) 
+        ? marked(parseObsidianImages(removeFrontmatter(activeTab.content))) 
         : '';
 
     function toggleEditMode() {
@@ -75,34 +81,32 @@
 
     <!-- エディタ / プレビュー エリア -->
     {#if activeTab}
-        <!-- 💥 relative を外し、flex-col を使って構造を整理 -->
-        <div class="flex-1 overflow-y-auto overflow-x-hidden p-6 bg-gray-800 flex flex-col">
+        <div class="flex-1 relative bg-gray-800 flex flex-col overflow-hidden">
             
-            <!-- 💥 右上に配置されるが、スクロールと共に上に流れていくボタン -->
-            <div class="flex justify-end mb-4 shrink-0">
-                <button 
-                    class="px-3 py-1 text-sm bg-gray-700 text-gray-300 rounded shadow border border-gray-600 hover:bg-gray-600 hover:text-white transition"
-                    on:click={toggleEditMode}
-                >
-                    {activeTab.isEditing ? '👀 プレビュー' : '✏️ 編集'}
-                </button>
-            </div>
+            <!-- 💥 常に右上に固定（absolute） -->
+            <button 
+                class="absolute top-4 right-6 z-10 px-3 py-1 text-xs bg-gray-700 text-gray-300 rounded shadow border border-gray-600 hover:bg-gray-600 hover:text-white transition opacity-60 hover:opacity-100"
+                on:click={toggleEditMode}
+            >
+                {activeTab.isEditing ? '👀 プレビュー' : '✏️ 編集'}
+            </button>
 
-            {#if activeTab.isEditing}
-                <!-- 編集モード（このテキストエリア自体が画面の残り高さを埋める） -->
-                <textarea 
-                    class="flex-1 w-full bg-transparent text-gray-200 resize-none focus:outline-none font-mono text-sm min-h-[400px]"
-                    value={activeTab.content}
-                    on:input={handleInput}
-                ></textarea>
-            {:else}
-                <!-- プレビューモード -->
-                <div class="prose prose-invert max-w-none">
-                    {@html renderedHtml}
-                </div>
-            {/if}
+            <div class="flex-1 overflow-y-auto p-6" style="font-family: {$editorFont};">
+                {#if activeTab.isEditing}
+                    <textarea 
+                        class="w-full h-full bg-transparent text-gray-200 resize-none focus:outline-none text-sm min-h-[400px]"
+                        value={activeTab.content}
+                        on:input={handleInput}
+                    ></textarea>
+                {:else}
+                    <div class="prose prose-invert max-w-none">
+                        {@html renderedHtml}
+                    </div>
+                {/if}
+            </div>
         </div>
     {:else}
+
         <div class="flex-1 flex flex-col items-center justify-center text-gray-600 bg-gray-800">
             <div class="text-4xl mb-4">🗂️</div>
             <div>ファイルを選択するか、＋ボタンで新規作成してください</div>
