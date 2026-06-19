@@ -47,13 +47,13 @@
     }
 </script>
 
-<div class="h-full flex flex-col bg-white">
+<div class="h-full flex flex-col bg-gray-900"> <!-- 👈 背景を黒に -->
     {#if activeTab}
-        <!-- ヘッダーエリア（タイトルと切替ボタン） -->
-        <div class="flex justify-between items-center p-2 border-b bg-gray-50">
-            <h2 class="text-lg font-bold text-gray-700">{activeTab.title}</h2>
+        <!-- ヘッダーエリア -->
+        <div class="flex justify-between items-center p-2 border-b border-gray-700 bg-gray-800">
+            <h2 class="text-lg font-bold text-gray-200">{activeTab.title}</h2>
             <button 
-                class="px-4 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                class="px-4 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-500 transition"
                 on:click={toggleEditMode}
             >
                 {activeTab.isEditing ? 'プレビュー' : '編集'}
@@ -64,19 +64,19 @@
         <div class="flex-1 overflow-auto p-4">
             {#if activeTab.isEditing}
                 <textarea 
-                    class="w-full h-full p-2 border rounded resize-none focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono text-sm"
+                    class="w-full h-full p-2 border border-gray-700 bg-gray-900 text-gray-200 rounded resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
                     value={activeTab.content}
                     on:input={handleInput}
                 ></textarea>
             {:else}
-                <div class="prose max-w-none">
-                    <!-- HTMLを直接描画 (@html) -->
+                <!-- 👈 prose-invert を追加するとプレビューもダーク対応になります -->
+                <div class="prose prose-invert max-w-none">
                     {@html renderedHtml}
                 </div>
             {/if}
         </div>
     {:else}
-        <div class="flex-1 flex items-center justify-center text-gray-400">
+        <div class="flex-1 flex items-center justify-center text-gray-500">
             ファイルを選択してください
         </div>
     {/if}
