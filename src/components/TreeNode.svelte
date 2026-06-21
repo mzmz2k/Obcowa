@@ -1,15 +1,15 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
-  import { openFileInCurrentTab, openFileInNewTab, activeTabId } from '../lib/stores';
+  import { openFileInCurrentTab, openFileInNewTab, activeTabId, openTabs, switchTab } from '../lib/stores'; // 💥 openTabsとswitchTabを追加
   import { getContext } from 'svelte';
 
   export let node: any;
   let isOpen = false;
 
-  const { removeNode, pinNode, unpinNode, checkIsPinned } = getContext('workspaceActions') as any;
+  // 💥 getClickBehavior を追加
+  const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior } = getContext('workspaceActions') as any;
 
   // 現在アクティブなタブの path と一致しているか判定
-  import { openTabs } from '../lib/stores';
   $: activeTab = $openTabs.find(t => t.id === $activeTabId);
   $: isActive = activeTab && activeTab.path === node.path;
 
@@ -28,10 +28,22 @@
           console.error("フォルダ読み込み失敗:", e);
         }
       }
-        } else if (node.type === 'File') {
+    } else if (node.type === 'File') {
       try {
         const content = await loadFileContent(node.path);
-        openFileInCurrentTab(node.path, node.name, content);
+        const openInNewTab = getClickBehavior(); // 💥 設定を取得
+
+        if (openInNewTab) {
+          // すでに開いている場合はそのタブをアクティブにする
+          const existingTab = $openTabs.find(t => t.path === node.path);
+          if (existingTab) {
+            switchTab(existingTab.id);
+          } else {
+            openFileInNewTab(node.path, node.name, content);
+          }
+        } else {
+          openFileInCurrentTab(node.path, node.name, content);
+        }
       } catch (e) {
         console.error("ファイル読み込み失敗:", e);
       }
@@ -85,7 +97,12 @@
     </span>
     <span class="mr-1 w-4 text-center">
       {#if node.type === 'Folder'}
-        {isOpen ? '📂' : '📁'}
+        <!-- 💥 ライブラリのルートの場合は本アイコンにする -->
+        {#if node.is_library_root}
+          📚
+        {:else}
+          {isOpen ? '📂' : '📁'}
+        {/if}
       {:else}
         📄
       {/if}

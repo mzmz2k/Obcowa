@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, setContext } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
-  import { open as openDialog } from '@tauri-apps/plugin-dialog';
+  import { open as openDialog, confirm as tauriConfirm } from '@tauri-apps/plugin-dialog';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import Editor from '../components/Editor.svelte';
   import TreeNode from '../components/TreeNode.svelte';
@@ -46,7 +46,9 @@
       }
     },
     unpinNode: (targetNode: any) => unpin(getNodePath(targetNode)),
-    checkIsPinned: (targetNode: any) => workspaces[currentIndex]?.pinned?.some((p:any) => p.path === getNodePath(targetNode))
+    checkIsPinned: (targetNode: any) => workspaces[currentIndex]?.pinned?.some((p:any) => p.path === getNodePath(targetNode)),
+    // 💥 追加: 現在表示しているリストの「タブ挙動」を取得
+    getClickBehavior: () => workspaces[currentIndex]?.open_in_new_tab || false
   });
 
   function unpin(path: string) {
@@ -137,7 +139,9 @@
   }
 
   async function deleteEditingList() {
-    if(confirm("本当に削除しますか？")) {
+    // 💥 Tauriのネイティブダイアログを呼び出す
+    const isYes = await tauriConfirm("本当に削除しますか？", { title: "確認", kind: "warning" });
+    if (isYes) {
       workspaces.splice(editingListIndex, 1);
       if (currentIndex >= workspaces.length) currentIndex = Math.max(0, workspaces.length - 1);
       workspaces = [...workspaces]; await saveData();
@@ -166,7 +170,8 @@
   async function saveLink() {
     if (!linkTitle || !linkUrl) return;
     if (!linkUrl.startsWith('http')) linkUrl = 'https://' + linkUrl;
-    const ws = workspaces[currentIndex];
+    // 💥 修正: リスト管理画面で操作するため currentIndex を editingListIndex に変更
+    const ws = workspaces[editingListIndex];
     if (!ws.links) ws.links = [];
     if (editingLinkId) {
       const idx = ws.links.findIndex((l:any) => l.id === editingLinkId);
@@ -174,7 +179,7 @@
     } else { ws.links.push({ id: Date.now().toString(), title: linkTitle, url: linkUrl }); }
     workspaces = [...workspaces]; await saveData(); isLinkModalOpen = false;
   }
-  async function deleteLink(id: string) { workspaces[currentIndex].links = workspaces[currentIndex].links.filter((l:any) => l.id !== id); workspaces = [...workspaces]; await saveData(); closeLinkMenu(); }
+  async function deleteLink(id: string) { workspaces[editingListIndex].links = workspaces[editingListIndex].links.filter((l:any) => l.id !== id); workspaces = [...workspaces]; await saveData(); closeLinkMenu(); }
   function handleLinkContextMenu(e: MouseEvent, link: any) { e.preventDefault(); linkContextMenu = { show: true, x: e.clientX, y: e.clientY, link }; }
   function closeLinkMenu() { linkContextMenu.show = false; }
 
@@ -223,18 +228,15 @@
 
       <!-- 💥 参照されているライブラリを一括表示 -->
       {#if workspaces[currentIndex]?.linked_libraries?.length > 0}
-        <hr class="border-gray-600 my-3">
-        <div class="text-xs font-bold text-gray-500 mb-2 pl-1">📚 ライブラリ</div>
-        
         {#each workspaces[currentIndex].linked_libraries as libId}
           {@const lib = workspaces.find(w => w.id === libId)}
           {#if lib}
             {#if lib.is_flat}
               {#each lib.nodes as node}
-                <TreeNode {node} />
+                <TreeNode node={{ ...node, is_library_root: node.type === 'Folder' }} />
               {/each}
             {:else}
-              <TreeNode node={{ type: 'Folder', name: lib.name, original_path: null, children: lib.nodes }} />
+              <TreeNode node={{ type: 'Folder', name: lib.name, original_path: null, children: lib.nodes, is_library_root: true }} />
             {/if}
           {/if}
         {/each}
@@ -245,10 +247,9 @@
     <!-- リンク固定エリア -->
     {#if workspaces[currentIndex]}
       <div class="border-t border-gray-700 flex flex-col shrink-0">
-        <div class="flex justify-between items-center p-2 text-xs font-bold text-gray-400">
-          <span>🔗 リンク</span>
-          <button on:click={() => openLinkModal()} class="px-2 py-0.5 bg-gray-700 hover:bg-gray-600 rounded text-white">＋</button>
-        </div>
+        <!-- <div class="flex justify-between items-center p-2 text-xs font-bold text-gray-400">
+          <span>🔗 リンク</span> 
+        </div>-->
         <div class="p-2 overflow-y-auto space-y-1 max-h-[150px]">
           {#each workspaces[currentIndex].links || [] as link}
             <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -323,18 +324,37 @@
   <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center text-gray-200">
     <div class="bg-gray-800 p-6 rounded shadow-lg border border-gray-600 w-[500px]">
       <h2 class="text-lg font-bold mb-4">リスト管理</h2>
-      <select class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none mb-4" bind:value={editingListIndex}>
-        <optgroup label="ワークスペース">{#each workspaces.map((w, i) => ({...w, i})).filter(w => w.category === 'Active') as ws}<option value={ws.i}>{ws.name}</option>{/each}</optgroup>
-        <optgroup label="ライブラリ">{#each workspaces.map((w, i) => ({...w, i})).filter(w => w.category === 'Library') as ws}<option value={ws.i}>{ws.name}</option>{/each}</optgroup>
-      </select>
+      <div class="flex gap-2 mb-4">
+        <select class="flex-1 bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none" bind:value={editingListIndex}>
+          <optgroup label="ワークスペース">{#each workspaces.map((w, i) => ({...w, i})).filter(w => w.category === 'Active') as ws}<option value={ws.i}>{ws.name}</option>{/each}</optgroup>
+          <optgroup label="ライブラリ">{#each workspaces.map((w, i) => ({...w, i})).filter(w => w.category === 'Library') as ws}<option value={ws.i}>{ws.name}</option>{/each}</optgroup>
+        </select>
+        <button on:click={deleteEditingList} class="px-3 py-2 bg-red-900 hover:bg-red-800 text-red-200 rounded text-sm transition font-bold">削除</button>
+      </div>
 
       {#if workspaces[editingListIndex]}
-        <div class="bg-gray-900 p-4 rounded border border-gray-700 mb-6">
+        <div class="bg-gray-900 p-4 rounded border border-gray-700 mb-6 max-h-[50vh] overflow-y-auto">
           <input type="text" class="w-full bg-gray-800 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none mb-4" bind:value={workspaces[editingListIndex].name} on:change={saveData} />
+          
           <div class="flex gap-4 mb-4">
             <label class="flex items-center text-sm cursor-pointer"><input type="radio" bind:group={workspaces[editingListIndex].category} value="Active" on:change={saveData} class="mr-2">ワークスペース</label>
             <label class="flex items-center text-sm cursor-pointer"><input type="radio" bind:group={workspaces[editingListIndex].category} value="Library" on:change={saveData} class="mr-2">ライブラリ</label>
           </div>
+
+          <!-- 💥 ファイルクリック動作設定（ワークスペースのみ） -->
+          {#if workspaces[editingListIndex].category === 'Active'}
+            <div class="mb-4 p-3 bg-gray-800 rounded border border-gray-700">
+              <div class="text-xs text-gray-400 mb-2">ファイルをクリックした時の動作</div>
+              <label class="flex items-center text-sm cursor-pointer mb-2">
+                <input type="radio" bind:group={workspaces[editingListIndex].open_in_new_tab} value={false} on:change={saveData} class="mr-2 text-blue-500">
+                今開いているタブを上書きする
+              </label>
+              <label class="flex items-center text-sm cursor-pointer">
+                <input type="radio" bind:group={workspaces[editingListIndex].open_in_new_tab} value={true} on:change={saveData} class="mr-2 text-blue-500">
+                新しいタブで開く
+              </label>
+            </div>
+          {/if}
 
           <!-- 💥 ライブラリ固有の設定 -->
           {#if workspaces[editingListIndex].category === 'Library'}
@@ -362,7 +382,27 @@
             </div>
           {/if}
 
-          <button on:click={deleteEditingList} class="w-full py-2 bg-red-900 hover:bg-red-800 text-red-200 rounded text-sm transition">このリストを削除</button>
+          <!-- 💥 リンク管理（移設） -->
+          <div class="p-3 bg-gray-800 rounded border border-gray-700">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs text-gray-400">🔗 リンク</span>
+              <button on:click={() => openLinkModal()} class="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs">＋ 追加</button>
+            </div>
+            <div class="space-y-2">
+              {#each workspaces[editingListIndex].links || [] as link}
+                <div class="flex items-center justify-between text-sm text-gray-300 bg-gray-900 p-2 rounded">
+                  <span class="truncate flex-1 pr-2">{link.title}</span>
+                  <div class="flex gap-3 shrink-0">
+                    <button class="text-xs text-blue-400 hover:text-blue-300" on:click={() => openLinkModal(link)}>編集</button>
+                    <button class="text-xs text-red-400 hover:text-red-300" on:click={() => deleteLink(link.id)}>削除</button>
+                  </div>
+                </div>
+              {:else}
+                <div class="text-xs text-gray-500 text-center py-2">リンクはありません</div>
+              {/each}
+            </div>
+          </div>
+
         </div>
       {/if}
       <div class="flex justify-end"><button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm" on:click={() => isManageModalOpen = false}>閉じる</button></div>

@@ -30,11 +30,14 @@ pub struct Workspace {
     #[serde(default)]
     pub pinned: Vec<PinnedItem>,
     
-    // 💥 以下2つを追加（serde(default)があるので過去のデータも壊れません）
     #[serde(default)]
     pub linked_libraries: Vec<String>,
     #[serde(default)]
     pub is_flat: bool,
+
+    // 💥 以下を追加 (過去のファイルも互換性を保つ)
+    #[serde(default)]
+    pub open_in_new_tab: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
