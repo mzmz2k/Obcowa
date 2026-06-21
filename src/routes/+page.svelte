@@ -48,7 +48,8 @@
     unpinNode: (targetNode: any) => unpin(getNodePath(targetNode)),
     checkIsPinned: (targetNode: any) => workspaces[currentIndex]?.pinned?.some((p:any) => p.path === getNodePath(targetNode)),
     // 💥 追加: 現在表示しているリストの「タブ挙動」を取得
-    getClickBehavior: () => workspaces[currentIndex]?.open_in_new_tab || false
+    getClickBehavior: () => workspaces[currentIndex]?.open_in_new_tab || false,
+    saveWorkspace: () => saveData() 
   });
 
   function unpin(path: string) {
@@ -67,6 +68,8 @@
             const oldFolders = new Map(node.children.filter((c:any) => c.type === 'Folder').map((c:any) => [c.original_path, c]));
             for (let fresh of freshChildren) {
               if (fresh.type === 'Folder' && oldFolders.has(fresh.original_path)) {
+                // 💥 変更した表示名を元に戻さず維持する
+                fresh.name = oldFolders.get(fresh.original_path).name;
                 fresh.children = oldFolders.get(fresh.original_path).children;
                 fresh.children = await refreshTree(fresh.children);
               }
@@ -218,10 +221,11 @@
         <hr class="border-gray-700 border-dashed mb-2">
       {/if}
 
-      <div>
+     <div>
         {#if workspaces.length > 0 && workspaces[currentIndex]}
           {#each workspaces[currentIndex].nodes as node}
-            <TreeNode {node} />
+            <!-- 💥 ワークスペースのものは isReadonly={false} を渡す -->
+            <TreeNode {node} isReadonly={false} />
           {/each}
         {/if}
       </div>
@@ -233,10 +237,11 @@
           {#if lib}
             {#if lib.is_flat}
               {#each lib.nodes as node}
-                <TreeNode node={{ ...node, is_library_root: node.type === 'Folder' }} />
+                <!-- 💥 ライブラリのものは isReadonly={true} を渡す -->
+                <TreeNode node={{ ...node, is_library_root: node.type === 'Folder' }} isReadonly={true} />
               {/each}
             {:else}
-              <TreeNode node={{ type: 'Folder', name: lib.name, original_path: null, children: lib.nodes, is_library_root: true }} />
+              <TreeNode node={{ type: 'Folder', name: lib.name, original_path: null, children: lib.nodes, is_library_root: true }} isReadonly={true} />
             {/if}
           {/if}
         {/each}

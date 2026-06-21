@@ -2,12 +2,13 @@
   import { invoke } from '@tauri-apps/api/core';
   import { openFileInCurrentTab, openFileInNewTab, activeTabId, openTabs, switchTab } from '../lib/stores'; // 💥 openTabsとswitchTabを追加
   import { getContext } from 'svelte';
+  import { openPath } from '@tauri-apps/plugin-opener';
 
   export let node: any;
+  export let isReadonly = false; 
   let isOpen = false;
 
-  // 💥 getClickBehavior を追加
-  const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior } = getContext('workspaceActions') as any;
+   const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior, saveWorkspace } = getContext('workspaceActions') as any;
 
   // 現在アクティブなタブの path と一致しているか判定
   $: activeTab = $openTabs.find(t => t.id === $activeTabId);
@@ -75,6 +76,37 @@
       return new TextDecoder('shift-jis').decode(uint8Array);
     }
   }
+
+  function renameFolder() {
+    const newName = prompt("リストに表示する名前を入力してください（実フォルダ名は変わりません）", node.name);
+    if (newName && newName.trim() !== '') {
+      node.name = newName;
+      saveWorkspace();
+    }
+  }
+
+  async function createNewFileInFolder() {
+    const fileName = prompt("新しいファイル名を入力してください\n（例: memo.md, text.txt）", "新しいファイル.md");
+    if (!fileName) return;
+    try {
+      await invoke('create_new_file', { dirPath: node.original_path, fileName });
+      // 💥 作成後、フォルダを開いて中身を再読み込みする
+      isOpen = true;
+      node.children = await invoke('read_directory', { path: node.original_path });
+      saveWorkspace();
+    } catch (e) {
+      alert("ファイル作成に失敗しました: " + e);
+    }
+  }
+
+  async function openInExplorer() {
+    try {
+      // 💥 フォルダ自体（中身）をエクスプローラーで開く
+      await openPath(node.original_path);
+    } catch (e) {
+      console.error("エクスプローラー起動失敗:", e);
+    }
+  }
 </script>
 
 <svelte:window on:click={closeMenu} />
@@ -131,7 +163,7 @@
         </button>
       {/if}
 
-      <!-- 💥 変更：ピン留め状態によって「ピン留め」と「解除」を切り替え -->
+      <!-- 変更：ピン留め状態によって「ピン留め」と「解除」を切り替え -->
       {#if checkIsPinned(node)}
         <button 
           class="block w-full text-left px-4 py-2 text-sm text-yellow-500 hover:bg-gray-700 transition"
@@ -148,12 +180,45 @@
         </button>
       {/if}
 
-      <button 
-        class="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition"
-        on:click={() => { removeNode(node); closeMenu(); }}
-      >
-        リストから削除
-      </button>
+      <!-- 💥 新規追加：フォルダ専用メニュー -->
+      {#if node.type === 'Folder'}
+        {#if !isReadonly}
+          <button 
+            class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
+            on:click={() => { renameFolder(); closeMenu(); }}
+          >
+            ✏️ 表示名を変更
+          </button>
+          
+          {#if node.original_path}
+            <button 
+              class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
+              on:click={() => { createNewFileInFolder(); closeMenu(); }}
+            >
+              📄 新規ファイル作成
+            </button>
+          {/if}
+        {/if}
+
+        {#if node.original_path}
+          <button 
+            class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
+            on:click={() => { openInExplorer(); closeMenu(); }}
+          >
+            📂 エクスプローラーで開く
+          </button>
+        {/if}
+      {/if}
+
+      <!-- 💥 読み取り専用（ライブラリ経由）のときは削除ボタンを隠す -->
+      {#if !isReadonly}
+        <button 
+          class="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition"
+          on:click={() => { removeNode(node); closeMenu(); }}
+        >
+          リストから削除
+        </button>
+      {/if}
       
     </div>
   {/if}
@@ -161,8 +226,10 @@
   {#if isOpen && node.children && node.children.length > 0}
     <div class="border-l border-gray-600 ml-2 pl-1">
       {#each node.children as childNode}
-        <svelte:self node={childNode} />
+        <!-- 💥 子ノードにも isReadonly を伝播させる（孫フォルダも読み取り専用になる） -->
+        <svelte:self node={childNode} {isReadonly} />
       {/each}
     </div>
   {/if}
+
 </div>

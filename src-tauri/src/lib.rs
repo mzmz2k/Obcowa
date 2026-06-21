@@ -168,6 +168,17 @@ fn save_file_content(path: String, content: String) -> Result<(), String> {
     std::fs::write(path, content).map_err(|e| e.to_string())
 }
 
+// 💥 空の新規ファイルを作成するコマンドを追加
+#[tauri::command]
+fn create_new_file(dir_path: String, file_name: String) -> Result<(), String> {
+    let path = std::path::Path::new(&dir_path).join(&file_name);
+    if path.exists() {
+        return Err("同じ名前のファイルがすでに存在します".into());
+    }
+    std::fs::write(path, "").map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -181,7 +192,8 @@ pub fn run() {
             load_workspaces,
             read_file_content,
             read_directory,
-            save_file_content 
+            save_file_content,
+            create_new_file  
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
