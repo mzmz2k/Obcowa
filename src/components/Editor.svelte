@@ -1,6 +1,6 @@
 <script lang="ts">
     import { openTabs, activeTabId, createNewTab, closeTab, switchTab, editorFont } from '$lib/stores';
-    import { convertFileSrc } from '@tauri-apps/api/core';
+    import { invoke, convertFileSrc } from '@tauri-apps/api/core';
     import { marked } from 'marked';
 
      marked.use({ breaks: true });
@@ -21,12 +21,34 @@
         });
     }
 
-    $: renderedHtml = activeTab 
-        ? marked(parseObsidianImages(removeFrontmatter(activeTab.content))) 
-        : '';
+    $: renderedHtml = (() => {
+        if (!activeTab) return '';
+        
+        // .txt ファイルの場合は Markdown 変換をスキップ
+        if (activeTab.path.endsWith('.txt')) {
+            // タグを無効化（サニタイズ）しつつ、改行を <br> にする
+            const safeText = activeTab.content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            return safeText.replace(/\n/g, '<br>');
+        }
+        
+        // .md などそれ以外は通常通り Markdown 変換
+        return marked(parseObsidianImages(removeFrontmatter(activeTab.content)));
+    })();
 
-    function toggleEditMode() {
+    async function toggleEditMode() {
         if (!activeTab) return;
+        
+        // 💥 編集からプレビューに移行するときに実ファイルを保存
+        if (activeTab.isEditing && activeTab.path) {
+            try {
+                await invoke('save_file_content', { path: activeTab.path, content: activeTab.content });
+                activeTab.isDirty = false;
+            } catch (e) {
+                console.error("保存失敗:", e);
+                alert("ファイルの保存に失敗しました");
+            }
+        }
+
         openTabs.update(tabs => {
             const tab = tabs.find(t => t.id === activeTab!.id);
             if (tab) tab.isEditing = !tab.isEditing;
@@ -99,7 +121,7 @@
                         on:input={handleInput}
                     ></textarea>
                 {:else}
-                    <div class="prose prose-invert max-w-none">
+                    <div class="prose prose-invert max-w-none select-text cursor-text">
                         {@html renderedHtml}
                     </div>
                 {/if}

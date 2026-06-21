@@ -4,6 +4,14 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use tauri::{AppHandle, Manager};
 
+// 💥 ピン留め用の構造体
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PinnedItem {
+    pub item_type: String,
+    pub name: String,
+    pub path: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LinkItem {
     pub id: String,
@@ -19,6 +27,14 @@ pub struct Workspace {
     pub nodes: Vec<VirtualNode>,
     #[serde(default)]
     pub links: Vec<LinkItem>,
+    #[serde(default)]
+    pub pinned: Vec<PinnedItem>,
+    
+    // 💥 以下2つを追加（serde(default)があるので過去のデータも壊れません）
+    #[serde(default)]
+    pub linked_libraries: Vec<String>,
+    #[serde(default)]
+    pub is_flat: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -101,8 +117,8 @@ fn load_workspaces(app: AppHandle) -> Result<Vec<Workspace>, String> {
 }
 
 #[tauri::command]
-fn read_file_content(path: String) -> Result<String, String> {
-    fs::read_to_string(path).map_err(|e| e.to_string())
+fn read_file_content(path: String) -> Result<Vec<u8>, String> {
+    fs::read(path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -124,7 +140,8 @@ fn read_directory(path: String) -> Result<Vec<VirtualNode>, String> {
                 original_path: Some(path.to_string_lossy().into_owned()),
                 children: Vec::new(), // 最初は閉じているので空にしておく
             });
-        } else if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
+        // 💥 md と txt の両方を許可する
+        } else if path.is_file() && (path.extension().and_then(|s| s.to_str()) == Some("md") || path.extension().and_then(|s| s.to_str()) == Some("txt")) {
             // 今回はMarkdown(.md)のみをリストアップ
             nodes.push(VirtualNode::File {
                 name,
@@ -143,6 +160,11 @@ fn read_directory(path: String) -> Result<Vec<VirtualNode>, String> {
     Ok(nodes)
 }
 
+#[tauri::command]
+fn save_file_content(path: String, content: String) -> Result<(), String> {
+    std::fs::write(path, content).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -155,7 +177,8 @@ pub fn run() {
             save_workspaces,
             load_workspaces,
             read_file_content,
-            read_directory
+            read_directory,
+            save_file_content 
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

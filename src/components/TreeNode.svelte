@@ -6,7 +6,7 @@
   export let node: any;
   let isOpen = false;
 
-  const { removeNode } = getContext('workspaceActions') as any;
+  const { removeNode, pinNode, unpinNode, checkIsPinned } = getContext('workspaceActions') as any;
 
   // 現在アクティブなタブの path と一致しているか判定
   import { openTabs } from '../lib/stores';
@@ -28,10 +28,10 @@
           console.error("フォルダ読み込み失敗:", e);
         }
       }
-    } else if (node.type === 'File') {
+        } else if (node.type === 'File') {
       try {
-        const content: string = await invoke('read_file_content', { path: node.path });
-        openFileInCurrentTab(node.path, node.name, content); // 👈ここを変更
+        const content = await loadFileContent(node.path);
+        openFileInCurrentTab(node.path, node.name, content);
       } catch (e) {
         console.error("ファイル読み込み失敗:", e);
       }
@@ -49,6 +49,19 @@
   // 画面のどこかをクリックしたらメニューを閉じる
   function closeMenu() {
     showMenu = false;
+  }
+
+  // ファイルをバイト列として読み込み、文字コードを判定してデコードする
+  async function loadFileContent(path: string): Promise<string> {
+    const bytes: number[] = await invoke('read_file_content', { path });
+    const uint8Array = new Uint8Array(bytes);
+    try {
+      // まずUTF-8として厳密にデコード
+      return new TextDecoder('utf-8', { fatal: true }).decode(uint8Array);
+    } catch (e) {
+      // 失敗した場合はShift-JISとしてデコード（Windowsのメモ帳などで作成されたファイル対策）
+      return new TextDecoder('shift-jis').decode(uint8Array);
+    }
   }
 </script>
 
@@ -92,7 +105,7 @@
         <button 
           class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
           on:click={async () => {
-            const content = await invoke('read_file_content', { path: node.path });
+            const content = await loadFileContent(node.path);
             openFileInNewTab(node.path, node.name, content);
             closeMenu();
           }}
@@ -101,12 +114,30 @@
         </button>
       {/if}
 
+      <!-- 💥 変更：ピン留め状態によって「ピン留め」と「解除」を切り替え -->
+      {#if checkIsPinned(node)}
+        <button 
+          class="block w-full text-left px-4 py-2 text-sm text-yellow-500 hover:bg-gray-700 transition"
+          on:click={() => { unpinNode(node); closeMenu(); }}
+        >
+          📌 ピン留め解除
+        </button>
+      {:else}
+        <button 
+          class="block w-full text-left px-4 py-2 text-sm text-yellow-400 hover:bg-gray-700 transition"
+          on:click={() => { pinNode(node); closeMenu(); }}
+        >
+          📌 ピン留め
+        </button>
+      {/if}
+
       <button 
         class="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition"
-        on:click={() => removeNode(node)}
+        on:click={() => { removeNode(node); closeMenu(); }}
       >
         リストから削除
       </button>
+      
     </div>
   {/if}
 
