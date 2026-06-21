@@ -110,7 +110,7 @@
                 class="absolute top-4 right-6 z-10 px-3 py-1 text-xs bg-gray-700 text-gray-300 rounded shadow border border-gray-600 hover:bg-gray-600 hover:text-white transition opacity-60 hover:opacity-100"
                 on:click={toggleEditMode}
             >
-                {activeTab.isEditing ? '👀 プレビュー' : '✏️ 編集'}
+                {activeTab.isEditing ? '📖' : '✏️'}
             </button>
 
             <div class="flex-1 overflow-y-auto p-6" style="font-family: {$editorFont};">

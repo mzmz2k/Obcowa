@@ -309,12 +309,14 @@
       </div>
       <input type="text" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none mb-4" bind:value={newListName} placeholder="新しい名前" />
       {#if newListMode === 'Active'}
-        <select class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm mb-4" bind:value={sourceLibraryId}>
+
+      <select class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm mb-4" bind:value={sourceLibraryId}>
           <option value="none">空から作成 (ライブラリを使わない)</option>
           {#each workspaces.filter(w => w.category === 'Library') as lib}
             <option value={lib.id}>{lib.name} からインポート</option>
           {/each}
         </select>
+        
       {/if}
       <div class="flex justify-end gap-2">
         <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm" on:click={() => isCreateModalOpen = false}>キャンセル</button>
