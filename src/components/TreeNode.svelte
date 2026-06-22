@@ -7,7 +7,7 @@
   export let isReadonly = false; 
   let isOpen = false;
 
-   const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior, saveWorkspace } = getContext('workspaceActions') as any;
+  const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior, saveWorkspace, editSmartFolder } = getContext('workspaceActions') as any;
 
   // 現在アクティブなタブの path と一致しているか判定
   $: activeTab = $openTabs.find(t => t.id === $activeTabId);
@@ -180,23 +180,37 @@
       {/if}
 
       <!-- 💥 新規追加：フォルダ専用メニュー -->
+     <!-- 新規追加：フォルダ専用メニュー -->
       {#if node.type === 'Folder'}
         {#if !isReadonly}
-          <button 
-            class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
-            on:click={() => { renameFolder(); closeMenu(); }}
-          >
-            ✏️ 表示名を変更
-          </button>
           
-          {#if node.original_path}
+          <!-- 💥 スマートフォルダの場合は「条件を編集」にする -->
+          {#if node.smart_rules}
             <button 
               class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
-              on:click={() => { createNewFileInFolder(); closeMenu(); }}
+              on:click={() => { editSmartFolder(node); closeMenu(); }}
             >
-              📄 新規ファイル作成
+              🔍 条件を編集
             </button>
+          {:else}
+            <!-- 普通のフォルダの場合は今まで通り -->
+            <button 
+              class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
+              on:click={() => { renameFolder(); closeMenu(); }}
+            >
+              ✏️ 表示名を変更
+            </button>
+            
+            {#if node.original_path}
+              <button 
+                class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
+                on:click={() => { createNewFileInFolder(); closeMenu(); }}
+              >
+                📄 新規ファイル作成
+              </button>
+            {/if}
           {/if}
+
         {/if}
 
         {#if node.original_path}

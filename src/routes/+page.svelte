@@ -20,6 +20,12 @@
 
   // --- メニューとモーダルの状態 ---
   let isListMenuOpen = false, isCreateModalOpen = false, isManageModalOpen = false, isImportLibraryModalOpen = false;
+  // 💥 追加: フォルダ追加メニューとスマートフォルダ関連
+  let isAddFolderMenuOpen = false, isSmartFolderModalOpen = false;
+  let sfName = '', sfTarget = '', sfMatch = 'AND', sfKeep = true;
+  let sfConds: any[] = [];
+  let editingSmartNode: any = null;
+
   let newListName = '', newListMode = 'Active', sourceLibraryId = 'none';
   let editingListIndex = 0, selectedLibraryId = '';
 
@@ -52,6 +58,17 @@
     // 💥 追加: 現在表示しているリストの「タブ挙動」を取得
     getClickBehavior: () => workspaces[currentIndex]?.open_in_new_tab || false,
     saveWorkspace: () => saveData() 
+    // 💥 新規追加: ツリーから編集モードを呼び出す
+    editSmartFolder: (node: any) => {
+      editingSmartNode = node;
+      sfName = node.name;
+      sfTarget = node.smart_rules.target_dir;
+      sfMatch = node.smart_rules.match_type;
+      sfKeep = node.smart_rules.keep_structure;
+      // 条件はコピーして渡す（キャンセル時に反映させないため）
+      sfConds = JSON.parse(JSON.stringify(node.smart_rules.conditions));
+      isSmartFolderModalOpen = true;
+    }
   });
 
   function unpin(path: string) {
@@ -60,44 +77,74 @@
   }
 
   // --- フォルダ更新関連 ---
-  async function refreshTree(nodes: any[]): Promise<any[]> {
+ async function refreshTree(nodes: any[]): Promise<any[]> {
     const updatedNodes = [];
     for (let node of nodes) {
       if (node.type === 'Folder' && node.original_path) {
         try {
-          // 1. OSからこのフォルダの直下の最新構成を取得する
-          let freshChildren: any[] = await invoke('read_directory', { path: node.original_path });
-          
-          // 2. 元々読み込んでいたフォルダの「変更した表示名」と「子要素」を維持するための準備
-          const oldFolders = new Map();
-          if (node.children) {
-            for (const c of node.children) {
-              if (c.type === 'Folder') oldFolders.set(c.original_path, c);
-            }
-          }
-
-          // 3. 最新構成に対して、古い情報を引き継がせる
-          for (let fresh of freshChildren) {
-            if (fresh.type === 'Folder') {
-              if (oldFolders.has(fresh.original_path)) {
-                const old = oldFolders.get(fresh.original_path);
-                fresh.name = old.name;
-                fresh.children = old.children || [];
-              } else {
-                // 新しく見つかったフォルダ
-                fresh.children = [];
+          // 💥 スマートフォルダの場合は専用の再評価コマンドを呼ぶだけで完結する
+          if (node.smart_rules) {
+            node.children = await invoke('evaluate_smart_folder', { rules: node.smart_rules });
+          } else {
+            // 普通のフォルダの場合
+            let freshChildren: any[] = await invoke('read_directory', { path: node.original_path });
+            
+            const oldFolders = new Map();
+            if (node.children) {
+              for (const c of node.children) {
+                if (c.type === 'Folder') oldFolders.set(c.original_path, c);
               }
             }
-          }
-          
-          // 💥 4. 一番深い階層まですべて再帰的に読み込ませる（フォルダの中身を全部見る）
-          node.children = await refreshTree(freshChildren);
 
+            for (let fresh of freshChildren) {
+              if (fresh.type === 'Folder') {
+                if (oldFolders.has(fresh.original_path)) {
+                  const old = oldFolders.get(fresh.original_path);
+                  fresh.name = old.name;
+                  fresh.children = old.children || [];
+                } else {
+                  fresh.children = [];
+                }
+              }
+            }
+            node.children = await refreshTree(freshChildren);
+          }
         } catch (e) {}
       }
       updatedNodes.push(node);
     }
     return updatedNodes;
+  }
+
+  // 💥 追加: スマートフォルダ操作関数
+  function changeCondType(idx: number, type: string) {
+    if (type === 'Tag') sfConds[idx] = { cond_type: 'Tag', tag: '', include_inline: false, is_exclude: false };
+    else sfConds[idx] = { cond_type: 'Date', date_type: 'updated', limit: 10 };
+  }
+  async function selectSfTarget() {
+    const path = await openDialog({ directory: true });
+    if (typeof path === 'string') sfTarget = path;
+  }
+  async function saveSmartFolder() {
+    if (!sfName || !sfTarget) return alert("名前と抽出元フォルダを指定してください");
+    const rules = { target_dir: sfTarget, match_type: sfMatch, conditions: sfConds, keep_structure: sfKeep };
+    try {
+      const children = await invoke('evaluate_smart_folder', { rules });
+      
+      if (editingSmartNode) {
+        // 編集のとき
+        editingSmartNode.name = sfName;
+        editingSmartNode.smart_rules = rules;
+        editingSmartNode.children = children; // 条件が変わったので中身も更新
+      } else {
+        // 新規作成のとき
+        workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, { type: "Folder", name: sfName, original_path: sfTarget, children, smart_rules: rules }];
+      }
+      
+      workspaces = [...workspaces];
+      await saveData();
+      isSmartFolderModalOpen = false;
+    } catch (e) { alert("抽出に失敗しました: " + e); }
   }
 
   async function handleRefresh() {
@@ -305,18 +352,27 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   function saveSettings() { $editorFont = tempFont; isSettingsOpen = false; }
 </script>
 
-<svelte:window on:mousemove={doResize} on:mouseup={stopResize} on:click={() => isListMenuOpen = false} />
-
+<svelte:window on:mousemove={doResize} on:mouseup={stopResize} on:click={() => { isListMenuOpen = false; isAddFolderMenuOpen = false; }} />
 <main class="h-screen w-screen flex bg-gray-900 text-gray-200 select-none">
   
   <div class="bg-gray-800 flex flex-col" style="width: {sidebarWidth}px">
-    
+
     <div class="p-3 border-b border-gray-700 font-bold flex justify-between items-center text-gray-300">
       <span class="truncate pr-2">{workspaces[currentIndex]?.name || 'リスト'}</span>
-      <div class="flex gap-2 shrink-0">
+      <div class="flex gap-2 shrink-0 relative">
         <button on:click={handleRefresh} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">↻</button>
         <button on:click={addFile} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">📄</button>
-        <button on:click={addFolder} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">📁</button>
+        
+        <!-- 💥 フォルダ追加ボタンの変更 -->
+        <button on:click|stopPropagation={() => isAddFolderMenuOpen = !isAddFolderMenuOpen} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">📁</button>
+        {#if isAddFolderMenuOpen}
+          <div class="absolute top-8 right-0 bg-gray-800 border border-gray-600 rounded shadow-xl z-50 py-1 w-40 text-sm font-normal">
+            <button class="block w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isAddFolderMenuOpen = false; addFolder(); }}>普通のフォルダ</button>
+            <!-- 💥 新規作成時は editingSmartNode=null を追加 -->
+            <button class="block w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isAddFolderMenuOpen = false; sfName=''; sfTarget=''; sfConds=[]; editingSmartNode=null; isSmartFolderModalOpen = true; }}>🔍 条件で抽出</button>
+          </div>
+        {/if}
+
       </div>
     </div>
     
@@ -578,6 +634,77 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
       <div class="flex justify-end gap-2">
         <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm" on:click={() => isSettingsOpen = false}>キャンセル</button>
         <button class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm" on:click={saveSettings}>保存</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- 💥 条件で抽出（スマートフォルダ）モーダル -->
+{#if isSmartFolderModalOpen}
+<div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center text-gray-200">
+    <div class="bg-gray-800 p-6 rounded shadow-lg border border-gray-600 w-[550px] max-h-[90vh] overflow-y-auto">
+      <!-- 💥 タイトルを切り替え -->
+      <h2 class="text-lg font-bold mb-4">{editingSmartNode ? '条件を編集' : '条件で抽出'}</h2>
+      
+      <div class="mb-4 space-y-2">
+        <input type="text" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none" bind:value={sfName} placeholder="リストに表示する名前" />
+        <div class="flex gap-2">
+          <input type="text" class="flex-1 bg-gray-700 text-gray-400 border border-gray-600 rounded p-2 text-sm" value={sfTarget} readonly placeholder="抽出元のフォルダ" />
+          <button on:click={selectSfTarget} class="px-3 bg-gray-700 hover:bg-gray-600 rounded text-sm border border-gray-600">選択</button>
+        </div>
+      </div>
+
+      <div class="bg-gray-900 p-4 rounded border border-gray-700 mb-4">
+        <div class="flex justify-between items-center mb-3">
+          <select class="bg-gray-700 text-gray-200 border border-gray-600 rounded p-1 text-sm outline-none" bind:value={sfMatch}>
+            <option value="AND">すべての条件を満たす (AND)</option>
+            <option value="OR">いずれかの条件を満たす (OR)</option>
+          </select>
+          <button class="text-sm px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded" on:click={() => sfConds.length < 5 && sfConds.push({ cond_type: 'Tag', tag: '', include_inline: false, is_exclude: false }) && (sfConds = sfConds)} disabled={sfConds.length >= 5}>＋ 条件を追加</button>
+        </div>
+
+        <div class="space-y-3">
+          {#each sfConds as cond, i}
+            <div class="flex flex-col gap-2 p-3 bg-gray-800 border border-gray-600 rounded relative">
+              <button class="absolute top-2 right-2 text-red-400 hover:text-red-300 text-xs" on:click={() => { sfConds.splice(i, 1); sfConds = sfConds; }}>✕</button>
+              
+              <select class="w-48 bg-gray-700 text-gray-200 border border-gray-600 rounded p-1 text-sm outline-none" value={cond.cond_type} on:change={(e) => changeCondType(i, e.target.value)}>
+                <option value="Tag">タグ</option>
+                <option value="Date">作成日 / 更新日</option>
+              </select>
+
+              {#if cond.cond_type === 'Tag'}
+                <div class="flex items-center gap-2">
+                  <input type="text" class="flex-1 bg-gray-700 text-gray-200 border border-gray-600 rounded p-1 text-sm outline-none" bind:value={cond.tag} placeholder="タグ名 (例: memo)" />
+                  <select class="w-24 bg-gray-700 text-gray-200 border border-gray-600 rounded p-1 text-sm outline-none" bind:value={cond.is_exclude}>
+                    <option value={false}>がある</option><option value={true}>がない</option>
+                  </select>
+                </div>
+                <label class="flex items-center text-xs text-gray-400 cursor-pointer"><input type="checkbox" bind:checked={cond.include_inline} class="mr-2">本文中のタグも含める</label>
+              {:else}
+                <div class="flex items-center gap-2">
+                  <select class="bg-gray-700 text-gray-200 border border-gray-600 rounded p-1 text-sm outline-none" bind:value={cond.date_type}>
+                    <option value="created">作成日</option><option value="updated">更新日</option>
+                  </select>
+                  <span class="text-sm">が新しいもの</span>
+                  <input type="number" class="w-16 bg-gray-700 text-gray-200 border border-gray-600 rounded p-1 text-sm outline-none" bind:value={cond.limit} min="1" max="100" />
+                  <span class="text-sm">件</span>
+                </div>
+              {/if}
+            </div>
+          {/each}
+          {#if sfConds.length === 0}<div class="text-xs text-gray-500 text-center py-2">条件がありません（すべて抽出されます）</div>{/if}
+        </div>
+      </div>
+
+      <label class="flex items-center text-sm cursor-pointer mb-6 text-gray-300">
+        <input type="checkbox" bind:checked={sfKeep} class="mr-2"> 抽出したものの元のフォルダ構成を維持する
+      </label>
+
+ <div class="flex justify-end gap-2">
+        <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm" on:click={() => isSmartFolderModalOpen = false}>キャンセル</button>
+        <!-- 💥 ボタンの文字と呼び出す関数を切り替え -->
+        <button class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm" on:click={saveSmartFolder}>{editingSmartNode ? '保存して更新' : '抽出して追加'}</button>
       </div>
     </div>
   </div>
