@@ -63,16 +63,21 @@ pub struct SmartRules {
     pub keep_structure: bool,
 }
 
+// 💥 デフォルト値用の関数を用意
+fn default_match_mode() -> String { "contains".to_string() }
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "cond_type")]
 pub enum SmartCondition {
     Tag {
         tag: String,
+        #[serde(default = "default_match_mode")] // 過去データ互換用
+        match_mode: String,
         include_inline: bool,
         is_exclude: bool,
     },
     Date {
-        date_type: String, // "created" または "updated"
+        date_type: String, 
         limit: usize,
     }
 }
@@ -351,8 +356,9 @@ async fn evaluate_smart_folder(rules: SmartRules) -> Result<Vec<VirtualNode>, St
         for cond in &rules.conditions {
             has_conditions = true;
             let cond_match = match cond {
-                SmartCondition::Tag { tag, include_inline, is_exclude } => {
-                    let has_tag = if *include_inline { file.content.contains(&format!("#{}", tag)) || check_frontmatter(&file.content, tag) } else { check_frontmatter(&file.content, tag) };
+                // 💥 match_mode を受け取り、作った関数で正確に判定させる
+                SmartCondition::Tag { tag, match_mode, include_inline, is_exclude } => {
+                    let has_tag = check_tag_match(&file.content, tag, match_mode, *include_inline);
                     if *is_exclude { !has_tag } else { has_tag }
                 },
                 SmartCondition::Date { .. } => {
@@ -371,6 +377,55 @@ async fn evaluate_smart_folder(rules: SmartRules) -> Result<Vec<VirtualNode>, St
 
     if rules.keep_structure { Ok(build_tree_from_paths(filtered_files, &rules.target_dir)) } 
     else { Ok(filtered_files.into_iter().map(|f| VirtualNode::File { name: f.name, path: f.path }).collect()) }
+}
+
+// 💥 追加: タグを正確に抽出し、指定された条件で比較する関数
+fn check_tag_match(content: &str, target_tag: &str, match_mode: &str, include_inline: bool) -> bool {
+    let target = target_tag.trim();
+    if target.is_empty() {
+        return false; // 空文字の場合はマッチさせない（全件ヒットバグの防止）
+    }
+
+    let mut candidate_tags = Vec::new();
+
+    // 1. フロントマター内から「単語」だけを抽出する
+    if content.starts_with("---\n") {
+        if let Some(end_idx) = content[4..].find("---\n") {
+            let frontmatter = &content[4..4 + end_idx];
+            let delimiters = [' ', '\n', '\t', ',', '[', ']', '"', '\'', '-'];
+            for word in frontmatter.split(|c: char| delimiters.contains(&c)) {
+                let w = word.trim();
+                if !w.is_empty() && w != "tags:" && w != "tag:" {
+                    candidate_tags.push(w);
+                }
+            }
+        }
+    }
+
+    // 2. 本文中から "#" で始まる単語を抽出する
+    if include_inline {
+        let delimiters = [' ', '\n', '\t', ',', '.', '!', '?', '(', ')', '[', ']', '<', '>'];
+        for word in content.split(|c: char| delimiters.contains(&c)) {
+            if word.starts_with('#') && word.len() > 1 {
+                candidate_tags.push(&word[1..]); // 先頭の # を除いて格納
+            }
+        }
+    }
+
+    // 3. 抽出したタグの中に条件を満たすものがあるかチェック
+    for tag in candidate_tags {
+        let is_match = match match_mode {
+            "exact" => tag == target,
+            "starts" => tag.starts_with(target),
+            "ends" => tag.ends_with(target),
+            "contains" => tag.contains(target),
+            _ => tag.contains(target),
+        };
+        if is_match {
+            return true;
+        }
+    }
+    false
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

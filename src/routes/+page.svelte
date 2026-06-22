@@ -57,7 +57,7 @@
     checkIsPinned: (targetNode: any) => workspaces[currentIndex]?.pinned?.some((p:any) => p.path === getNodePath(targetNode)),
     // 💥 追加: 現在表示しているリストの「タブ挙動」を取得
     getClickBehavior: () => workspaces[currentIndex]?.open_in_new_tab || false,
-    saveWorkspace: () => saveData() 
+    saveWorkspace: () => saveData() ,
     // 💥 新規追加: ツリーから編集モードを呼び出す
     editSmartFolder: (node: any) => {
       editingSmartNode = node;
@@ -67,6 +67,11 @@
       sfKeep = node.smart_rules.keep_structure;
       // 条件はコピーして渡す（キャンセル時に反映させないため）
       sfConds = JSON.parse(JSON.stringify(node.smart_rules.conditions));
+      
+      // 💥 過去のデータで match_mode が無い場合は補完する
+      sfConds.forEach(c => {
+        if (c.cond_type === 'Tag' && !c.match_mode) c.match_mode = 'contains';
+      });
       isSmartFolderModalOpen = true;
     }
   });
@@ -118,7 +123,8 @@
 
   // 💥 追加: スマートフォルダ操作関数
   function changeCondType(idx: number, type: string) {
-    if (type === 'Tag') sfConds[idx] = { cond_type: 'Tag', tag: '', include_inline: false, is_exclude: false };
+    // 💥 match_mode: 'contains' を追加
+    if (type === 'Tag') sfConds[idx] = { cond_type: 'Tag', tag: '', match_mode: 'contains', include_inline: false, is_exclude: false };
     else sfConds[idx] = { cond_type: 'Date', date_type: 'updated', limit: 10 };
   }
   async function selectSfTarget() {
@@ -676,7 +682,16 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
               {#if cond.cond_type === 'Tag'}
                 <div class="flex items-center gap-2">
                   <input type="text" class="flex-1 bg-gray-700 text-gray-200 border border-gray-600 rounded p-1 text-sm outline-none" bind:value={cond.tag} placeholder="タグ名 (例: memo)" />
-                  <select class="w-24 bg-gray-700 text-gray-200 border border-gray-600 rounded p-1 text-sm outline-none" bind:value={cond.is_exclude}>
+                  
+                  <!-- 💥 マッチモードの選択肢を追加 -->
+                  <select class="w-24 bg-gray-700 text-gray-200 border border-gray-600 rounded p-1 text-sm outline-none" bind:value={cond.match_mode}>
+                    <option value="contains">部分一致</option>
+                    <option value="exact">完全一致</option>
+                    <option value="starts">前方一致</option>
+                    <option value="ends">後方一致</option>
+                  </select>
+
+                  <select class="w-20 bg-gray-700 text-gray-200 border border-gray-600 rounded p-1 text-sm outline-none" bind:value={cond.is_exclude}>
                     <option value={false}>がある</option><option value={true}>がない</option>
                   </select>
                 </div>
