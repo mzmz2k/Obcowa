@@ -3,9 +3,10 @@
   import { invoke } from '@tauri-apps/api/core';
   import { open as openDialog, confirm as tauriConfirm } from '@tauri-apps/plugin-dialog';
   import { openUrl } from '@tauri-apps/plugin-opener';
+  import { WebviewWindow } from '@tauri-apps/api/webviewWindow'; // 💥 新規ウィンドウ用
   import Editor from '../components/Editor.svelte';
   import TreeNode from '../components/TreeNode.svelte';
-  import { editorFont } from '../lib/stores';
+  import { editorFont, openTabs, activeTabId } from '../lib/stores'; // 💥 タブ状態取得用に追加
 
   let sidebarWidth = 260;
   let isResizing = false;
@@ -15,6 +16,7 @@
 
   let workspaces: any[] = [];
   let currentIndex = 0;
+  let isInitialized = false; 
 
   // --- メニューとモーダルの状態 ---
   let isListMenuOpen = false, isCreateModalOpen = false, isManageModalOpen = false, isImportLibraryModalOpen = false;
@@ -88,21 +90,79 @@
     workspaces = [...workspaces]; await saveData();
   }
 
-  onMount(async () => {
+   onMount(async () => {
     try {
       workspaces = await invoke('load_workspaces');
       if (workspaces.length === 0) {
-        workspaces = [{ id: Date.now().toString(), name: '作業中', category: 'Active', nodes: [], links: [], pinned: [], linked_libraries: [], is_flat: false }];
+        workspaces = [{ id: Date.now().toString(), name: '作業中', category: 'Active', nodes: [], links: [], pinned: [], linked_libraries: [], is_flat: false, open_in_new_tab: false, saved_tabs: [], active_tab_id: null }];
       } else {
         for (let ws of workspaces) ws.nodes = await refreshTree(ws.nodes);
         workspaces = [...workspaces];
       }
-      const firstActive = workspaces.findIndex(w => w.category === 'Active');
-      if(firstActive !== -1) currentIndex = firstActive;
-    } catch (e) {}
-  });
+      
+      // 💥 別ウィンドウから渡されたパラメータを取得してリストを切り替え
+      const params = new URLSearchParams(window.location.search);
+      const wsParam = params.get('ws');
+      if (wsParam !== null) {
+        currentIndex = parseInt(wsParam, 10);
+      } else {
+        const firstActive = workspaces.findIndex(w => w.category === 'Active');
+        if(firstActive !== -1) currentIndex = firstActive;
+      }
 
-  async function saveData() { await invoke('save_workspaces', { workspaces }); }
+
+  // 💥 保存されていたタブの復元
+  const ws = workspaces[currentIndex];
+  if (ws && ws.saved_tabs && ws.saved_tabs.length > 0) {
+    const restored = [];
+    for (const tab of ws.saved_tabs) {
+      let content = "";
+      if (tab.path) {
+        try {
+          const bytes: number[] = await invoke('read_file_content', { path: tab.path });
+          const uint8Array = new Uint8Array(bytes);
+          try { content = new TextDecoder('utf-8', { fatal: true }).decode(uint8Array); } 
+          catch { content = new TextDecoder('shift-jis').decode(uint8Array); }
+        } catch(e) {}
+      }
+      restored.push({ id: tab.id, path: tab.path, title: tab.title, content, isEditing: tab.isEditing, isDirty: false });
+    }
+    openTabs.set(restored);
+    activeTabId.set(ws.active_tab_id || restored[0].id);
+  }
+  
+  // 💥 復元がすべて終わってからフラグをONにする
+  isInitialized = true;
+} catch (e) {}
+});
+
+// 💥 タブの状態が変わったら自動でワークスペースに記録（初期化完了後のみ動くように修正）
+$: if (isInitialized && workspaces.length > 0 && workspaces[currentIndex]) {
+const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title, isEditing: t.isEditing }));
+    const currentWs = workspaces[currentIndex];
+    
+    // 無限ループを防ぐため、変化があった時のみ保存
+    if (JSON.stringify(currentWs.saved_tabs) !== JSON.stringify(tabsToSave) || currentWs.active_tab_id !== $activeTabId) {
+      currentWs.saved_tabs = tabsToSave;
+      currentWs.active_tab_id = $activeTabId;
+      saveData();
+    }
+  }
+
+  // 💥 複数ウィンドウでのファイル書き込み競合を防ぐため、保存直前に最新を読み込んでマージ
+  async function saveData() {
+    try {
+      const latestWorkspaces: any[] = await invoke('load_workspaces');
+      if (latestWorkspaces.length > 0 && latestWorkspaces[currentIndex]) {
+        latestWorkspaces[currentIndex] = workspaces[currentIndex];
+        await invoke('save_workspaces', { workspaces: latestWorkspaces });
+      } else {
+        await invoke('save_workspaces', { workspaces });
+      }
+    } catch (e) {
+      await invoke('save_workspaces', { workspaces });
+    }
+  }
 
   // --- リスト作成・管理関連 ---
   async function createNewWorkspace() {
@@ -152,7 +212,29 @@
     }
   }
 
-  function changeWorkspace(e: Event) { currentIndex = parseInt((e.target as HTMLSelectElement).value, 10); }
+  function changeWorkspace(e: Event) {
+    const target = e.target as HTMLSelectElement;
+    const selectedIndex = parseInt(target.value, 10);
+    
+    // 現在のウィンドウは切り替えず、セレクトボックスの表示を元に戻す
+    target.value = currentIndex.toString();
+    if (selectedIndex === currentIndex) return;
+
+    // 別のワークスペースを「新しいウィンドウ」として開く
+    const label = `ws-${Date.now()}`;
+    const webview = new WebviewWindow(label, {
+      url: `/?ws=${selectedIndex}`,
+      title: workspaces[selectedIndex].name,
+      width: 1000,
+      height: 800
+    });
+
+    // 💥 万が一ウィンドウが開けなかった時にエラーメッセージを出す
+    webview.once('tauri://error', function (e) {
+      console.error('ウィンドウ生成エラー:', e);
+      alert('新しいウィンドウを開けませんでした。パーミッション設定を確認してください。');
+    });
+  }
 
   async function addFolder() {
     const selectedPath = await openDialog({ directory: true, multiple: false });

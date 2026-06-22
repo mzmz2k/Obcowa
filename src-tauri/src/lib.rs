@@ -34,10 +34,24 @@ pub struct Workspace {
     pub linked_libraries: Vec<String>,
     #[serde(default)]
     pub is_flat: bool,
-
-    // 💥 以下を追加 (過去のファイルも互換性を保つ)
     #[serde(default)]
     pub open_in_new_tab: bool,
+
+    // 💥 追加: タブ復元用データ
+    #[serde(default)]
+    pub saved_tabs: Vec<SavedTab>,
+    #[serde(default)]
+    pub active_tab_id: Option<String>,
+}
+
+// 💥 追加: タブ情報用の構造体
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SavedTab {
+    pub id: String,
+    pub path: String,
+    pub title: String,
+    #[serde(rename = "isEditing")] // JSのキャメルケースと合わせる
+    pub is_editing: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

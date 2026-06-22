@@ -2,6 +2,7 @@
     import { openTabs, activeTabId, createNewTab, closeTab, switchTab, editorFont } from '$lib/stores';
     import { invoke, convertFileSrc } from '@tauri-apps/api/core';
     import { marked } from 'marked';
+    import { tick } from 'svelte';
 
      marked.use({ breaks: true });
 
@@ -35,10 +36,21 @@
         return marked(parseObsidianImages(removeFrontmatter(activeTab.content)));
     })();
 
+     // 💥 スクロール位置の記憶用
+    let previewScrollContainer: HTMLDivElement;
+    let editArea: HTMLTextAreaElement;
+    let scrollRatio = 0;
+
     async function toggleEditMode() {
         if (!activeTab) return;
         
-        // 💥 編集からプレビューに移行するときに実ファイルを保存
+        // 💥 切り替え前に現在のスクロール位置の「割合」を記録
+        if (activeTab.isEditing && editArea) {
+            scrollRatio = editArea.scrollTop / editArea.scrollHeight;
+        } else if (!activeTab.isEditing && previewScrollContainer) {
+            scrollRatio = previewScrollContainer.scrollTop / previewScrollContainer.scrollHeight;
+        }
+
         if (activeTab.isEditing && activeTab.path) {
             try {
                 await invoke('save_file_content', { path: activeTab.path, content: activeTab.content });
@@ -54,6 +66,14 @@
             if (tab) tab.isEditing = !tab.isEditing;
             return tabs;
         });
+
+        // 💥 DOMが切り替わった直後にスクロール位置を復元
+        await tick();
+        if (activeTab.isEditing && editArea) {
+            editArea.scrollTop = scrollRatio * editArea.scrollHeight;
+        } else if (!activeTab.isEditing && previewScrollContainer) {
+            previewScrollContainer.scrollTop = scrollRatio * previewScrollContainer.scrollHeight;
+        }
     }
 
     function handleInput(event: Event) {
@@ -113,9 +133,12 @@
                 {activeTab.isEditing ? '📖' : '✏️'}
             </button>
 
-            <div class="flex-1 overflow-y-auto p-6" style="font-family: {$editorFont};">
+            <!-- 💥 bind:this を追加 -->
+            <div class="flex-1 overflow-y-auto p-6" bind:this={previewScrollContainer} style="font-family: {$editorFont};">
                 {#if activeTab.isEditing}
+                    <!-- 💥 bind:this を追加 -->
                     <textarea 
+                        bind:this={editArea}
                         class="w-full h-full bg-transparent text-gray-200 resize-none focus:outline-none text-sm min-h-[400px]"
                         value={activeTab.content}
                         on:input={handleInput}
@@ -126,6 +149,7 @@
                     </div>
                 {/if}
             </div>
+            
         </div>
     {:else}
 
