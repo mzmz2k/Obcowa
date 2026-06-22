@@ -65,29 +65,60 @@
     for (let node of nodes) {
       if (node.type === 'Folder' && node.original_path) {
         try {
-          const freshChildren: any[] = await invoke('read_directory', { path: node.original_path });
-          if (node.children && node.children.length > 0) {
-            const oldFolders = new Map(node.children.filter((c:any) => c.type === 'Folder').map((c:any) => [c.original_path, c]));
-            for (let fresh of freshChildren) {
-              if (fresh.type === 'Folder' && oldFolders.has(fresh.original_path)) {
-                // 💥 変更した表示名を元に戻さず維持する
-                fresh.name = oldFolders.get(fresh.original_path).name;
-                fresh.children = oldFolders.get(fresh.original_path).children;
-                fresh.children = await refreshTree(fresh.children);
+          // 1. OSからこのフォルダの直下の最新構成を取得する
+          let freshChildren: any[] = await invoke('read_directory', { path: node.original_path });
+          
+          // 2. 元々読み込んでいたフォルダの「変更した表示名」と「子要素」を維持するための準備
+          const oldFolders = new Map();
+          if (node.children) {
+            for (const c of node.children) {
+              if (c.type === 'Folder') oldFolders.set(c.original_path, c);
+            }
+          }
+
+          // 3. 最新構成に対して、古い情報を引き継がせる
+          for (let fresh of freshChildren) {
+            if (fresh.type === 'Folder') {
+              if (oldFolders.has(fresh.original_path)) {
+                const old = oldFolders.get(fresh.original_path);
+                fresh.name = old.name;
+                fresh.children = old.children || [];
+              } else {
+                // 新しく見つかったフォルダ
+                fresh.children = [];
               }
             }
           }
-          node.children = freshChildren;
+          
+          // 💥 4. 一番深い階層まですべて再帰的に読み込ませる（フォルダの中身を全部見る）
+          node.children = await refreshTree(freshChildren);
+
         } catch (e) {}
       }
       updatedNodes.push(node);
     }
     return updatedNodes;
   }
+
   async function handleRefresh() {
     if (!workspaces[currentIndex]) return;
+    
+    // 1. 現在のワークスペースのフォルダ構成を更新
     workspaces[currentIndex].nodes = await refreshTree(workspaces[currentIndex].nodes);
-    workspaces = [...workspaces]; await saveData();
+
+    // 2. リンクされているライブラリのフォルダ構成も一緒に更新
+    const linkedLibs = workspaces[currentIndex].linked_libraries;
+    if (linkedLibs && linkedLibs.length > 0) {
+      for (const libId of linkedLibs) {
+        const libIndex = workspaces.findIndex(w => w.id === libId);
+        if (libIndex !== -1) {
+          workspaces[libIndex].nodes = await refreshTree(workspaces[libIndex].nodes);
+        }
+      }
+    }
+    
+    workspaces = [...workspaces]; 
+    await saveData();
   }
 
    onMount(async () => {
