@@ -168,7 +168,6 @@ fn save_file_content(path: String, content: String) -> Result<(), String> {
     std::fs::write(path, content).map_err(|e| e.to_string())
 }
 
-// 💥 空の新規ファイルを作成するコマンドを追加
 #[tauri::command]
 fn create_new_file(dir_path: String, file_name: String) -> Result<(), String> {
     let path = std::path::Path::new(&dir_path).join(&file_name);
@@ -176,6 +175,24 @@ fn create_new_file(dir_path: String, file_name: String) -> Result<(), String> {
         return Err("同じ名前のファイルがすでに存在します".into());
     }
     std::fs::write(path, "").map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// 💥 追加：OSの標準機能を使って直接フォルダを開く
+#[tauri::command]
+fn open_folder(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer").arg(&path).spawn().map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open").arg(&path).spawn().map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open").arg(&path).spawn().map_err(|e| e.to_string())?;
+    }
     Ok(())
 }
 
@@ -193,7 +210,8 @@ pub fn run() {
             read_file_content,
             read_directory,
             save_file_content,
-            create_new_file  
+            create_new_file,
+            open_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

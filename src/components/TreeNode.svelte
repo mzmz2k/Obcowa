@@ -2,7 +2,6 @@
   import { invoke } from '@tauri-apps/api/core';
   import { openFileInCurrentTab, openFileInNewTab, activeTabId, openTabs, switchTab } from '../lib/stores'; // 💥 openTabsとswitchTabを追加
   import { getContext } from 'svelte';
-  import { openPath } from '@tauri-apps/plugin-opener';
 
   export let node: any;
   export let isReadonly = false; 
@@ -101,8 +100,8 @@
 
   async function openInExplorer() {
     try {
-      // 💥 フォルダ自体（中身）をエクスプローラーで開く
-      await openPath(node.original_path);
+      // 💥 Rust側に作ってもらったコマンドを呼ぶ
+      await invoke('open_folder', { path: node.original_path });
     } catch (e) {
       console.error("エクスプローラー起動失敗:", e);
     }
