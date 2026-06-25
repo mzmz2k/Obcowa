@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { openTabs, activeTabId, createNewTab, closeTab, switchTab, editorFont } from '$lib/stores';
+    import { openTabs, activeTabId, createNewTab, closeTab, switchTab, editorFont, currentWorkspaceIndex, openFileInNewTab } from '$lib/stores';
     import { invoke, convertFileSrc } from '@tauri-apps/api/core';
     import { openUrl } from '@tauri-apps/plugin-opener';
     import { marked } from 'marked';
@@ -103,6 +103,59 @@
         }
     }
 
+        // 💥 追加: 検索用の状態管理
+    let searchQuery = '';
+    let includeLibrary = false;
+    let searchResults: any[] = [];
+    let isSearching = false;
+    let hasSearched = false;
+
+    // 💥 追加: 検索実行処理
+    async function executeSearch() {
+        if (!searchQuery.trim()) return;
+        isSearching = true;
+        hasSearched = true;
+        try {
+            searchResults = await invoke('search_files', {
+                workspaceIndex: $currentWorkspaceIndex,
+                includeLibrary,
+                query: searchQuery
+            });
+        } catch (e) {
+            alert("検索に失敗しました: " + e);
+        } finally {
+            isSearching = false;
+        }
+    }
+
+    // 💥 追加: 検索結果をクリックして新規タブで開く
+    async function handleResultClick(path: string, name: string, forceNewTab: boolean = false) {
+        // 右クリック（強制新規）でなく、かつ既に開いているタブがあればそれに切り替える
+        if (!forceNewTab) {
+            const existingTab = $openTabs.find(t => t.path === path);
+            if (existingTab) {
+                switchTab(existingTab.id);
+                return; // ここで処理終了
+            }
+        }
+
+        try {
+            const bytes: number[] = await invoke('read_file_content', { path });
+            const uint8Array = new Uint8Array(bytes);
+            let content = "";
+            try {
+                content = new TextDecoder('utf-8', { fatal: true }).decode(uint8Array);
+            } catch (e) {
+                content = new TextDecoder('shift-jis').decode(uint8Array);
+            }
+            
+            openFileInNewTab(path, name, content);
+        } catch(e) {
+            console.error("ファイル読み込み失敗:", e);
+        }
+    }
+
+
 </script>
 
 <div class="h-full flex flex-col bg-gray-900">
@@ -136,36 +189,73 @@
         </button>
     </div>
 
-    <!-- エディタ / プレビュー エリア -->
+<!-- エディタ / プレビュー エリア -->
     {#if activeTab}
         <div class="flex-1 relative bg-gray-800 flex flex-col overflow-hidden">
             
-            <!-- 💥 常に右上に固定（absolute） -->
-            <button 
-                class="absolute top-4 right-6 z-10 px-3 py-1 text-xs bg-gray-700 text-gray-300 rounded shadow border border-gray-600 hover:bg-gray-600 hover:text-white transition opacity-60 hover:opacity-100"
-                on:click={toggleEditMode}
-            >
-                {activeTab.isEditing ? '📖' : '✏️'}
-            </button>
-
-            <div class="flex-1 overflow-y-auto p-6" bind:this={previewScrollContainer} style="font-family: {$editorFont};">
-                {#if activeTab.isEditing}
-                    <!-- 💥 bind:this を追加 -->
-                    <textarea 
-                        bind:this={editArea}
-                        class="w-full h-full bg-transparent text-gray-200 resize-none focus:outline-none text-sm min-h-[400px]"
-                        value={activeTab.content}
-                        on:input={handleInput}
-                    ></textarea>
-                {:else}
-                    <!-- 💥 追加: リンククリックをインターセプトするためのイベントと warning 回避のコメントを追加 -->
-                    <!-- svelte-ignore a11y-click-events-have-key-events -->
-                    <!-- svelte-ignore a11y-no-static-element-interactions -->
-                    <div class="prose prose-invert max-w-none select-text cursor-text" on:click={handlePreviewClick}>
-                        {@html renderedHtml}
+            <!-- 💥 検索タブだった場合の UI -->
+            {#if activeTab.path === '__SEARCH__'}
+                <div class="p-8 flex flex-col h-full text-gray-200">
+                    <h2 class="text-xl font-bold mb-4">ファイル検索</h2>
+                    <div class="flex gap-4 items-center mb-6">
+                        <input type="text" bind:value={searchQuery} on:keydown={(e) => e.key === 'Enter' && executeSearch()} class="flex-1 bg-gray-700 border border-gray-600 rounded p-2 text-sm outline-none" placeholder="検索キーワードを入力... (Enterで検索)">
+                        <label class="flex items-center text-sm cursor-pointer select-none">
+                            <input type="checkbox" bind:checked={includeLibrary} class="mr-2"> ライブラリを含める
+                        </label>
+                        <button on:click={executeSearch} disabled={isSearching} class="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 rounded text-sm font-bold transition">検索</button>
                     </div>
-                {/if}
-            </div>
+                    
+                   <div class="flex-1 overflow-y-auto pr-2">
+                        {#if isSearching}
+                            <div class="text-gray-400 text-center py-10">検索中...</div>
+                        {:else}
+                            {#each searchResults as res}
+                                <!-- svelte-ignore a11y-click-events-have-key-events -->
+                                <!-- svelte-ignore a11y-no-static-element-interactions -->
+                                <!-- 💥 変更: on:click と on:contextmenu(右クリック) を設定 -->
+                                <div 
+                                    class="py-1.5 px-2 border-b border-gray-700/50 cursor-pointer hover:bg-gray-700 transition" 
+                                    on:click={() => handleResultClick(res.path, res.name, false)}
+                                    on:contextmenu|preventDefault={() => handleResultClick(res.path, res.name, true)}
+                                >
+                                    <div class="font-bold text-sm text-blue-300">📄 {res.name}</div>
+                                    <div class="text-xs text-gray-400 truncate">{res.snippet}</div>
+                                </div>
+                            {/each}
+                            {#if searchResults.length === 0 && hasSearched}
+                                <div class="text-gray-500 text-center py-10">見つかりませんでした</div>
+                            {/if}
+                        {/if}
+                    </div>
+                </div>
+                
+            {:else}
+                <!-- 💥 検索タブ以外（通常のエディタ）でのみ表示するボタン -->
+                <button 
+                    class="absolute top-4 right-6 z-10 px-3 py-1 text-xs bg-gray-700 text-gray-300 rounded shadow border border-gray-600 hover:bg-gray-600 hover:text-white transition opacity-60 hover:opacity-100"
+                    on:click={toggleEditMode}
+                >
+                    {activeTab.isEditing ? '📖' : '✏️'}
+                </button>
+
+                <!-- 通常のエディタ・プレビュー表示 -->
+                <div class="flex-1 overflow-y-auto p-6" bind:this={previewScrollContainer} style="font-family: {$editorFont};">
+                    {#if activeTab.isEditing}
+                        <textarea 
+                            bind:this={editArea}
+                            class="w-full h-full bg-transparent text-gray-200 resize-none focus:outline-none text-sm min-h-[400px]"
+                            value={activeTab.content}
+                            on:input={handleInput}
+                        ></textarea>
+                    {:else}
+                        <!-- svelte-ignore a11y-click-events-have-key-events -->
+                        <!-- svelte-ignore a11y-no-static-element-interactions -->
+                        <div class="prose prose-invert max-w-none select-text cursor-text" on:click={handlePreviewClick}>
+                            {@html renderedHtml}
+                        </div>
+                    {/if}
+                </div>
+            {/if}
             
         </div>
     {:else}

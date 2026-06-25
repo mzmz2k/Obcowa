@@ -16,6 +16,29 @@ export const workspaces = writable<any[]>([]);
 export const currentWorkspace = writable<any | null>(null);
 export const editorFont = writable<string>('sans-serif'); 
 
+// 💥 追加: Rust側に検索対象を伝えるために現在のインデックスをストア化
+export const currentWorkspaceIndex = writable<number>(0);
+
+// 💥 追加: 検索用の特殊なタブを作成・表示する関数
+export function openSearchTab() {
+    const newId = "search-tab";
+    openTabs.update(tabs => {
+        const resetTabs = tabs.map(t => ({ ...t, isEditing: false }));
+        // 既に検索タブがあればそれを表示
+        if (resetTabs.some(t => t.id === newId)) return resetTabs;
+        // なければ作成
+        return [...resetTabs, {
+            id: newId,
+            path: "__SEARCH__", // 検索タブと識別するための特殊パス
+            title: "🔍 検索",
+            content: "",
+            isEditing: false,
+            isDirty: false
+        }];
+    });
+    activeTabId.set(newId);
+}
+
 // 💥 タブを切り替えるときに、すべてのタブをビューモード（isEditing = false）に戻す
 export function switchTab(tabId: string) {
     openTabs.update(tabs => tabs.map(t => ({ ...t, isEditing: false })));

@@ -6,7 +6,7 @@
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow'; // 💥 新規ウィンドウ用
   import Editor from '../components/Editor.svelte';
   import TreeNode from '../components/TreeNode.svelte';
-  import { editorFont, openTabs, activeTabId } from '../lib/stores'; // 💥 タブ状態取得用に追加
+  import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab } from '../lib/stores';
 
   let sidebarWidth = 260;
   let isResizing = false;
@@ -15,7 +15,8 @@
   function doResize(e: MouseEvent) { if (isResizing) sidebarWidth = Math.max(150, Math.min(e.clientX, 800)); }
 
   let workspaces: any[] = [];
-  let currentIndex = 0;
+  let currentIndex = 0
+  $: $currentWorkspaceIndex = currentIndex;
   let isInitialized = false; 
 
   // --- メニューとモーダルの状態 ---
@@ -367,18 +368,23 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
       <span class="truncate pr-2">{workspaces[currentIndex]?.name || 'リスト'}</span>
       <div class="flex gap-2 shrink-0 relative">
         <button on:click={handleRefresh} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">↻</button>
-        <button on:click={addFile} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">📄</button>
         
-        <!-- 💥 フォルダ追加ボタンの変更 -->
+        <!-- 💥 変更: 検索ボタンに変更 -->
+        <button on:click={openSearchTab} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded" title="検索">🔍</button>
+        
+        <!-- フォルダ追加メニュー -->
         <button on:click|stopPropagation={() => isAddFolderMenuOpen = !isAddFolderMenuOpen} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">📁</button>
         {#if isAddFolderMenuOpen}
           <div class="absolute top-8 right-0 bg-gray-800 border border-gray-600 rounded shadow-xl z-50 py-1 w-40 text-sm font-normal">
             <button class="block w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isAddFolderMenuOpen = false; addFolder(); }}>普通のフォルダ</button>
-            <!-- 💥 新規作成時は editingSmartNode=null を追加 -->
+            
+            <!-- 💥 追加: ファイル追加をここに移動 -->
+            <button class="block w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isAddFolderMenuOpen = false; addFile(); }}>📄 ファイルを追加</button>
+            
+            <!-- 💥 変更なし（順番がファイル追加の下になりました） -->
             <button class="block w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isAddFolderMenuOpen = false; sfName=''; sfTarget=''; sfConds=[]; editingSmartNode=null; isSmartFolderModalOpen = true; }}>🔍 条件で抽出</button>
           </div>
         {/if}
-
       </div>
     </div>
     

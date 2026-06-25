@@ -63,6 +63,97 @@ pub struct SmartRules {
     pub keep_structure: bool,
 }
 
+// 💥 追加: 検索結果用の構造体
+#[derive(Debug, Serialize, Clone)]
+pub struct SearchResultItem {
+    pub path: String,
+    pub name: String,
+    pub snippet: String,
+}
+
+// 💥 追加: バックエンドでの高速な検索処理
+#[tauri::command]
+async fn search_files(
+    app: tauri::AppHandle,
+    workspace_index: usize,
+    include_library: bool,
+    query: String,
+) -> Result<Vec<SearchResultItem>, String> {
+    if query.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+
+    // 最新のワークスペース情報を取得して対象フォルダを抽出
+    let workspaces = load_workspaces(app.clone())?;
+    if workspace_index >= workspaces.len() {
+        return Err("無効なワークスペースです".into());
+    }
+
+    let ws = &workspaces[workspace_index];
+    let mut dirs = Vec::new();
+
+    // フォルダツリーから original_path を再帰的にかき集める関数
+    fn extract_dirs(nodes: &[VirtualNode], dirs: &mut Vec<String>) {
+        for node in nodes {
+            if let VirtualNode::Folder { original_path: Some(path), children, .. } = node {
+                dirs.push(path.clone());
+                extract_dirs(children, dirs);
+            }
+        }
+    }
+
+    extract_dirs(&ws.nodes, &mut dirs);
+
+    // ライブラリを含める場合
+    if include_library {
+        for lib_id in &ws.linked_libraries {
+            if let Some(lib) = workspaces.iter().find(|w| &w.id == lib_id) {
+                extract_dirs(&lib.nodes, &mut dirs);
+            }
+        }
+    }
+
+    // 重複を削除（同じフォルダを何度も検索しないため）
+    dirs.sort();
+    dirs.dedup();
+
+    let mut all_files = Vec::new();
+    for dir in dirs {
+        collect_files(std::path::Path::new(&dir), &mut all_files);
+    }
+
+    // ファイルの重複を削除（別リストで同じファイルを参照している場合）
+    all_files.sort_by(|a, b| a.path.cmp(&b.path));
+    all_files.dedup_by(|a, b| a.path == b.path);
+
+    let mut results = Vec::new();
+    let query_lower = query.to_lowercase();
+
+    // 全ファイルを走査
+    for file in all_files {
+        for line in file.content.lines() {
+            if line.to_lowercase().contains(&query_lower) {
+                let trimmed = line.trim();
+                // 検索がヒットした行を抽出し、長すぎる場合は丸める（文字化け・パニック防止のため chars() を使用）
+                let snippet = if trimmed.chars().count() > 100 {
+                    format!("{}...", trimmed.chars().take(100).collect::<String>())
+                } else {
+                    trimmed.to_string()
+                };
+
+                results.push(SearchResultItem {
+                    path: file.path.clone(),
+                    name: file.name.clone(),
+                    snippet,
+                });
+                break; // 1ファイルにつき1箇所の表示で十分なため次のファイルへ
+            }
+        }
+    }
+    Ok(results)
+}
+
+
 // 💥 デフォルト値用の関数を用意
 fn default_match_mode() -> String { "contains".to_string() }
 
@@ -444,7 +535,8 @@ pub fn run() {
             save_file_content,
             create_new_file,
             open_folder,
-            evaluate_smart_folder
+            evaluate_smart_folder,
+            search_files
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
