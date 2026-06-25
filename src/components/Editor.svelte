@@ -53,6 +53,7 @@
         }
 
         if (activeTab.isEditing && activeTab.path) {
+            // --- 編集モードを終了して保存する処理 ---
             try {
                 await invoke('save_file_content', { path: activeTab.path, content: activeTab.content });
                 activeTab.isDirty = false;
@@ -60,11 +61,31 @@
                 console.error("保存失敗:", e);
                 alert("ファイルの保存に失敗しました");
             }
+        } else if (!activeTab.isEditing && activeTab.path && activeTab.path !== '__SEARCH__') {
+            // 💥 変更: これから編集モードに入る時、最新のファイル内容を読み直す
+            try {
+                const bytes: number[] = await invoke('read_file_content', { path: activeTab.path });
+                const uint8Array = new Uint8Array(bytes);
+                let latestContent = "";
+                try {
+                    latestContent = new TextDecoder('utf-8', { fatal: true }).decode(uint8Array);
+                } catch (e) {
+                    latestContent = new TextDecoder('shift-jis').decode(uint8Array);
+                }
+                // アクティブタブの中身を最新のデータで上書きする
+                activeTab.content = latestContent; 
+            } catch(e) {
+                console.error("最新状態の読み込み失敗:", e);
+            }
         }
 
         openTabs.update(tabs => {
             const tab = tabs.find(t => t.id === activeTab!.id);
-            if (tab) tab.isEditing = !tab.isEditing;
+            if (tab) {
+                // 💥 最新の content をストアにも反映させる
+                if (!tab.isEditing) tab.content = activeTab!.content;
+                tab.isEditing = !tab.isEditing;
+            }
             return tabs;
         });
 
