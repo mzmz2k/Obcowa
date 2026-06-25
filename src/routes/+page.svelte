@@ -312,15 +312,26 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   // --- リスト作成・管理関連 ---
   async function createNewWorkspace() {
     if (!newListName) return;
-    let newNodes = [];
-    if (newListMode === 'Active' && sourceLibraryId !== 'none') {
-      const lib = workspaces.find(w => w.id === sourceLibraryId);
-      if (lib) newNodes = JSON.parse(JSON.stringify(lib.nodes));
-    }
-    workspaces.push({ id: Date.now().toString(), name: newListName, category: newListMode, nodes: newNodes, links: [], pinned: [], linked_libraries: [], is_flat: false });
-    if (newListMode === 'Active') currentIndex = workspaces.length - 1;
-    workspaces = [...workspaces]; await saveData();
-    isCreateModalOpen = false; newListName = '';
+    
+    // 💥 変更: 常に category: 'Active' で、空の状態から作成する
+    workspaces.push({ 
+      id: Date.now().toString(), 
+      name: newListName, 
+      category: 'Active', 
+      nodes: [], 
+      links: [], 
+      pinned: [], 
+      linked_libraries: [], 
+      is_flat: false 
+    });
+    
+    // 作成したリストを選択状態にする
+    currentIndex = workspaces.length - 1;
+    workspaces = [...workspaces]; 
+    await saveData();
+    
+    isCreateModalOpen = false; 
+    newListName = '';
   }
 
   // 💥 ライブラリを「参照（リンク）」として追加する
@@ -544,21 +555,10 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center text-gray-200">
     <div class="bg-gray-800 p-6 rounded shadow-lg border border-gray-600 w-96">
       <h2 class="text-lg font-bold mb-4">リストを作成</h2>
-      <div class="flex gap-4 mb-4">
-        <label class="flex items-center text-sm cursor-pointer"><input type="radio" bind:group={newListMode} value="Active" class="mr-2">ワークスペース</label>
-        <label class="flex items-center text-sm cursor-pointer"><input type="radio" bind:group={newListMode} value="Library" class="mr-2">ライブラリ</label>
-      </div>
-      <input type="text" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none mb-4" bind:value={newListName} placeholder="新しい名前" />
-      {#if newListMode === 'Active'}
-
-      <select class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm mb-4" bind:value={sourceLibraryId}>
-          <option value="none">空から作成 (ライブラリを使わない)</option>
-          {#each workspaces.filter(w => w.category === 'Library') as lib}
-            <option value={lib.id}>{lib.name} からインポート</option>
-          {/each}
-        </select>
-        
-      {/if}
+      
+      <!-- 💥 変更: ラジオボタンとプルダウンを削除し、マージン(mb-6)を調整 -->
+      <input type="text" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none mb-6" bind:value={newListName} placeholder="新しい名前" on:keydown={(e) => e.key === 'Enter' && createNewWorkspace()} />
+      
       <div class="flex justify-end gap-2">
         <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm" on:click={() => isCreateModalOpen = false}>キャンセル</button>
         <button class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm" on:click={createNewWorkspace}>作成</button>
