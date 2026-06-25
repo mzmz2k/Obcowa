@@ -1,6 +1,6 @@
 [package]
 name = "obcowa"
-version = "0.6.0"
+version = "0.7.0"
 description = "Obsidianの巨大Vaultから、その時必要なノートだけを切り出して表示する作業コンテキストビューア"
 authors = ["you"]
 edition = "2021"
