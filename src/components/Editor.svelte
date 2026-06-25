@@ -1,6 +1,7 @@
 <script lang="ts">
     import { openTabs, activeTabId, createNewTab, closeTab, switchTab, editorFont } from '$lib/stores';
     import { invoke, convertFileSrc } from '@tauri-apps/api/core';
+    import { openUrl } from '@tauri-apps/plugin-opener';
     import { marked } from 'marked';
     import { tick } from 'svelte';
 
@@ -88,6 +89,20 @@
             return tabs;
         });
     }
+
+    async function handlePreviewClick(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+        const anchor = target.closest('a'); // クリックした要素が <a> タグの中か確認
+        if (anchor && anchor.href) {
+            event.preventDefault(); // WebView内での画面遷移を防ぐ
+            try {
+                await openUrl(anchor.href);
+            } catch (e) {
+                console.error("リンクを開けませんでした:", e);
+            }
+        }
+    }
+
 </script>
 
 <div class="h-full flex flex-col bg-gray-900">
@@ -133,7 +148,6 @@
                 {activeTab.isEditing ? '📖' : '✏️'}
             </button>
 
-            <!-- 💥 bind:this を追加 -->
             <div class="flex-1 overflow-y-auto p-6" bind:this={previewScrollContainer} style="font-family: {$editorFont};">
                 {#if activeTab.isEditing}
                     <!-- 💥 bind:this を追加 -->
@@ -144,7 +158,10 @@
                         on:input={handleInput}
                     ></textarea>
                 {:else}
-                    <div class="prose prose-invert max-w-none select-text cursor-text">
+                    <!-- 💥 追加: リンククリックをインターセプトするためのイベントと warning 回避のコメントを追加 -->
+                    <!-- svelte-ignore a11y-click-events-have-key-events -->
+                    <!-- svelte-ignore a11y-no-static-element-interactions -->
+                    <div class="prose prose-invert max-w-none select-text cursor-text" on:click={handlePreviewClick}>
                         {@html renderedHtml}
                     </div>
                 {/if}
