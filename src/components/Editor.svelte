@@ -249,9 +249,8 @@
                         {/if}
                     </div>
                 </div>
-                
             {:else}
-                <!-- 💥 検索タブ以外（通常のエディタ）でのみ表示するボタン -->
+                <!-- 検索タブ以外（通常のエディタ）でのみ表示するボタン -->
                 <button 
                     class="absolute top-4 right-6 z-10 px-3 py-1 text-xs bg-gray-700 text-gray-300 rounded shadow border border-gray-600 hover:bg-gray-600 hover:text-white transition opacity-60 hover:opacity-100"
                     on:click={toggleEditMode}
@@ -259,23 +258,29 @@
                     {activeTab.isEditing ? '📖' : '✏️'}
                 </button>
 
-                <!-- 通常のエディタ・プレビュー表示 -->
-                <div class="flex-1 overflow-y-auto p-6" bind:this={previewScrollContainer} style="font-family: {$editorFont};">
-                    {#if activeTab.isEditing}
-                        <textarea 
-                            bind:this={editArea}
-                            class="w-full h-full bg-transparent text-gray-200 resize-none focus:outline-none text-sm min-h-[400px]"
-                            value={activeTab.content}
-                            on:input={handleInput}
-                        ></textarea>
-                    {:else}
+                <!-- 💥 変更: 不要な親枠 <div> をなくし、直接 if 文で切り替える -->
+                {#if activeTab.isEditing}
+                    <textarea 
+                        bind:this={editArea}
+                        class="flex-1 w-full bg-transparent text-gray-200 resize-none focus:outline-none text-sm p-6 overflow-y-auto"
+                        style="font-family: {$editorFont};"
+                        value={activeTab.content}
+                        on:input={handleInput}
+                    ></textarea>
+                {:else}
+                    <div 
+                        class="flex-1 overflow-y-auto p-6" 
+                        bind:this={previewScrollContainer} 
+                        style="font-family: {$editorFont};"
+                    >
                         <!-- svelte-ignore a11y-click-events-have-key-events -->
                         <!-- svelte-ignore a11y-no-static-element-interactions -->
                         <div class="prose prose-invert max-w-none select-text cursor-text" on:click={handlePreviewClick}>
                             {@html renderedHtml}
                         </div>
-                    {/if}
-                </div>
+                    </div>
+                {/if}
+
             {/if}
             
         </div>
