@@ -3,7 +3,8 @@
   import { invoke } from '@tauri-apps/api/core';
   import { open as openDialog, confirm as tauriConfirm } from '@tauri-apps/plugin-dialog';
   import { openUrl } from '@tauri-apps/plugin-opener';
-  import { WebviewWindow } from '@tauri-apps/api/webviewWindow'; // 💥 新規ウィンドウ用
+  import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+  import { getCurrentWindow } from '@tauri-apps/api/window'; 
   import Editor from '../components/Editor.svelte';
   import TreeNode from '../components/TreeNode.svelte';
   import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags } from '../lib/stores';
@@ -18,6 +19,11 @@
   let currentIndex = 0
   $: $currentWorkspaceIndex = currentIndex;
   let isInitialized = false; 
+
+   // 💥 追加: 初期化完了後、ワークスペース名が変わるたびにウィンドウのタイトルを書き換える
+  $: if (isInitialized && workspaces[currentIndex]) {
+    getCurrentWindow().setTitle(workspaces[currentIndex].name).catch(() => {});
+  }
 
   // --- メニューとモーダルの状態 ---
   let isListMenuOpen = false, isCreateModalOpen = false, isManageModalOpen = false, isImportLibraryModalOpen = false;
