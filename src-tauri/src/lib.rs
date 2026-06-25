@@ -306,12 +306,19 @@ fn save_file_content(path: String, content: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn create_new_file(dir_path: String, file_name: String) -> Result<(), String> {
+fn create_new_file(dir_path: String, file_name: String, insert_tag: String) -> Result<(), String> {
     let path = std::path::Path::new(&dir_path).join(&file_name);
     if path.exists() {
         return Err("同じ名前のファイルがすでに存在します".into());
     }
-    std::fs::write(path, "").map_err(|e| e.to_string())?;
+    
+    // タグが指定されていればフロントマターを作成
+    let mut content = String::new();
+    if !insert_tag.trim().is_empty() {
+        content = format!("---\ntags: [{}]\n---\n\n", insert_tag.trim());
+    }
+
+    std::fs::write(path, content).map_err(|e| e.to_string())?;
     Ok(())
 }
 

@@ -6,7 +6,7 @@
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow'; // 💥 新規ウィンドウ用
   import Editor from '../components/Editor.svelte';
   import TreeNode from '../components/TreeNode.svelte';
-  import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab } from '../lib/stores';
+  import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags } from '../lib/stores';
 
   let sidebarWidth = 260;
   let isResizing = false;
@@ -29,6 +29,55 @@
 
   let newListName = '', newListMode = 'Active', sourceLibraryId = 'none';
   let editingListIndex = 0, selectedLibraryId = '';
+
+    // --- タグ・新規作成用の状態変数 ---
+  let isNewFileModalOpen = false;
+  let newFileTargetDir = '';
+  let newFileName = '新しいファイル.md';
+  let selectedTagForNew = '';
+  let newFileCallback: (() => void) | null = null;
+
+  let newTagInput = '';
+  let selectedTagToRemove = '';
+
+    // 💥 追加: ファイル名（拡張子の前）だけを選択状態にするアクション
+  function selectBaseName(node: HTMLInputElement) {
+    setTimeout(() => {
+      node.focus();
+      const idx = node.value.lastIndexOf('.');
+      if (idx > 0) node.setSelectionRange(0, idx);
+      else node.select();
+    }, 10);
+  }
+
+  // 💥 追加: タグの追加と削除
+  function addTag() {
+    const t = newTagInput.trim();
+    if (t && !$registeredTags.includes(t)) {
+      $registeredTags = [...$registeredTags, t];
+      localStorage.setItem('registeredTags', JSON.stringify($registeredTags));
+      newTagInput = '';
+    }
+  }
+  function removeTag() {
+    if (selectedTagToRemove) {
+      $registeredTags = $registeredTags.filter(t => t !== selectedTagToRemove);
+      localStorage.setItem('registeredTags', JSON.stringify($registeredTags));
+      selectedTagToRemove = '';
+    }
+  }
+
+  // 💥 追加: ファイル作成の実行
+  async function createNewFileConfirm() {
+    if (!newFileName.trim()) return;
+    try {
+      await invoke('create_new_file', { dirPath: newFileTargetDir, fileName: newFileName, insertTag: selectedTagForNew });
+      if (newFileCallback) newFileCallback();
+      isNewFileModalOpen = false;
+    } catch (e) {
+      alert("ファイル作成に失敗しました: " + e);
+    }
+  }
 
   // --- コンテキストアクション ---
   function getNodePath(node: any) { return node.type === 'Folder' ? node.original_path : node.path; }
@@ -74,6 +123,13 @@
         if (c.cond_type === 'Tag' && !c.match_mode) c.match_mode = 'contains';
       });
       isSmartFolderModalOpen = true;
+    },
+    openNewFileModal: (dirPath: string, callback: () => void) => {
+      newFileTargetDir = dirPath;
+      newFileCallback = callback;
+      newFileName = '新しいファイル.md';
+      selectedTagForNew = '';
+      isNewFileModalOpen = true;
     }
   });
 
@@ -176,6 +232,10 @@
   }
 
    onMount(async () => {
+    try {
+      const savedTags = localStorage.getItem('registeredTags');
+      if (savedTags) registeredTags.set(JSON.parse(savedTags));
+    } catch (e) {}
     try {
       workspaces = await invoke('load_workspaces');
       if (workspaces.length === 0) {
@@ -640,12 +700,73 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 
 {#if isSettingsOpen}
   <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center text-gray-200">
-    <div class="bg-gray-800 p-6 rounded shadow-lg border border-gray-600 w-96">
+    <div class="bg-gray-800 p-6 rounded shadow-lg border border-gray-600 w-[500px]">
       <h2 class="text-lg font-bold mb-4">設定</h2>
-      <input type="text" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm mb-6" bind:value={tempFont} placeholder="フォント名" />
-      <div class="flex justify-end gap-2">
+      
+      <div class="mb-6">
+        <div class="text-sm text-gray-400 mb-1">フォント名</div>
+        <input type="text" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm" bind:value={tempFont} placeholder="フォント名" />
+      </div>
+
+      <hr class="border-gray-700 mb-6">
+
+      <div class="mb-6">
+        <div class="text-sm text-gray-400 mb-2">タグの管理</div>
+        
+        <div class="flex gap-2 mb-4">
+          <input type="text" class="flex-1 bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none" bind:value={newTagInput} placeholder="新しいタグ名を入力" on:keydown={(e) => e.key === 'Enter' && addTag()} />
+          <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm" on:click={addTag}>登録</button>
+        </div>
+
+        <div class="flex gap-2">
+          <select class="flex-1 bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none" bind:value={selectedTagToRemove}>
+            <option value="" disabled selected>登録済みのタグ一覧</option>
+            {#each $registeredTags as tag}
+              <option value={tag}>{tag}</option>
+            {/each}
+          </select>
+          <button class="px-4 py-2 bg-red-900 hover:bg-red-800 text-red-200 rounded text-sm" on:click={removeTag}>削除</button>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-4">
         <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm" on:click={() => isSettingsOpen = false}>キャンセル</button>
         <button class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm" on:click={saveSettings}>保存</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- 💥 追加: 新規ファイル作成モーダル -->
+{#if isNewFileModalOpen}
+  <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center text-gray-200">
+    <div class="bg-gray-800 p-6 rounded shadow-lg border border-gray-600 w-96">
+      <h2 class="text-lg font-bold mb-4">新規ファイル作成</h2>
+      
+      <div class="mb-4">
+        <div class="text-xs text-gray-400 mb-1">ファイル名</div>
+        <input 
+          type="text" 
+          class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none" 
+          bind:value={newFileName} 
+          use:selectBaseName
+          on:keydown={(e) => e.key === 'Enter' && createNewFileConfirm()}
+        />
+      </div>
+
+      <div class="mb-6">
+        <div class="text-xs text-gray-400 mb-1">タグの挿入 (オプション)</div>
+        <select class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none" bind:value={selectedTagForNew}>
+          <option value="">指定しない</option>
+          {#each $registeredTags as tag}
+            <option value={tag}>{tag}</option>
+          {/each}
+        </select>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm" on:click={() => isNewFileModalOpen = false}>キャンセル</button>
+        <button class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm" on:click={createNewFileConfirm}>作成</button>
       </div>
     </div>
   </div>

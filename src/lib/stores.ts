@@ -15,9 +15,9 @@ export const activeTabId = writable<string | null>(null);
 export const workspaces = writable<any[]>([]);
 export const currentWorkspace = writable<any | null>(null);
 export const editorFont = writable<string>('sans-serif'); 
-
-// 💥 追加: Rust側に検索対象を伝えるために現在のインデックスをストア化
 export const currentWorkspaceIndex = writable<number>(0);
+
+export const registeredTags = writable<string[]>([]);
 
 // 💥 追加: 検索用の特殊なタブを作成・表示する関数
 export function openSearchTab() {

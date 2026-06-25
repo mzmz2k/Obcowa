@@ -7,7 +7,7 @@
   export let isReadonly = false; 
   let isOpen = false;
 
-  const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior, saveWorkspace, editSmartFolder } = getContext('workspaceActions') as any;
+  const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior, saveWorkspace, editSmartFolder, openNewFileModal } = getContext('workspaceActions') as any;
 
   // 現在アクティブなタブの path と一致しているか判定
   $: activeTab = $openTabs.find(t => t.id === $activeTabId);
@@ -84,18 +84,12 @@
     }
   }
 
-  async function createNewFileInFolder() {
-    const fileName = prompt("新しいファイル名を入力してください\n（例: memo.md, text.txt）", "新しいファイル.md");
-    if (!fileName) return;
-    try {
-      await invoke('create_new_file', { dirPath: node.original_path, fileName });
-      // 💥 作成後、フォルダを開いて中身を再読み込みする
+  function createNewFileInFolder() {
+    openNewFileModal(node.original_path, async () => {
       isOpen = true;
       node.children = await invoke('read_directory', { path: node.original_path });
       saveWorkspace();
-    } catch (e) {
-      alert("ファイル作成に失敗しました: " + e);
-    }
+    });
   }
 
   async function openInExplorer() {
