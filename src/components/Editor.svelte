@@ -37,15 +37,47 @@
         return marked(parseObsidianImages(removeFrontmatter(activeTab.content)));
     })();
 
+        // 💥 追加: アクティブなタブを保存する共通関数
+    async function saveCurrentTab() {
+        if (activeTab && activeTab.isDirty && activeTab.path && activeTab.path !== '__SEARCH__') {
+            try {
+                await invoke('save_file_content', { path: activeTab.path, content: activeTab.content });
+                openTabs.update(tabs => {
+                    const tab = tabs.find(t => t.id === activeTab!.id);
+                    if (tab) tab.isDirty = false;
+                    return tabs;
+                });
+            } catch (e) {
+                console.error("保存失敗:", e);
+            }
+        }
+    }
+
+    // 💥 追加: タブをクリックした時に直前の作業を保存してから切り替える
+    async function handleTabClick(tabId: string) {
+        clearTimeout(saveTimeout);
+        await saveCurrentTab();
+        switchTab(tabId);
+    }
+
+    // 💥 追加: タブを閉じる時に未保存なら保存して閉じる
+    async function handleTabClose(tabId: string) {
+        const tab = $openTabs.find(t => t.id === tabId);
+        if (tab && tab.isDirty && tab.path && tab.path !== '__SEARCH__') {
+            try { await invoke('save_file_content', { path: tab.path, content: tab.content }); } catch (e) {}
+        }
+        closeTab(tabId);
+    }
+
      // 💥 スクロール位置の記憶用
     let previewScrollContainer: HTMLDivElement;
     let editArea: HTMLTextAreaElement;
     let scrollRatio = 0;
 
-    async function toggleEditMode() {
+   async function toggleEditMode() {
         if (!activeTab) return;
         
-        // 💥 切り替え前に現在のスクロール位置の「割合」を記録
+        // 切り替え前に現在のスクロール位置の「割合」を記録
         if (activeTab.isEditing && editArea) {
             scrollRatio = editArea.scrollTop / editArea.scrollHeight;
         } else if (!activeTab.isEditing && previewScrollContainer) {
@@ -53,26 +85,17 @@
         }
 
         if (activeTab.isEditing && activeTab.path) {
-            // --- 編集モードを終了して保存する処理 ---
-            try {
-                await invoke('save_file_content', { path: activeTab.path, content: activeTab.content });
-                activeTab.isDirty = false;
-            } catch (e) {
-                console.error("保存失敗:", e);
-                alert("ファイルの保存に失敗しました");
-            }
-        } else if (!activeTab.isEditing && activeTab.path && activeTab.path !== '__SEARCH__') {
-            // 💥 変更: これから編集モードに入る時、最新のファイル内容を読み直す
+            // 💥 変更: 共通の保存関数を使用
+            await saveCurrentTab();
+
+        // 💥 変更: 条件に `!activeTab.isDirty` を追加し、未保存のデータがある場合は古いファイルでの上書きを防ぐ
+        } else if (!activeTab.isEditing && activeTab.path && activeTab.path !== '__SEARCH__' && !activeTab.isDirty) {
             try {
                 const bytes: number[] = await invoke('read_file_content', { path: activeTab.path });
                 const uint8Array = new Uint8Array(bytes);
                 let latestContent = "";
-                try {
-                    latestContent = new TextDecoder('utf-8', { fatal: true }).decode(uint8Array);
-                } catch (e) {
-                    latestContent = new TextDecoder('shift-jis').decode(uint8Array);
-                }
-                // アクティブタブの中身を最新のデータで上書きする
+                try { latestContent = new TextDecoder('utf-8', { fatal: true }).decode(uint8Array); } 
+                catch (e) { latestContent = new TextDecoder('shift-jis').decode(uint8Array); }
                 activeTab.content = latestContent; 
             } catch(e) {
                 console.error("最新状態の読み込み失敗:", e);
@@ -82,14 +105,12 @@
         openTabs.update(tabs => {
             const tab = tabs.find(t => t.id === activeTab!.id);
             if (tab) {
-                // 💥 最新の content をストアにも反映させる
                 if (!tab.isEditing) tab.content = activeTab!.content;
                 tab.isEditing = !tab.isEditing;
             }
             return tabs;
         });
 
-        // 💥 DOMが切り替わった直後にスクロール位置を復元
         await tick();
         if (activeTab.isEditing && editArea) {
             editArea.scrollTop = scrollRatio * editArea.scrollHeight;
@@ -98,9 +119,13 @@
         }
     }
 
+       // 💥 追加: 自動保存タイマー
+    let saveTimeout: ReturnType<typeof setTimeout>;
+
     function handleInput(event: Event) {
         const target = event.target as HTMLTextAreaElement;
         if (!activeTab) return;
+        
         openTabs.update(tabs => {
             const tab = tabs.find(t => t.id === activeTab!.id);
             if (tab) {
@@ -109,6 +134,12 @@
             }
             return tabs;
         });
+
+        // 💥 追加: 1.5秒間入力が止まったら自動保存
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+            saveCurrentTab();
+        }, 1500);
     }
 
     async function handlePreviewClick(event: MouseEvent) {
@@ -181,20 +212,25 @@
 
 <div class="h-full flex flex-col bg-gray-900">
     
-    <!-- 💥 タブバーエリア -->
-<!-- 💥 タブバーエリア -->
-    <!-- flex-wrap をつけて、溢れたら段を変えるようにしました -->
+    <!-- タブバーエリア -->
     <div class="flex bg-[#1e1e1e] border-b border-gray-700 flex-wrap select-none">
         {#each $openTabs as tab}
             <div 
                 class="flex items-center px-2 py-1 text-xs max-w-[120px] cursor-pointer border-r border-gray-700 border-b border-b-gray-800 transition-colors
                        { $activeTabId === tab.id ? 'bg-gray-800 text-gray-200 border-t-2 border-t-blue-500' : 'bg-[#1e1e1e] text-gray-500 hover:bg-gray-800' }"
-                on:click={() => switchTab(tab.id)} 
+                on:click={() => handleTabClick(tab.id)} 
             >
                 <span class="truncate flex-1" title={tab.title}>{tab.title}</span>
+                
+                <!-- 💥 追加: 未保存なら青い ● を表示 -->
+                {#if tab.isDirty}
+                    <span class="text-blue-400 ml-1 text-[10px]">●</span>
+                {/if}
+
+                <!-- 💥 変更: closeTab ではなく作成した handleTabClose を呼ぶ -->
                 <button 
                     class="ml-1 w-4 h-4 flex items-center justify-center rounded-full hover:bg-gray-600 hover:text-red-400 transition"
-                    on:click|stopPropagation={() => closeTab(tab.id)}
+                    on:click|stopPropagation={() => handleTabClose(tab.id)}
                 >
                     ×
                 </button>
