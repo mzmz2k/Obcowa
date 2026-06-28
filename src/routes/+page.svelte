@@ -16,13 +16,15 @@
   function doResize(e: MouseEvent) { if (isResizing) sidebarWidth = Math.max(150, Math.min(e.clientX, 800)); }
 
   let workspaces: any[] = [];
-  let currentIndex = 0
+  let currentIndex = 0;
   $: $currentWorkspaceIndex = currentIndex;
   let isInitialized = false; 
 
-   // 💥 追加: 初期化完了後、ワークスペース名が変わるたびにウィンドウのタイトルを書き換える
   $: if (isInitialized && workspaces[currentIndex]) {
     getCurrentWindow().setTitle(workspaces[currentIndex].name).catch(() => {});
+    
+    // 💥 追加: ワークスペースを切り替えたら、そのワークスペースのフォント設定を読み込む
+    $editorFont = workspaces[currentIndex].editor_font || 'sans-serif';
   }
 
   // --- メニューとモーダルの状態 ---
@@ -251,7 +253,12 @@
     try {
       workspaces = await invoke('load_workspaces');
       if (workspaces.length === 0) {
-        workspaces = [{ id: Date.now().toString(), name: '作業中', category: 'Active', nodes: [], links: [], pinned: [], linked_libraries: [], is_flat: false, open_in_new_tab: false, saved_tabs: [], active_tab_id: null }];
+        workspaces = [{ 
+          id: Date.now().toString(), name: '作業中', category: 'Active', nodes: [], links: [], 
+          pinned: [], linked_libraries: [], is_flat: false, open_in_new_tab: false, 
+          saved_tabs: [], active_tab_id: null,
+          editor_font: 'sans-serif' // 💥 追加
+        }];
       } 
       
       // 💥 変更: 【一番最初】に開くべきワークスペースを決定する（チラつき防止）
@@ -330,7 +337,6 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   async function createNewWorkspace() {
     if (!newListName) return;
     
-    // 💥 変更: 常に category: 'Active' で、空の状態から作成する
     workspaces.push({ 
       id: Date.now().toString(), 
       name: newListName, 
@@ -339,10 +345,10 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
       links: [], 
       pinned: [], 
       linked_libraries: [], 
-      is_flat: false 
+      is_flat: false,
+      editor_font: 'sans-serif' // 💥 追加
     });
     
-    // 作成したリストを選択状態にする
     currentIndex = workspaces.length - 1;
     workspaces = [...workspaces]; 
     await saveData();
@@ -368,7 +374,17 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     const ws = workspaces[currentIndex];
     const newName = prompt("ライブラリとして保存する名前を入力してください", ws.name + " (コピー)");
     if(newName) {
-      workspaces.push({ id: Date.now().toString(), name: newName, category: 'Library', nodes: JSON.parse(JSON.stringify(ws.nodes)), links: JSON.parse(JSON.stringify(ws.links||[])), pinned: JSON.parse(JSON.stringify(ws.pinned||[])), linked_libraries: [], is_flat: false });
+      workspaces.push({ 
+        id: Date.now().toString(), 
+        name: newName, 
+        category: 'Library', 
+        nodes: JSON.parse(JSON.stringify(ws.nodes)), 
+        links: JSON.parse(JSON.stringify(ws.links||[])), 
+        pinned: JSON.parse(JSON.stringify(ws.pinned||[])), 
+        linked_libraries: [], 
+        is_flat: false,
+        editor_font: ws.editor_font || 'sans-serif' // 💥 追加
+      });
       workspaces = [...workspaces]; await saveData(); alert("ライブラリに保存しました");
     }
     isListMenuOpen = false;
@@ -444,7 +460,14 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   // 設定
   let isSettingsOpen = false; let tempFont = '';
   function openSettings() { tempFont = $editorFont; isSettingsOpen = true; }
-  function saveSettings() { $editorFont = tempFont; isSettingsOpen = false; }
+  function saveSettings() { 
+    $editorFont = tempFont; 
+    if (workspaces[currentIndex]) {
+      workspaces[currentIndex].editor_font = tempFont;
+      saveData();
+    }
+    isSettingsOpen = false; 
+  }
 </script>
 
 <svelte:window on:mousemove={doResize} on:mouseup={stopResize} on:click={() => { isListMenuOpen = false; isAddFolderMenuOpen = false; }} />

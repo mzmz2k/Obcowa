@@ -19,6 +19,9 @@ pub struct LinkItem {
     pub url: String,
 }
 
+// 💥 追加: 古いデータにフォント設定がない場合のデフォルト値を決める関数
+fn default_font() -> String { "sans-serif".to_string() }
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Workspace {
     pub id: String,
@@ -37,11 +40,14 @@ pub struct Workspace {
     #[serde(default)]
     pub open_in_new_tab: bool,
 
-    // 💥 追加: タブ復元用データ
     #[serde(default)]
     pub saved_tabs: Vec<SavedTab>,
     #[serde(default)]
     pub active_tab_id: Option<String>,
+
+    // 💥 追加: フォント設定を保存するフィールド
+    #[serde(default = "default_font")]
+    pub editor_font: String,
 }
 
 // 💥 追加: タブ情報用の構造体
