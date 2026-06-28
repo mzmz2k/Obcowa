@@ -7,7 +7,7 @@
   export let isReadonly = false; 
   let isOpen = false;
 
-  const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior, saveWorkspace, editSmartFolder, openNewFileModal } = getContext('workspaceActions') as any;
+  const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior, saveWorkspace, editSmartFolder, openNewFileModal, getGlobalSort, setNodeSort } = getContext('workspaceActions') as any;
 
   // 現在アクティブなタブの path と一致しているか判定
   $: activeTab = $openTabs.find(t => t.id === $activeTabId);
@@ -17,6 +17,25 @@
   let showMenu = false;
   let menuX = 0;
   let menuY = 0;
+
+
+    // 💥 追加: 現在のソート設定（個別設定があれば優先、なければ全体設定）を計算し、常にソートされた配列を作る
+  $: globalSort = getGlobalSort();
+  $: sortBy = node.sort_by || globalSort.by;
+  $: sortOrder = node.sort_order || globalSort.order;
+
+  $: sortedChildren = [...(node.children || [])].sort((a, b) => {
+    const isDirA = a.type === 'Folder';
+    const isDirB = b.type === 'Folder';
+    if (isDirA !== isDirB) return isDirA ? -1 : 1;
+
+    let comp = 0;
+    if (sortBy === 'created') comp = (a.created || 0) - (b.created || 0);
+    else if (sortBy === 'modified') comp = (a.modified || 0) - (b.modified || 0);
+    else comp = a.name.localeCompare(b.name);
+    
+    return sortOrder === 'asc' ? comp : -comp;
+  });
 
   async function handleClick() {
     if (node.type === 'Folder') {
@@ -204,7 +223,40 @@
               </button>
             {/if}
           {/if}
-
+      <!-- フォルダの場合にソートサブメニューを追加 -->
+      {#if node.type === 'Folder'}
+        <div class="relative group">
+          <button class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition flex justify-between items-center">
+            <span>🔃 ソート順変更</span>
+            <span class="text-xs">▶</span>
+          </button>
+          
+          <!-- サブメニュー (ホバーで出現) -->
+          <div class="absolute left-full top-0 hidden group-hover:block bg-gray-800 border border-gray-600 rounded shadow-xl py-1 w-36 -ml-1">
+            
+            <!-- 💥 変更: 同様に固定幅の <span> に変更 -->
+            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700" on:click={() => { setNodeSort(node, sortBy, 'asc'); closeMenu(); }}>
+              <span class="inline-block w-4">{sortOrder !== 'desc' ? '✓' : ''}</span>昇順
+            </button>
+            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700" on:click={() => { setNodeSort(node, sortBy, 'desc'); closeMenu(); }}>
+              <span class="inline-block w-4">{sortOrder === 'desc' ? '✓' : ''}</span>降順
+            </button>
+            
+            <hr class="border-gray-600 my-1">
+            
+            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700" on:click={() => { setNodeSort(node, 'name', sortOrder); closeMenu(); }}>
+              <span class="inline-block w-4">{sortBy === 'name' ? '✓' : ''}</span>名前
+            </button>
+            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700" on:click={() => { setNodeSort(node, 'created', sortOrder); closeMenu(); }}>
+              <span class="inline-block w-4">{sortBy === 'created' ? '✓' : ''}</span>作成日
+            </button>
+            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700" on:click={() => { setNodeSort(node, 'modified', sortOrder); closeMenu(); }}>
+              <span class="inline-block w-4">{sortBy === 'modified' ? '✓' : ''}</span>更新日
+            </button>
+          </div>
+        </div>
+        <hr class="border-gray-700 my-1">
+      {/if}
         {/if}
 
         {#if node.original_path}
@@ -230,10 +282,9 @@
     </div>
   {/if}
 
-  {#if isOpen && node.children && node.children.length > 0}
+  {#if isOpen && sortedChildren && sortedChildren.length > 0}
     <div class="border-l border-gray-600 ml-2 pl-1">
-      {#each node.children as childNode}
-        <!-- 💥 子ノードにも isReadonly を伝播させる（孫フォルダも読み取り専用になる） -->
+      {#each sortedChildren as childNode}
         <svelte:self node={childNode} {isReadonly} />
       {/each}
     </div>

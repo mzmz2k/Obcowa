@@ -20,6 +20,8 @@
   $: $currentWorkspaceIndex = currentIndex;
   let isInitialized = false; 
 
+  let isGlobalSortMenuOpen = false;
+
   $: if (isInitialized && workspaces[currentIndex]) {
     getCurrentWindow().setTitle(workspaces[currentIndex].name).catch(() => {});
     
@@ -87,6 +89,33 @@
     }
   }
 
+   // 💥 追加: ソート用の並び替え関数
+  function getSortedNodes(nodes: any[], sortBy = 'name', sortOrder = 'asc') {
+    if (!nodes) return [];
+    return [...nodes].sort((a, b) => {
+      // フォルダは常に上に配置
+      const isDirA = a.type === 'Folder';
+      const isDirB = b.type === 'Folder';
+      if (isDirA !== isDirB) return isDirA ? -1 : 1;
+      
+      let comp = 0;
+      if (sortBy === 'created') comp = (a.created || 0) - (b.created || 0);
+      else if (sortBy === 'modified') comp = (a.modified || 0) - (b.modified || 0);
+      else comp = a.name.localeCompare(b.name);
+      
+      return sortOrder === 'asc' ? comp : -comp;
+    });
+  }
+
+  // 💥 追加: ワークスペース全体のソート設定を変更する関数
+  function changeGlobalSort(type: 'by' | 'order', value: string) {
+    if (workspaces[currentIndex]) {
+      if (type === 'by') workspaces[currentIndex].sort_by = value;
+      else workspaces[currentIndex].sort_order = value;
+      saveData();
+    }
+  }
+
   // --- コンテキストアクション ---
   function getNodePath(node: any) { return node.type === 'Folder' ? node.original_path : node.path; }
 
@@ -138,7 +167,19 @@
       newFileName = '新しいファイル.md';
       selectedTagForNew = '';
       isNewFileModalOpen = true;
+    },
+
+   // 💥 追加: 個別フォルダのソート設定用アクション
+    getGlobalSort: () => ({
+      by: workspaces[currentIndex]?.sort_by || 'name',
+      order: workspaces[currentIndex]?.sort_order || 'asc'
+    }),
+    setNodeSort: (node: any, by: string, order: string) => {
+      node.sort_by = by;
+      node.sort_order = order;
+      saveData();
     }
+
   });
 
   function unpin(path: string) {
@@ -470,7 +511,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   }
 </script>
 
-<svelte:window on:mousemove={doResize} on:mouseup={stopResize} on:click={() => { isListMenuOpen = false; isAddFolderMenuOpen = false; }} />
+<svelte:window on:mousemove={doResize} on:mouseup={stopResize} on:click={() => { isListMenuOpen = false; isAddFolderMenuOpen = false; isGlobalSortMenuOpen = false; }} />
 <main class="h-screen w-screen flex bg-gray-900 text-gray-200 select-none">
   
   <div class="bg-gray-800 flex flex-col" style="width: {sidebarWidth}px">
@@ -479,6 +520,34 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
       <span class="truncate pr-2">{workspaces[currentIndex]?.name || 'リスト'}</span>
       <div class="flex gap-2 shrink-0 relative">
         <button on:click={handleRefresh} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">↻</button>
+
+                <!-- 💥 追加: ソート順設定ボタンとメニュー -->
+        <div class="relative flex items-center">
+          <button on:click|stopPropagation={() => isGlobalSortMenuOpen = !isGlobalSortMenuOpen} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded" title="並び替え">⇅</button>
+          {#if isGlobalSortMenuOpen}
+            <div class="absolute top-8 left-0 bg-gray-800 border border-gray-600 rounded shadow-xl z-50 py-1 w-32 text-sm font-normal">
+               <!-- 💥 変更: 固定幅の <span> を使って位置を揃え、記号を ✓ に変更 -->
+              <button class="block w-full text-left px-4 py-1.5 hover:bg-gray-700" on:click={() => changeGlobalSort('order', 'asc')}>
+                <span class="inline-block w-4">{workspaces[currentIndex]?.sort_order !== 'desc' ? '✓' : ''}</span>昇順
+              </button>
+              <button class="block w-full text-left px-4 py-1.5 hover:bg-gray-700" on:click={() => changeGlobalSort('order', 'desc')}>
+                <span class="inline-block w-4">{workspaces[currentIndex]?.sort_order === 'desc' ? '✓' : ''}</span>降順
+              </button>
+              
+              <hr class="border-gray-600 my-1">
+              
+              <button class="block w-full text-left px-4 py-1.5 hover:bg-gray-700" on:click={() => changeGlobalSort('by', 'name')}>
+                <span class="inline-block w-4">{workspaces[currentIndex]?.sort_by === 'name' || !workspaces[currentIndex]?.sort_by ? '✓' : ''}</span>名前
+              </button>
+              <button class="block w-full text-left px-4 py-1.5 hover:bg-gray-700" on:click={() => changeGlobalSort('by', 'created')}>
+                <span class="inline-block w-4">{workspaces[currentIndex]?.sort_by === 'created' ? '✓' : ''}</span>作成日
+              </button>
+              <button class="block w-full text-left px-4 py-1.5 hover:bg-gray-700" on:click={() => changeGlobalSort('by', 'modified')}>
+                <span class="inline-block w-4">{workspaces[currentIndex]?.sort_by === 'modified' ? '✓' : ''}</span>更新日
+              </button>
+            </div>
+          {/if}
+        </div>
         
         <!-- 💥 変更: 検索ボタンに変更 -->
         <button on:click={openSearchTab} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded" title="検索">🔍</button>
@@ -515,8 +584,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 
      <div>
         {#if workspaces.length > 0 && workspaces[currentIndex]}
-          {#each workspaces[currentIndex].nodes as node}
-            <!-- 💥 ワークスペースのものは isReadonly={false} を渡す -->
+          {#each getSortedNodes(workspaces[currentIndex].nodes, workspaces[currentIndex].sort_by, workspaces[currentIndex].sort_order) as node}
             <TreeNode {node} isReadonly={false} />
           {/each}
         {/if}
@@ -528,8 +596,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
           {@const lib = workspaces.find(w => w.id === libId)}
           {#if lib}
             {#if lib.is_flat}
-              {#each lib.nodes as node}
-                <!-- 💥 ライブラリのものは isReadonly={true} を渡す -->
+              {#each getSortedNodes(lib.nodes, lib.sort_by, lib.sort_order) as node}
                 <TreeNode node={{ ...node, is_library_root: node.type === 'Folder' }} isReadonly={true} />
               {/each}
             {:else}

@@ -19,8 +19,9 @@ pub struct LinkItem {
     pub url: String,
 }
 
-// 💥 追加: 古いデータにフォント設定がない場合のデフォルト値を決める関数
 fn default_font() -> String { "sans-serif".to_string() }
+fn default_sort_by() -> String { "name".to_string() }
+fn default_sort_order() -> String { "asc".to_string() }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Workspace {
@@ -44,10 +45,13 @@ pub struct Workspace {
     pub saved_tabs: Vec<SavedTab>,
     #[serde(default)]
     pub active_tab_id: Option<String>,
-
-    // 💥 追加: フォント設定を保存するフィールド
     #[serde(default = "default_font")]
     pub editor_font: String,
+
+    #[serde(default = "default_sort_by")]
+    pub sort_by: String,
+    #[serde(default = "default_sort_order")]
+    pub sort_order: String,
 }
 
 // 💥 追加: タブ情報用の構造体
@@ -189,10 +193,20 @@ pub enum VirtualNode {
         children: Vec<VirtualNode>,
         #[serde(default)]
         smart_rules: Option<SmartRules>,
+        // 💥 追加: 個別フォルダごとのソート設定
+        #[serde(default)]
+        sort_by: Option<String>,
+        #[serde(default)]
+        sort_order: Option<String>,
     },
     File {
         name: String,
         path: String,
+        // 💥 追加: ファイルのメタデータ（UNIXタイムスタンプ）
+        #[serde(default)]
+        created: u64,
+        #[serde(default)]
+        modified: u64,
     },
 }
 
@@ -273,25 +287,29 @@ fn read_directory(path: String) -> Result<Vec<VirtualNode>, String> {
 
     for entry in entries.flatten() {
         let path = entry.path();
-        let name = path
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .into_owned();
+        let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
 
         if path.is_dir() {
             nodes.push(VirtualNode::Folder {
                 name,
                 original_path: Some(path.to_string_lossy().into_owned()),
                 children: Vec::new(), 
-                smart_rules: None, // 💥 これを追加
+                smart_rules: None, 
+                sort_by: None,    // 💥 追加
+                sort_order: None, // 💥 追加
             });
-        // 💥 md と txt の両方を許可する
         } else if path.is_file() && (path.extension().and_then(|s| s.to_str()) == Some("md") || path.extension().and_then(|s| s.to_str()) == Some("txt")) {
-            // 今回はMarkdown(.md)のみをリストアップ
+            
+            // 💥 追加: メタデータから時間を取得してミリ秒に変換
+            let metadata = entry.metadata().unwrap();
+            let modified = metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH).duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
+            let created = metadata.created().unwrap_or(metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH)).duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
+
             nodes.push(VirtualNode::File {
                 name,
                 path: path.to_string_lossy().into_owned(),
+                created,  // 💥 追加
+                modified, // 💥 追加
             });
         }
     }
@@ -386,9 +404,10 @@ fn collect_files(dir: &std::path::Path, metas: &mut Vec<FileMeta>) {
 // 💥 追加: パスのリストからツリー構造を復元する関数
 fn build_tree_from_paths(files: Vec<FileMeta>, base_dir: &str) -> Vec<VirtualNode> {
     use std::collections::HashMap;
-    struct TempNode { is_file: bool, name: String, path: String, children: HashMap<String, TempNode> }
+    // 💥 追加: created と modified を追加
+    struct TempNode { is_file: bool, name: String, path: String, created: u64, modified: u64, children: HashMap<String, TempNode> }
 
-    let mut root = TempNode { is_file: false, name: "".into(), path: base_dir.into(), children: HashMap::new() };
+    let mut root = TempNode { is_file: false, name: "".into(), path: base_dir.into(), created: 0, modified: 0, children: HashMap::new() };
     let base_path = std::path::Path::new(base_dir);
 
     for file in files {
@@ -397,13 +416,17 @@ fn build_tree_from_paths(files: Vec<FileMeta>, base_dir: &str) -> Vec<VirtualNod
             let mut current = &mut root;
             let mut current_path = base_path.to_path_buf();
 
+            // 💥 追加: 日付をミリ秒(u64)に変換
+            let c_ms = file.created.duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
+            let m_ms = file.modified.duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
+
             for (i, comp) in components.iter().enumerate() {
                 current_path.push(comp);
                 if i == components.len() - 1 {
-                    current.children.insert(comp.clone(), TempNode { is_file: true, name: comp.clone(), path: file.path.clone(), children: HashMap::new() });
+                    current.children.insert(comp.clone(), TempNode { is_file: true, name: comp.clone(), path: file.path.clone(), created: c_ms, modified: m_ms, children: HashMap::new() });
                 } else {
                     let cp = current_path.to_string_lossy().into_owned();
-                    current = current.children.entry(comp.clone()).or_insert_with(|| TempNode { is_file: false, name: comp.clone(), path: cp, children: HashMap::new() });
+                    current = current.children.entry(comp.clone()).or_insert_with(|| TempNode { is_file: false, name: comp.clone(), path: cp, created: 0, modified: 0, children: HashMap::new() });
                 }
             }
         }
@@ -415,16 +438,18 @@ fn build_tree_from_paths(files: Vec<FileMeta>, base_dir: &str) -> Vec<VirtualNod
         vals.sort_by(|a, b| if a.is_file == b.is_file { a.name.cmp(&b.name) } else if a.is_file { std::cmp::Ordering::Greater } else { std::cmp::Ordering::Less });
         for val in vals {
             if val.is_file { 
-                nodes.push(VirtualNode::File { name: val.name, path: val.path }); 
+                // 💥 変更: created と modified を渡す
+                nodes.push(VirtualNode::File { name: val.name, path: val.path, created: val.created, modified: val.modified }); 
             } else { 
-                // 💥 エラー回避のため、文字を一度コピーしておく
                 let name_clone = val.name.clone();
                 let path_clone = val.path.clone();
                 nodes.push(VirtualNode::Folder { 
                     name: name_clone, 
                     original_path: Some(path_clone), 
                     children: convert(val), 
-                    smart_rules: None 
+                    smart_rules: None,
+                    sort_by: None,    // 💥 追加
+                    sort_order: None  // 💥 追加
                 }); 
             }
         }
@@ -460,7 +485,6 @@ async fn evaluate_smart_folder(rules: SmartRules) -> Result<Vec<VirtualNode>, St
         for cond in &rules.conditions {
             has_conditions = true;
             let cond_match = match cond {
-                // 💥 match_mode を受け取り、作った関数で正確に判定させる
                 SmartCondition::Tag { tag, match_mode, include_inline, is_exclude } => {
                     let has_tag = check_tag_match(&file.content, tag, match_mode, *include_inline);
                     if *is_exclude { !has_tag } else { has_tag }
@@ -479,8 +503,16 @@ async fn evaluate_smart_folder(rules: SmartRules) -> Result<Vec<VirtualNode>, St
         if is_valid { filtered_files.push(file); }
     }
 
-    if rules.keep_structure { Ok(build_tree_from_paths(filtered_files, &rules.target_dir)) } 
-    else { Ok(filtered_files.into_iter().map(|f| VirtualNode::File { name: f.name, path: f.path }).collect()) }
+    if rules.keep_structure { 
+        Ok(build_tree_from_paths(filtered_files, &rules.target_dir)) 
+    } else { 
+        // 💥 変更: フラット表示のときも created と modified を渡すように修正
+        Ok(filtered_files.into_iter().map(|f| {
+            let c_ms = f.created.duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
+            let m_ms = f.modified.duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
+            VirtualNode::File { name: f.name, path: f.path, created: c_ms, modified: m_ms }
+        }).collect()) 
+    }
 }
 
 // 💥 追加: タグを正確に抽出し、指定された条件で比較する関数
