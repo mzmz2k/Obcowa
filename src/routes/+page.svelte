@@ -149,12 +149,16 @@
     const updatedNodes = [];
     for (let node of nodes) {
       if (node.type === 'Folder' && node.original_path) {
-        try {
-          // 💥 スマートフォルダの場合は専用の再評価コマンドを呼ぶだけで完結する
-          if (node.smart_rules) {
-            node.children = await invoke('evaluate_smart_folder', { rules: node.smart_rules });
-          } else {
-            // 普通のフォルダの場合
+        
+        // 💥 変更: スマートフォルダの抽出処理を裏に回し、全体の展開をブロックしないようにする
+        if (node.smart_rules) {
+          invoke('evaluate_smart_folder', { rules: node.smart_rules }).then(children => {
+            node.children = children as any[];
+            workspaces = [...workspaces]; // 抽出が終わり次第、UIに反映
+          }).catch(() => {});
+        } else {
+          // 普通のフォルダの場合（これ自体は一瞬で終わる）
+          try {
             let freshChildren: any[] = await invoke('read_directory', { path: node.original_path });
             
             const oldFolders = new Map();
@@ -176,8 +180,8 @@
               }
             }
             node.children = await refreshTree(freshChildren);
-          }
-        } catch (e) {}
+          } catch (e) {}
+        }
       }
       updatedNodes.push(node);
     }
@@ -237,21 +241,20 @@
     await saveData();
   }
 
-   onMount(async () => {
+  onMount(async () => {
+    // 💥 追加: ローカルストレージからタグ一覧を復元する
     try {
       const savedTags = localStorage.getItem('registeredTags');
       if (savedTags) registeredTags.set(JSON.parse(savedTags));
     } catch (e) {}
+
     try {
       workspaces = await invoke('load_workspaces');
       if (workspaces.length === 0) {
         workspaces = [{ id: Date.now().toString(), name: '作業中', category: 'Active', nodes: [], links: [], pinned: [], linked_libraries: [], is_flat: false, open_in_new_tab: false, saved_tabs: [], active_tab_id: null }];
-      } else {
-        for (let ws of workspaces) ws.nodes = await refreshTree(ws.nodes);
-        workspaces = [...workspaces];
-      }
+      } 
       
-      // 💥 別ウィンドウから渡されたパラメータを取得してリストを切り替え
+      // 💥 変更: 【一番最初】に開くべきワークスペースを決定する（チラつき防止）
       const params = new URLSearchParams(window.location.search);
       const wsParam = params.get('ws');
       if (wsParam !== null) {
@@ -261,31 +264,39 @@
         if(firstActive !== -1) currentIndex = firstActive;
       }
 
-
-  // 💥 保存されていたタブの復元
-  const ws = workspaces[currentIndex];
-  if (ws && ws.saved_tabs && ws.saved_tabs.length > 0) {
-    const restored = [];
-    for (const tab of ws.saved_tabs) {
-      let content = "";
-      if (tab.path) {
-        try {
-          const bytes: number[] = await invoke('read_file_content', { path: tab.path });
-          const uint8Array = new Uint8Array(bytes);
-          try { content = new TextDecoder('utf-8', { fatal: true }).decode(uint8Array); } 
-          catch { content = new TextDecoder('shift-jis').decode(uint8Array); }
-        } catch(e) {}
+      // 💥 変更: ツリーの最新化を待たずに、保存されていた状態ですぐにタブを復元する
+      const ws = workspaces[currentIndex];
+      if (ws && ws.saved_tabs && ws.saved_tabs.length > 0) {
+        const restored = [];
+        for (const tab of ws.saved_tabs) {
+          let content = "";
+          if (tab.path) {
+            try {
+              const bytes: number[] = await invoke('read_file_content', { path: tab.path });
+              const uint8Array = new Uint8Array(bytes);
+              try { content = new TextDecoder('utf-8', { fatal: true }).decode(uint8Array); } 
+              catch { content = new TextDecoder('shift-jis').decode(uint8Array); }
+            } catch(e) {}
+          }
+          restored.push({ id: tab.id, path: tab.path, title: tab.title, content, isEditing: tab.isEditing, isDirty: false });
+        }
+        openTabs.set(restored);
+        activeTabId.set(ws.active_tab_id || restored[0].id);
       }
-      restored.push({ id: tab.id, path: tab.path, title: tab.title, content, isEditing: tab.isEditing, isDirty: false });
-    }
-    openTabs.set(restored);
-    activeTabId.set(ws.active_tab_id || restored[0].id);
-  }
-  
-  // 💥 復元がすべて終わってからフラグをONにする
-  isInitialized = true;
-} catch (e) {}
-});
+      
+      // 💥 変更: この時点で画面をユーザーに見せる
+      isInitialized = true; 
+
+      // 💥 変更: 画面を表示し終わった後、バックグラウンドでフォルダの最新化を行う
+      (async () => {
+        for (let ws of workspaces) {
+          ws.nodes = await refreshTree(ws.nodes);
+        }
+        workspaces = [...workspaces];
+      })();
+      
+    } catch (e) {}
+  });
 
 // 💥 タブの状態が変わったら自動でワークスペースに記録（初期化完了後のみ動くように修正）
 $: if (isInitialized && workspaces.length > 0 && workspaces[currentIndex]) {
