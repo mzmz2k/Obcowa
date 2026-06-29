@@ -336,10 +336,10 @@ fn create_new_file(dir_path: String, file_name: String, insert_tag: String) -> R
         return Err("同じ名前のファイルがすでに存在します".into());
     }
     
-    // タグが指定されていればフロントマターを作成
+    // 💥 変更: リスト形式（箇条書き）でフロントマターを作成する
     let mut content = String::new();
     if !insert_tag.trim().is_empty() {
-        content = format!("---\ntags: [{}]\n---\n\n", insert_tag.trim());
+        content = format!("---\ntags:\n  - {}\n---\n\n", insert_tag.trim());
     }
 
     std::fs::write(path, content).map_err(|e| e.to_string())?;

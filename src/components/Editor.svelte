@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { openTabs, activeTabId, createNewTab, closeTab, switchTab, editorFont, currentWorkspaceIndex, openFileInNewTab } from '$lib/stores';
+    import { openTabs, activeTabId, createNewTab, closeTab, switchTab, editorFont, currentWorkspaceIndex, openFileInNewTab, registeredTags } from '$lib/stores';
     import { invoke, convertFileSrc } from '@tauri-apps/api/core';
     import { openUrl } from '@tauri-apps/plugin-opener';
     import { marked } from 'marked';
@@ -67,6 +67,141 @@
             try { await invoke('save_file_content', { path: tab.path, content: tab.content }); } catch (e) {}
         }
         closeTab(tabId);
+    }
+
+      // 💥 追加: タブの右クリックメニュー用
+    let tabMenu = { show: false, x: 0, y: 0, tabId: '', path: '', title: '', content: '', tags: [] as string[], openSubLeft: false };
+
+    function handleTabContextMenu(e: MouseEvent, tab: any) {
+        e.preventDefault();
+
+        // 💥 追加: メニューが画面外にはみ出ないようにX座標を調整
+        // 親メニューの幅(約200px)が画面右端を超える場合は左にズラす
+        let adjustedX = e.clientX;
+        if (adjustedX + 200 > window.innerWidth) {
+            adjustedX = window.innerWidth - 200;
+        }
+
+        // さらにサブメニュー(約150px)を展開するスペースが右側にあるか判定
+        const openSubLeft = (adjustedX + 200 + 150) > window.innerWidth;
+
+        tabMenu = {
+            show: true,
+            x: adjustedX, // 補正したX座標を使う
+            y: e.clientY,
+            tabId: tab.id,
+            path: tab.path,
+            title: tab.title,
+            content: tab.content,
+            tags: extractTags(tab.content),
+            openSubLeft // 判定結果を保存
+        };
+    }
+
+    function closeTabMenu() {
+        tabMenu.show = false;
+    }
+
+    // 💥 追加: タグ抽出関数（タブ上の未保存データから拾うため）
+    function extractTags(content: string) {
+        const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+        const tags: string[] = [];
+        if (match) {
+            const lines = match[1].split(/\r?\n/);
+            let inTags = false;
+            for (const line of lines) {
+                if (line.startsWith('tags:') || line.startsWith('tag:')) {
+                    inTags = true;
+                    const inlineStr = line.substring(line.indexOf(':') + 1).trim();
+                    if (inlineStr) {
+                        tags.push(...inlineStr.replace(/[\[\]]/g, '').split(',').map(t => t.trim()).filter(t => t));
+                        inTags = false; 
+                    }
+                    continue;
+                }
+                if (inTags) {
+                    if (line.trim().startsWith('- ')) {
+                        tags.push(line.trim().substring(2).trim());
+                    } else if (line.trim() !== '' && !line.startsWith(' ')) {
+                        inTags = false;
+                    }
+                }
+            }
+        }
+        return [...new Set(tags)];
+    }
+
+    // 💥 追加: タブ上でタグを書き込み、即座に保存する関数
+    async function operateTagForTab(tag: string, isAdd: boolean) {
+        if (!tabMenu.path) { closeTabMenu(); return; }
+        
+        const tab = $openTabs.find(t => t.id === tabMenu.tabId);
+        if (!tab) { closeTabMenu(); return; }
+        
+        let content = tab.content;
+        let tags = extractTags(content);
+        
+        if (isAdd) {
+            if (tags.includes(tag)) { closeTabMenu(); return; }
+            tags.push(tag);
+        } else {
+            if (!tags.includes(tag)) { closeTabMenu(); return; }
+            tags = tags.filter(t => t !== tag);
+        }
+
+        const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+        if (match) {
+            let fm = match[1];
+            let newFmLines: string[] = [];
+            const lines = fm.split(/\r?\n/);
+            let inTagsBlock = false;
+            let hasTags = false;
+
+            for (const line of lines) {
+                if (line.startsWith('tags:') || line.startsWith('tag:')) {
+                    inTagsBlock = true;
+                    hasTags = true;
+                    if (tags.length > 0) {
+                        newFmLines.push(`tags:`);
+                        tags.forEach(t => newFmLines.push(`  - ${t}`));
+                    }
+                    continue;
+                }
+                if (inTagsBlock) {
+                    if (line.trim().startsWith('- ') || line.trim() === '') {
+                        continue;
+                    } else if (!line.startsWith(' ') && line.includes(':')) {
+                        inTagsBlock = false; 
+                    }
+                }
+                if (!inTagsBlock) newFmLines.push(line);
+            }
+            if (!hasTags && tags.length > 0) {
+                newFmLines.push(`tags:`);
+                tags.forEach(t => newFmLines.push(`  - ${t}`));
+            }
+            content = content.replace(/^---\r?\n[\s\S]*?\r?\n---/, `---\n${newFmLines.join('\n')}\n---`);
+        } else {
+            if (tags.length > 0) {
+                let tagsYaml = `tags:\n` + tags.map(t => `  - ${t}`).join('\n');
+                content = `---\n${tagsYaml}\n---\n\n${content}`;
+            }
+        }
+
+        try {
+            await invoke('save_file_content', { path: tabMenu.path, content });
+            openTabs.update(tabs => {
+                const t = tabs.find(t => t.id === tabMenu.tabId);
+                if (t) {
+                    t.content = content;
+                    t.isDirty = false;
+                }
+                return tabs;
+            });
+        } catch(err) {
+            alert("タグの保存に失敗しました");
+        }
+        closeTabMenu();
     }
 
      // 💥 スクロール位置の記憶用
@@ -210,6 +345,8 @@
 
 </script>
 
+<svelte:window on:click={closeTabMenu} />
+
 <div class="h-full flex flex-col bg-gray-900">
     
     <!-- タブバーエリア -->
@@ -218,7 +355,8 @@
             <div 
                 class="flex items-center px-2 py-1 text-xs max-w-[120px] cursor-pointer border-r border-gray-700 border-b border-b-gray-800 transition-colors
                        { $activeTabId === tab.id ? 'bg-gray-800 text-gray-200 border-t-2 border-t-blue-500' : 'bg-[#1e1e1e] text-gray-500 hover:bg-gray-800' }"
-                on:click={() => handleTabClick(tab.id)} 
+                on:click={() => handleTabClick(tab.id)}
+                on:contextmenu={(e) => handleTabContextMenu(e, tab)}
             >
                 <span class="truncate flex-1" title={tab.title}>{tab.title}</span>
                 
@@ -328,6 +466,69 @@
         </div>
     {/if}
 </div>
+
+<!-- 💥 追加: タブの右クリックメニュー -->
+{#if tabMenu.show}
+    <div 
+      class="fixed bg-gray-800 border border-gray-600 rounded shadow-xl z-50 py-1 w-48 text-gray-200"
+      style="left: {tabMenu.x}px; top: {tabMenu.y}px;"
+    >
+        {#if tabMenu.path && tabMenu.path !== '__SEARCH__'}
+            <button 
+                class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition"
+                on:click={() => {
+                    openFileInNewTab(tabMenu.path, tabMenu.title, tabMenu.content);
+                    closeTabMenu();
+                }}
+            >
+                新しいタブで開く
+            </button>
+
+            <hr class="border-gray-700 my-1">
+
+            <!-- タグを挿入 -->
+             <div class="relative group/tagadd">
+                <button class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition flex justify-between items-center">
+                    <span>🏷️ タグを挿入</span>
+                    <!-- 💥 変更: 展開する向きに合わせて矢印の向きも変える -->
+                    <span class="text-xs">{tabMenu.openSubLeft ? '◀' : '▶'}</span>
+                </button>
+                
+                <!-- 💥 変更: left-full か right-full かを動的に切り替える -->
+                <div class="absolute {tabMenu.openSubLeft ? 'right-full -mr-1' : 'left-full -ml-1'} top-0 hidden group-hover/tagadd:block bg-gray-800 border border-gray-600 rounded shadow-xl py-1 w-36">
+                    {#each $registeredTags as tag}
+                        <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700 truncate" on:click={() => operateTagForTab(tag, true)}>
+                            {tag}
+                        </button>
+                    {:else}
+                        <div class="px-4 py-1.5 text-sm text-gray-500">タグ未登録</div>
+                    {/each}
+                </div>
+            </div>
+
+            <!-- タグを削除 -->
+            <div class="relative group/tagdel">
+                <button class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition flex justify-between items-center">
+                    <span>🏷️ タグを削除</span>
+                    <span class="text-xs">{tabMenu.openSubLeft ? '◀' : '▶'}</span>
+                </button>
+                
+                <!-- 💥 変更: こちらも同様に動的切り替え -->
+                <div class="absolute {tabMenu.openSubLeft ? 'right-full -mr-1' : 'left-full -ml-1'} top-0 hidden group-hover/tagdel:block bg-gray-800 border border-gray-600 rounded shadow-xl py-1 w-36">
+                    {#each tabMenu.tags as tag}
+                        <button class="block w-full text-left px-4 py-1.5 text-sm text-red-300 hover:bg-gray-700 truncate" on:click={() => operateTagForTab(tag, false)}>
+                            <span class="inline-block w-4">✓</span>{tag}
+                        </button>
+                    {:else}
+                        <div class="px-4 py-1.5 text-sm text-gray-500">タグなし</div>
+                    {/each}
+                </div>
+            </div>
+        {:else}
+            <div class="px-4 py-2 text-sm text-gray-500">操作できません</div>
+        {/if}
+    </div>
+{/if}
 
 <style>
     /* タブバーのスクロールバーを隠すための小技 */

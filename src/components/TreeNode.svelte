@@ -1,6 +1,6 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
-  import { openFileInCurrentTab, openFileInNewTab, activeTabId, openTabs, switchTab } from '../lib/stores'; // 💥 openTabsとswitchTabを追加
+  import { openFileInCurrentTab, openFileInNewTab, activeTabId, openTabs, switchTab, registeredTags } from '../lib/stores'; 
   import { getContext } from 'svelte';
 
   export let node: any;
@@ -17,6 +17,9 @@
   let showMenu = false;
   let menuX = 0;
   let menuY = 0;
+
+   // 💥 追加: 対象ファイルの現在のタグを保持する変数
+  let currentFileTags: string[] = [];
 
 
     // 💥 追加: 現在のソート設定（個別設定があれば優先、なければ全体設定）を計算し、常にソートされた配列を作る
@@ -70,14 +73,138 @@
   }
 
   // 右クリック時の処理（メニューを出す）
-  function handleContextMenu(e: MouseEvent) {
+  async function handleContextMenu(e: MouseEvent) {
     e.preventDefault();
+    if (node.type === 'File') {
+      try {
+        const content = await getTargetContent();
+        currentFileTags = extractTags(content);
+      } catch(err) {
+        console.error("タグ取得失敗:", err);
+      }
+    }
     showMenu = true;
     menuX = e.clientX;
     menuY = e.clientY;
   }
 
-  // 画面のどこかをクリックしたらメニューを閉じる
+  // 💥 追加: ファイルの中身を取得（タブで開いていればタブの未保存データ、なければ実際のファイルから）
+  async function getTargetContent() {
+    const tab = $openTabs.find(t => t.path === node.path);
+    if (tab) return tab.content;
+    return await loadFileContent(node.path);
+  }
+
+  // 💥 変更: あらゆる形式（インライン・リスト）のタグを読み取る関数
+  function extractTags(content: string) {
+    const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    const tags: string[] = [];
+    if (match) {
+      const lines = match[1].split(/\r?\n/);
+      let inTags = false;
+      
+      for (const line of lines) {
+        if (line.startsWith('tags:') || line.startsWith('tag:')) {
+          inTags = true;
+          // tags: [A, B] のようなインライン形式も拾う
+          const inlineStr = line.substring(line.indexOf(':') + 1).trim();
+          if (inlineStr) {
+            tags.push(...inlineStr.replace(/[\[\]]/g, '').split(',').map(t => t.trim()).filter(t => t));
+            inTags = false; 
+          }
+          continue;
+        }
+        
+        // リスト形式（- A）を拾う
+        if (inTags) {
+          if (line.trim().startsWith('- ')) {
+            tags.push(line.trim().substring(2).trim());
+          } else if (line.trim() !== '' && !line.startsWith(' ')) {
+            inTags = false; // 次のプロパティ（aliases:など）が始まったらタグブロック終了
+          }
+        }
+      }
+    }
+    return [...new Set(tags)]; // 重複を排除して返す
+  }
+
+  // 💥 変更: タグの追加・削除を実行し、常にリスト形式で書き込む
+  async function operateTag(tag: string, isAdd: boolean) {
+    let content = await getTargetContent();
+    let tags = extractTags(content);
+    
+    if (isAdd) {
+      if (tags.includes(tag)) { closeMenu(); return; }
+      tags.push(tag);
+    } else {
+      if (!tags.includes(tag)) { closeMenu(); return; }
+      tags = tags.filter(t => t !== tag);
+    }
+
+    const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    if (match) {
+      let fm = match[1];
+      let newFmLines: string[] = [];
+      const lines = fm.split(/\r?\n/);
+      let inTagsBlock = false;
+      let hasTags = false;
+
+      for (const line of lines) {
+        // タグの記述を見つけたら、新しいリスト形式で展開して書き換える
+        if (line.startsWith('tags:') || line.startsWith('tag:')) {
+          inTagsBlock = true;
+          hasTags = true;
+          if (tags.length > 0) {
+            newFmLines.push(`tags:`);
+            tags.forEach(t => newFmLines.push(`  - ${t}`));
+          }
+          continue;
+        }
+        
+        // 古いタグの記述行はスキップ（消去）する
+        if (inTagsBlock) {
+          if (line.trim().startsWith('- ') || line.trim() === '') {
+            continue;
+          } else if (!line.startsWith(' ') && line.includes(':')) {
+            inTagsBlock = false; 
+          }
+        }
+        
+        if (!inTagsBlock) newFmLines.push(line);
+      }
+
+      // プロパティ自体はあるが tags が無かった場合
+      if (!hasTags && tags.length > 0) {
+        newFmLines.push(`tags:`);
+        tags.forEach(t => newFmLines.push(`  - ${t}`));
+      }
+
+      content = content.replace(/^---\r?\n[\s\S]*?\r?\n---/, `---\n${newFmLines.join('\n')}\n---`);
+    } else {
+      // プロパティが存在しない場合は先頭に作成する
+      if (tags.length > 0) {
+        let tagsYaml = `tags:\n` + tags.map(t => `  - ${t}`).join('\n');
+        content = `---\n${tagsYaml}\n---\n\n${content}`;
+      }
+    }
+
+    // 保存処理
+    try {
+      await invoke('save_file_content', { path: node.path, content });
+      openTabs.update(tabs => {
+        const tab = tabs.find(t => t.path === node.path);
+        if (tab) {
+          tab.content = content;
+          tab.isDirty = false;
+        }
+        return tabs;
+      });
+    } catch(err) {
+      alert("タグの保存に失敗しました");
+    }
+    closeMenu();
+  }
+
   function closeMenu() {
     showMenu = false;
   }
@@ -173,6 +300,47 @@
         >
           新しいタブで開く
         </button>
+
+        <hr class="border-gray-700 my-1">
+
+        <!-- 💥 追加: タグ挿入サブメニュー -->
+        <div class="relative group/tagadd">
+          <button class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition flex justify-between items-center">
+            <span>🏷️ タグを挿入</span>
+            <span class="text-xs">▶</span>
+          </button>
+          <!-- 💥 変更: group-hover/tagadd に変更 -->
+          <div class="absolute left-full top-0 hidden group-hover/tagadd:block bg-gray-800 border border-gray-600 rounded shadow-xl py-1 w-36 -ml-1">
+            {#each $registeredTags as tag}
+              <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700 truncate" on:click={() => operateTag(tag, true)}>
+                {tag}
+              </button>
+            {:else}
+              <div class="px-4 py-1.5 text-sm text-gray-500">タグ未登録</div>
+            {/each}
+          </div>
+        </div>
+
+        <!-- 💥 追加: タグ削除サブメニュー -->
+        <div class="relative group/tagdel">
+          <button class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition flex justify-between items-center">
+            <span>🏷️ タグを削除</span>
+            <span class="text-xs">▶</span>
+          </button>
+          <!-- 💥 変更: group-hover/tagdel に変更 -->
+          <div class="absolute left-full top-0 hidden group-hover/tagdel:block bg-gray-800 border border-gray-600 rounded shadow-xl py-1 w-36 -ml-1">
+            {#each currentFileTags as tag}
+              <button class="block w-full text-left px-4 py-1.5 text-sm text-red-300 hover:bg-gray-700 truncate" on:click={() => operateTag(tag, false)}>
+                <span class="inline-block w-4">✓</span>{tag}
+              </button>
+            {:else}
+              <div class="px-4 py-1.5 text-sm text-gray-500">タグなし</div>
+            {/each}
+          </div>
+        </div>
+
+        <hr class="border-gray-700 my-1">
+      
       {/if}
 
       <!-- 変更：ピン留め状態によって「ピン留め」と「解除」を切り替え -->
@@ -192,7 +360,6 @@
         </button>
       {/if}
 
-      <!-- 💥 新規追加：フォルダ専用メニュー -->
      <!-- 新規追加：フォルダ専用メニュー -->
       {#if node.type === 'Folder'}
         {#if !isReadonly}
@@ -225,7 +392,7 @@
           {/if}
       <!-- フォルダの場合にソートサブメニューを追加 -->
       {#if node.type === 'Folder'}
-        <div class="relative group">
+        <div class="relative group/sort">
           <button class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition flex justify-between items-center">
             <span>🔃 ソート順変更</span>
             <span class="text-xs">▶</span>
