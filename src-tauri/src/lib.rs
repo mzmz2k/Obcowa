@@ -68,7 +68,9 @@ pub struct SavedTab {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SmartRules {
     pub target_dir: String,
-    pub match_type: String, // "AND" または "OR"
+    #[serde(default)]
+    pub target_workspace: bool, // これを追加
+    pub match_type: String,
     pub conditions: Vec<SmartCondition>,
     pub keep_structure: bool,
 }
@@ -460,9 +462,54 @@ fn build_tree_from_paths(files: Vec<FileMeta>, base_dir: &str) -> Vec<VirtualNod
 
 // 💥 追加: スマートフォルダの条件評価コマンド
 #[tauri::command]
-async fn evaluate_smart_folder(rules: SmartRules) -> Result<Vec<VirtualNode>, String> {
+async fn evaluate_smart_folder(
+    rules: SmartRules, 
+    workspace_nodes: Option<Vec<VirtualNode>> // 💥 フロントの最新ツリーを受け取る
+) -> Result<Vec<VirtualNode>, String> {
+    
     let mut all_files = Vec::new();
-    collect_files(std::path::Path::new(&rules.target_dir), &mut all_files);
+
+    // 1. 抽出元フォルダが指定されている場合
+    if !rules.target_dir.trim().is_empty() {
+        collect_files(std::path::Path::new(&rules.target_dir), &mut all_files);
+    }
+
+    // 2. ワークスペースが抽出対象にチェックされている場合
+    if rules.target_workspace {
+        if let Some(nodes) = workspace_nodes {
+            let mut dirs = Vec::new();
+            
+            // 💥 変更: フォルダだけでなく、単体で追加されたファイル(File)も確実に拾う
+            fn traverse(nodes: &[VirtualNode], dirs: &mut Vec<String>, files: &mut Vec<FileMeta>) {
+                for node in nodes {
+                    match node {
+                        VirtualNode::Folder { original_path: Some(path), children, .. } => {
+                            dirs.push(path.clone());
+                            traverse(children, dirs, files);
+                        },
+                        VirtualNode::File { path, .. } => {
+                            if let Some(meta) = get_file_meta_from_path(std::path::Path::new(path)) {
+                                files.push(meta);
+                            }
+                        },
+                        _ => {}
+                    }
+                }
+            }
+            
+            traverse(&nodes, &mut dirs, &mut all_files);
+            
+            dirs.sort();
+            dirs.dedup();
+            for dir in dirs {
+                collect_files(std::path::Path::new(&dir), &mut all_files);
+            }
+        }
+    }
+
+    // 💥 追加: 指定フォルダとワークスペースの範囲が被っていた場合、ファイルの重複を排除する
+    all_files.sort_by(|a, b| a.path.cmp(&b.path));
+    all_files.dedup_by(|a, b| a.path == b.path);
 
     // Date条件ごとの上位N件を抽出
     let mut date_sets: Vec<std::collections::HashSet<String>> = Vec::new();
@@ -504,15 +551,37 @@ async fn evaluate_smart_folder(rules: SmartRules) -> Result<Vec<VirtualNode>, St
     }
 
     if rules.keep_structure { 
-        Ok(build_tree_from_paths(filtered_files, &rules.target_dir)) 
+        // 対象のベースディレクトリを仮決めする（フォルダ指定があればそれ、なければ空）
+        let base = if !rules.target_dir.is_empty() { &rules.target_dir } else { "" };
+        Ok(build_tree_from_paths(filtered_files, base)) 
     } else { 
-        // 💥 変更: フラット表示のときも created と modified を渡すように修正
         Ok(filtered_files.into_iter().map(|f| {
             let c_ms = f.created.duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
             let m_ms = f.modified.duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
             VirtualNode::File { name: f.name, path: f.path, created: c_ms, modified: m_ms }
         }).collect()) 
     }
+}
+
+// 💥 追加: 単体のファイルパスからデータを構築する関数
+fn get_file_meta_from_path(path: &std::path::Path) -> Option<FileMeta> {
+    if path.is_file() {
+        if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+            if ext == "md" || ext == "txt" {
+                if let Ok(metadata) = std::fs::metadata(path) {
+                    let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+                    let modified = metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+                    let created = metadata.created().unwrap_or(modified);
+                    let content = std::fs::read_to_string(path).unwrap_or_default();
+                    return Some(FileMeta {
+                        path: path.to_string_lossy().into_owned(),
+                        name, created, modified, content,
+                    });
+                }
+            }
+        }
+    }
+    None
 }
 
 // 💥 追加: タグを正確に抽出し、指定された条件で比較する関数

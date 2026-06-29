@@ -42,8 +42,9 @@
 
   async function handleClick() {
     if (node.type === 'Folder') {
-      isOpen = !isOpen;
-      if (isOpen && node.children && node.children.length === 0 && node.original_path) {
+          isOpen = !isOpen;
+      // 💥 変更: !node.smart_rules を追加し、スマートフォルダの場合はこの処理をスキップさせる
+      if (isOpen && node.children && node.children.length === 0 && node.original_path && !node.smart_rules) {
         try {
           node.children = await invoke('read_directory', { path: node.original_path });
         } catch (e) {

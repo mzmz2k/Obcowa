@@ -34,6 +34,7 @@
   // 💥 追加: フォルダ追加メニューとスマートフォルダ関連
   let isAddFolderMenuOpen = false, isSmartFolderModalOpen = false;
   let sfName = '', sfTarget = '', sfMatch = 'AND', sfKeep = true;
+  let sfTargetWorkspace = false; // 💥 追加: チェックボックス用フラグ
   let sfConds: any[] = [];
   let editingSmartNode: any = null;
 
@@ -150,6 +151,7 @@
       editingSmartNode = node;
       sfName = node.name;
       sfTarget = node.smart_rules.target_dir;
+      sfTargetWorkspace = node.smart_rules.target_workspace || false; // 💥 追加
       sfMatch = node.smart_rules.match_type;
       sfKeep = node.smart_rules.keep_structure;
       // 条件はコピーして渡す（キャンセル時に反映させないため）
@@ -187,30 +189,65 @@
     workspaces = [...workspaces]; saveData();
   }
 
+    // 💥 追加: ピン留めされた簡単な情報から、ツリー上の「本物」のデータを探し出す関数
+  function getPinnedNode(pin: any) {
+    const ws = workspaces[currentIndex];
+    if (!ws) return pin;
+
+    // ツリーを再帰的に探す関数
+    function findNode(nodes: any[]): any {
+      for (const n of nodes) {
+        const path = n.type === 'Folder' ? n.original_path : n.path;
+        if (n.type === pin.item_type && n.name === pin.name && path === pin.path) return n;
+        if (n.children) {
+          const found = findNode(n.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+
+    // まず現在のワークスペースから探す
+    let realNode = findNode(ws.nodes);
+    if (realNode) return realNode;
+
+    // 見つからなければリンクされたライブラリの中も探す
+    if (ws.linked_libraries) {
+      for (const libId of ws.linked_libraries) {
+        const lib = workspaces.find(w => w.id === libId);
+        if (lib) {
+          realNode = findNode(lib.nodes);
+          if (realNode) return realNode;
+        }
+      }
+    }
+    // どこにもなければ、とりあえず空のダミーを作って返す
+    return { type: pin.item_type, name: pin.name, path: pin.path, original_path: pin.path, children: [] };
+  }
+
   // --- フォルダ更新関連 ---
- async function refreshTree(nodes: any[]): Promise<any[]> {
+  async function refreshTree(nodes: any[], wsIndex: number): Promise<any[]> {
     const updatedNodes = [];
     for (let node of nodes) {
       if (node.type === 'Folder' && node.original_path) {
-        
-        // 💥 変更: スマートフォルダの抽出処理を裏に回し、全体の展開をブロックしないようにする
         if (node.smart_rules) {
-          invoke('evaluate_smart_folder', { rules: node.smart_rules }).then(children => {
+          // 💥 変更: workspaceIndex を消し、workspaceNodes を渡す
+          invoke('evaluate_smart_folder', { 
+            rules: node.smart_rules, 
+            workspaceNodes: workspaces[wsIndex].nodes 
+          }).then(children => {
             node.children = children as any[];
-            workspaces = [...workspaces]; // 抽出が終わり次第、UIに反映
+            workspaces = [...workspaces]; 
           }).catch(() => {});
         } else {
-          // 普通のフォルダの場合（これ自体は一瞬で終わる）
           try {
             let freshChildren: any[] = await invoke('read_directory', { path: node.original_path });
-            
             const oldFolders = new Map();
             if (node.children) {
               for (const c of node.children) {
                 if (c.type === 'Folder') oldFolders.set(c.original_path, c);
               }
             }
-
             for (let fresh of freshChildren) {
               if (fresh.type === 'Folder') {
                 if (oldFolders.has(fresh.original_path)) {
@@ -222,7 +259,8 @@
                 }
               }
             }
-            node.children = await refreshTree(freshChildren);
+            // 💥 変更: wsIndex を引き継ぐ
+            node.children = await refreshTree(freshChildren, wsIndex);
           } catch (e) {}
         }
       }
@@ -242,19 +280,23 @@
     if (typeof path === 'string') sfTarget = path;
   }
   async function saveSmartFolder() {
-    if (!sfName || !sfTarget) return alert("名前と抽出元フォルダを指定してください");
-    const rules = { target_dir: sfTarget, match_type: sfMatch, conditions: sfConds, keep_structure: sfKeep };
+    if (!sfName || (!sfTarget && !sfTargetWorkspace)) return alert("名前と、少なくとも１つの抽出元を指定してください");
+    
+    const rules = { target_dir: sfTarget, target_workspace: sfTargetWorkspace, match_type: sfMatch, conditions: sfConds, keep_structure: sfKeep };
     try {
-      const children = await invoke('evaluate_smart_folder', { rules });
+      // 💥 変更: 同様に workspaceNodes を渡す
+      const children = await invoke('evaluate_smart_folder', { 
+        rules, 
+        workspaceNodes: workspaces[currentIndex].nodes 
+      });
       
       if (editingSmartNode) {
-        // 編集のとき
         editingSmartNode.name = sfName;
         editingSmartNode.smart_rules = rules;
-        editingSmartNode.children = children; // 条件が変わったので中身も更新
+        editingSmartNode.children = children; 
       } else {
-        // 新規作成のとき
-        workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, { type: "Folder", name: sfName, original_path: sfTarget, children, smart_rules: rules }];
+        // 💥 変更: original_path が空にならないように補完（更新判定のため）
+        workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, { type: "Folder", name: sfName, original_path: sfTarget || "__workspace__", children, smart_rules: rules }];
       }
       
       workspaces = [...workspaces];
@@ -263,27 +305,23 @@
     } catch (e) { alert("抽出に失敗しました: " + e); }
   }
 
-  async function handleRefresh() {
+    async function handleRefresh() {
     if (!workspaces[currentIndex]) return;
-    
-    // 1. 現在のワークスペースのフォルダ構成を更新
-    workspaces[currentIndex].nodes = await refreshTree(workspaces[currentIndex].nodes);
-
-    // 2. リンクされているライブラリのフォルダ構成も一緒に更新
+    // 💥 変更: currentIndex を渡す
+    workspaces[currentIndex].nodes = await refreshTree(workspaces[currentIndex].nodes, currentIndex);
     const linkedLibs = workspaces[currentIndex].linked_libraries;
     if (linkedLibs && linkedLibs.length > 0) {
       for (const libId of linkedLibs) {
         const libIndex = workspaces.findIndex(w => w.id === libId);
         if (libIndex !== -1) {
-          workspaces[libIndex].nodes = await refreshTree(workspaces[libIndex].nodes);
+          // 💥 変更: libIndex を渡す
+          workspaces[libIndex].nodes = await refreshTree(workspaces[libIndex].nodes, libIndex);
         }
       }
     }
-    
     workspaces = [...workspaces]; 
     await saveData();
   }
-
   onMount(async () => {
     // 💥 追加: ローカルストレージからタグ一覧を復元する
     try {
@@ -335,16 +373,16 @@
       // 💥 変更: この時点で画面をユーザーに見せる
       isInitialized = true; 
 
-      // 💥 変更: 画面を表示し終わった後、バックグラウンドでフォルダの最新化を行う
+     // 💥 変更: i (インデックス) を渡す
       (async () => {
-        for (let ws of workspaces) {
-          ws.nodes = await refreshTree(ws.nodes);
+        for (let i = 0; i < workspaces.length; i++) {
+          workspaces[i].nodes = await refreshTree(workspaces[i].nodes, i);
         }
         workspaces = [...workspaces];
       })();
-      
+
     } catch (e) {}
-  });
+  }); // ← 💥 これらを追加して onMount をきちんと閉じる！
 
 // 💥 タブの状態が変わったら自動でワークスペースに記録（初期化完了後のみ動くように修正）
 $: if (isInitialized && workspaces.length > 0 && workspaces[currentIndex]) {
@@ -509,6 +547,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     }
     isSettingsOpen = false; 
   }
+
 </script>
 
 <svelte:window on:mousemove={doResize} on:mouseup={stopResize} on:click={() => { isListMenuOpen = false; isAddFolderMenuOpen = false; isGlobalSortMenuOpen = false; }} />
@@ -574,7 +613,10 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
           <div class="text-xs font-bold text-gray-500 mb-1 pl-1">📌 ピン留め</div>
           {#each workspaces[currentIndex].pinned as pin}
             <div class="flex items-center justify-between group">
-              <div class="flex-1 overflow-hidden"><TreeNode node={{ type: pin.item_type, name: pin.name, path: pin.path, original_path: pin.path, children: [] }} /></div>
+             <div class="flex-1 overflow-hidden">
+                <TreeNode node={getPinnedNode(pin)} isReadonly={false} />
+              </div>
+              
               <button on:click={() => unpin(pin.path)} class="text-xs text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 px-1">✕</button>
             </div>
           {/each}
@@ -892,6 +934,10 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
           <input type="text" class="flex-1 bg-gray-700 text-gray-400 border border-gray-600 rounded p-2 text-sm" value={sfTarget} readonly placeholder="抽出元のフォルダ" />
           <button on:click={selectSfTarget} class="px-3 bg-gray-700 hover:bg-gray-600 rounded text-sm border border-gray-600">選択</button>
         </div>
+        <label class="flex items-center text-sm cursor-pointer mt-2 text-gray-300">
+          <input type="checkbox" bind:checked={sfTargetWorkspace} class="mr-2"> このワークスペースから抽出する
+        </label>
+
       </div>
 
       <div class="bg-gray-900 p-4 rounded border border-gray-700 mb-4">
