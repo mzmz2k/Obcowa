@@ -8,8 +8,9 @@
   import Editor from '../components/Editor.svelte';
   import TreeNode from '../components/TreeNode.svelte';
   import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags } from '../lib/stores';
+  import { cloneNodeAsIndependent } from '../lib/library';
   import { RotateCw, ArrowUpDown, Search, FolderPlus, FilePlus, Pin, X, Menu, SquarePen, Settings, Library, Archive, Link } from 'lucide-svelte';
-
+ 
 
   let sidebarWidth = 260;
   let isResizing = false;
@@ -123,15 +124,17 @@
   function getNodePath(node: any) { return node.type === 'Folder' ? node.original_path : node.path; }
 
   setContext('workspaceActions', {
-    removeNode: (targetNode: any) => {
-      if (!workspaces[currentIndex]) return;
+    removeNode: (targetNode: any, ownerId: string) => {
+      const wsIndex = workspaces.findIndex(w => w.id === ownerId);
+      if (wsIndex === -1) return;
+
       function filterOutNode(nodes: any[]) {
         return nodes.filter(n => n !== targetNode).map(n => {
           if (n.children) n.children = filterOutNode(n.children);
           return n;
         });
       }
-      workspaces[currentIndex].nodes = filterOutNode(workspaces[currentIndex].nodes);
+      workspaces[wsIndex].nodes = filterOutNode(workspaces[wsIndex].nodes);
       workspaces = [...workspaces]; saveData();
     },
     pinNode: (targetNode: any) => {
@@ -183,6 +186,31 @@
       node.sort_order = order;
       workspaces = [...workspaces];
       saveData();
+    },
+        // 💥 追加: ライブラリ取得と追加の処理
+    getLibraries: () => workspaces.filter(w => w.category === 'Library'),
+    addNodeToLibrary: async (node: any, libId: string) => {
+      let targetLib = workspaces.find(w => w.id === libId);
+      
+      // 新規作成の場合
+      if (libId === 'new') {
+        const newName = prompt("新しいライブラリの名前を入力してください");
+        if (!newName) return;
+        targetLib = { 
+          id: Date.now().toString(), name: newName, category: 'Library', 
+          nodes: [], links: [], pinned: [], linked_libraries: [], is_flat: false,
+          editor_font: workspaces[currentIndex]?.editor_font || 'sans-serif'
+        };
+        workspaces.push(targetLib);
+      }
+      if (!targetLib) return;
+      
+      // テスト済みの関数で完全に独立したデータを作ってから放り込む
+      const clonedNode = cloneNodeAsIndependent(node);
+      targetLib.nodes.push(clonedNode);
+      workspaces = [...workspaces];
+      await saveData();
+      alert(`ライブラリ「${targetLib.name}」に登録しました`);
     }
 
   });
@@ -452,25 +480,6 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     isImportLibraryModalOpen = false;
   }
 
-  async function convertToLibrary() {
-    const ws = workspaces[currentIndex];
-    const newName = prompt("ライブラリとして保存する名前を入力してください", ws.name + " (コピー)");
-    if(newName) {
-      workspaces.push({ 
-        id: Date.now().toString(), 
-        name: newName, 
-        category: 'Library', 
-        nodes: JSON.parse(JSON.stringify(ws.nodes)), 
-        links: JSON.parse(JSON.stringify(ws.links||[])), 
-        pinned: JSON.parse(JSON.stringify(ws.pinned||[])), 
-        linked_libraries: [], 
-        is_flat: false,
-        editor_font: ws.editor_font || 'sans-serif' // 💥 追加
-      });
-      workspaces = [...workspaces]; await saveData(); alert("ライブラリに保存しました");
-    }
-    isListMenuOpen = false;
-  }
 
   async function deleteEditingList() {
     // 💥 Tauriのネイティブダイアログを呼び出す
@@ -628,7 +637,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
      <div>
         {#if workspaces.length > 0 && workspaces[currentIndex]}
           {#each getSortedNodes(workspaces[currentIndex].nodes, workspaces[currentIndex].sort_by, workspaces[currentIndex].sort_order) as node}
-            <TreeNode {node} isReadonly={false} />
+             <TreeNode {node} ownerId={workspaces[currentIndex].id} isLibraryNode={false} />
           {/each}
         {/if}
       </div>
@@ -640,10 +649,11 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
           {#if lib}
             {#if lib.is_flat}
               {#each getSortedNodes(lib.nodes, lib.sort_by, lib.sort_order) as node}
-                <TreeNode node={{ ...node, is_library_root: node.type === 'Folder' }} isReadonly={true} />
+                <TreeNode node={node} ownerId={lib.id} isLibraryNode={true} />
               {/each}
             {:else}
-              <TreeNode node={{ type: 'Folder', name: lib.name, original_path: null, children: lib.nodes, is_library_root: true }} isReadonly={true} />
+              <!-- 💥 変更: ライブラリのガワ(is_virtual_wrapper)として保護する -->
+              <TreeNode node={{ type: 'Folder', name: lib.name, original_path: null, children: lib.nodes, is_virtual_wrapper: true }} ownerId={lib.id} isLibraryNode={true} />
             {/if}
           {/if}
         {/each}
@@ -683,7 +693,6 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
           <button class="flex items-center w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isListMenuOpen = false; editingListIndex = currentIndex; isManageModalOpen = true; }}><Settings size={14} class="mr-2" /> リスト管理</button>
           <hr class="border-gray-600 my-1">
           <button class="flex items-center w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isListMenuOpen = false; isImportLibraryModalOpen = true; }}><Library size={14} class="mr-2" /> ライブラリを追加</button>
-          <button class="flex items-center w-full text-left px-4 py-2 hover:bg-gray-700" on:click={convertToLibrary}><Archive size={14} class="mr-2" /> ライブラリ化</button>
         </div>
       {/if}
       <div class="flex-1"></div>
@@ -704,7 +713,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 {#if isCreateModalOpen}
   <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center text-gray-200">
     <div class="bg-gray-800 p-6 rounded shadow-lg border border-gray-600 w-96">
-      <h2 class="text-lg font-bold mb-4">リストを作成</h2>
+      <h2 class="text-lg font-bold mb-4">ワークスペースを作成</h2>
       
       <!-- 💥 変更: ラジオボタンとプルダウンを削除し、マージン(mb-6)を調整 -->
       <input type="text" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none mb-6" bind:value={newListName} placeholder="新しい名前" on:keydown={(e) => e.key === 'Enter' && createNewWorkspace()} />
@@ -734,11 +743,6 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
         <div class="bg-gray-900 p-4 rounded border border-gray-700 mb-6 max-h-[50vh] overflow-y-auto">
           <input type="text" class="w-full bg-gray-800 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none mb-4" bind:value={workspaces[editingListIndex].name} on:change={saveData} />
           
-          <div class="flex gap-4 mb-4">
-            <label class="flex items-center text-sm cursor-pointer"><input type="radio" bind:group={workspaces[editingListIndex].category} value="Active" on:change={saveData} class="mr-2">ワークスペース</label>
-            <label class="flex items-center text-sm cursor-pointer"><input type="radio" bind:group={workspaces[editingListIndex].category} value="Library" on:change={saveData} class="mr-2">ライブラリ</label>
-          </div>
-
           <!-- 💥 ファイルクリック動作設定（ワークスペースのみ） -->
           {#if workspaces[editingListIndex].category === 'Active'}
             <div class="mb-4 p-3 bg-gray-800 rounded border border-gray-700">
@@ -772,7 +776,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
                 {@const lib = workspaces.find(w => w.id === libId)}
                 {#if lib}
                   <div class="flex items-center justify-between text-sm text-gray-300 mb-1">
-                    <span>📚 {lib.name}</span>
+                    <span>{lib.name}</span>
                     <button class="text-xs text-red-400 hover:text-red-300" on:click={() => { workspaces[editingListIndex].linked_libraries = workspaces[editingListIndex].linked_libraries.filter(id => id !== libId); workspaces = [...workspaces]; saveData(); }}>解除</button>
                   </div>
                 {/if}

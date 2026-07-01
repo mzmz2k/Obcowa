@@ -5,10 +5,13 @@
   import { ChevronDown, ChevronRight, Library, FolderOpen, Folder, FileText, Tag, Pin, PinOff, Search, Pencil, ArrowUpDown, ExternalLink } from 'lucide-svelte';
 
   export let node: any;
-  export let isReadonly = false; 
+  // 💥 変更: isReadonly を削除し、親から引き継ぐ情報に変更
+  export let ownerId: string;
+  export let isLibraryNode = false;
   let isOpen = false;
 
-  const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior, saveWorkspace, editSmartFolder, openNewFileModal, getGlobalSort, setNodeSort } = getContext('workspaceActions') as any;
+  // 💥 追加: コンテキストアクションから新しい関数も受け取る
+  const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior, saveWorkspace, editSmartFolder, openNewFileModal, getGlobalSort, setNodeSort, getLibraries, addNodeToLibrary } = getContext('workspaceActions') as any;
 
   // 現在アクティブなタブの path と一致しているか判定
   $: activeTab = $openTabs.find(t => t.id === $activeTabId);
@@ -270,7 +273,7 @@
     </span>
     <span class="mr-1.5 flex items-center justify-center w-4">
       {#if node.type === 'Folder'}
-        {#if node.is_library_root}
+        {#if node.is_virtual_wrapper}
           <Library size={14} />
         {:else}
           {#if isOpen}<FolderOpen size={14} />{:else}<Folder size={14} />{/if}
@@ -362,7 +365,8 @@
 
      <!-- 新規追加：フォルダ専用メニュー -->
       {#if node.type === 'Folder'}
-        {#if !isReadonly}
+        <!-- 💥 変更: isReadonlyではなく、仮想のガワ以外ならフル操作可能にする -->
+        {#if !node.is_virtual_wrapper}
           
           <!-- 💥 スマートフォルダの場合は「条件を編集」にする -->
           {#if node.smart_rules}
@@ -437,13 +441,43 @@
         {/if}
       {/if}
 
-      <!-- 💥 読み取り専用（ライブラリ経由）のときは削除ボタンを隠す -->
-      {#if !isReadonly}
+      <!-- 💥 仮想のガワ以外なら表示 -->
+      {#if !node.is_virtual_wrapper}
+
+        <!-- 💥 追加: ライブラリに登録 (現在のワークスペースのノードのみ表示) -->
+        {#if !isLibraryNode}
+          <div class="relative group/library">
+            <button class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition flex justify-between items-center">
+              <span class="flex items-center"><Library size={14} class="mr-2" /> ライブラリに登録</span>
+              <ChevronRight size={14} />
+            </button>
+            <div class="absolute left-full top-0 hidden group-hover/library:block bg-gray-800 border border-gray-600 rounded shadow-xl py-1 w-48 -ml-1">
+              <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700 font-bold" on:click={() => { addNodeToLibrary(node, 'new'); closeMenu(); }}>
+                 ＋ 新しいライブラリを作成
+              </button>
+              <hr class="border-gray-700 my-1">
+              {#each getLibraries() as lib}
+                <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700 truncate" on:click={() => { addNodeToLibrary(node, lib.id); closeMenu(); }}>
+                   {lib.name}
+                </button>
+              {:else}
+                <div class="px-4 py-1.5 text-xs text-gray-500">既存ライブラリなし</div>
+              {/each}
+            </div>
+          </div>
+          <hr class="border-gray-700 my-1">
+        {/if}
+
         <button 
-          class="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition"
-          on:click={() => { removeNode(node); closeMenu(); }}
+          class="flex items-center w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition"
+          on:click={() => { removeNode(node, ownerId); closeMenu(); }}
         >
-          リストから削除
+          <!-- 💥 ライブラリ内なら解除、通常なら削除と表記を変える -->
+          {#if isLibraryNode}
+            ライブラリ登録解除
+          {:else}
+            リストから削除
+          {/if}
         </button>
       {/if}
       
@@ -453,7 +487,7 @@
   {#if isOpen && sortedChildren && sortedChildren.length > 0}
     <div class="border-l border-gray-600 ml-2 pl-1">
       {#each sortedChildren as childNode}
-        <svelte:self node={childNode} {isReadonly} />
+        <svelte:self node={childNode} {ownerId} {isLibraryNode} />
       {/each}
     </div>
   {/if}
