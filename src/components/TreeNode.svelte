@@ -88,9 +88,19 @@
         console.error("タグ取得失敗:", err);
       }
     }
+    // 💥 追加: メニューが画面下部にはみ出さないようにY座標を調整
+    // メニューの想定最大高さを約 400px として計算
+    let adjustedY = e.clientY;
+    const estimatedMenuHeight = 400;
+    
+    if (adjustedY + estimatedMenuHeight > window.innerHeight) {
+        // 下にはみ出る場合は、画面下端に収まるように上にずらす
+        adjustedY = Math.max(0, window.innerHeight - estimatedMenuHeight);
+    }
+
     showMenu = true;
     menuX = e.clientX;
-    menuY = e.clientY;
+    menuY = adjustedY;
   }
 
   // 💥 追加: ファイルの中身を取得（タブで開いていればタブの未保存データ、なければ実際のファイルから）
