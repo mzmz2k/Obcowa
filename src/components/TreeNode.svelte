@@ -271,12 +271,12 @@
     <span class="mr-1.5 flex items-center justify-center w-4">
       {#if node.type === 'Folder'}
         {#if node.is_library_root}
-          <Library size={14} class="text-purple-400" />
+          <Library size={14} />
         {:else}
-          {#if isOpen}<FolderOpen size={14} class="text-yellow-400" />{:else}<Folder size={14} class="text-yellow-400" />{/if}
+          {#if isOpen}<FolderOpen size={14} />{:else}<Folder size={14} />{/if}
         {/if}
       {:else}
-        <FileText size={14} class="text-blue-300" />
+        <FileText size={14} />
       {/if}
     </span>
 
