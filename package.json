@@ -17,6 +17,7 @@
     "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-opener": "^2.5.4",
     "@tauri-apps/plugin-window-state": "^2.4.1",
+    "lucide-svelte": "^1.0.1",
     "marked": "^18.0.5"
   },
   "devDependencies": {

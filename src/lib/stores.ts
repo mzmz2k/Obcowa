@@ -30,7 +30,7 @@ export function openSearchTab() {
         return [...resetTabs, {
             id: newId,
             path: "__SEARCH__", // 検索タブと識別するための特殊パス
-            title: "🔍 検索",
+            title: "検索",
             content: "",
             isEditing: false,
             isDirty: false

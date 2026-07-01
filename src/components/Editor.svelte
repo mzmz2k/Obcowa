@@ -4,6 +4,7 @@
     import { openUrl } from '@tauri-apps/plugin-opener';
     import { marked } from 'marked';
     import { tick } from 'svelte';
+    import { Search, FileText, BookOpen, Pencil, Inbox, Tag, ChevronLeft, ChevronRight, Plus, X } from 'lucide-svelte';
 
      marked.use({ breaks: true });
 
@@ -358,6 +359,9 @@
                 on:click={() => handleTabClick(tab.id)}
                 on:contextmenu={(e) => handleTabContextMenu(e, tab)}
             >
+                {#if tab.path === '__SEARCH__'}
+                    <Search size={14} class="mr-1.5 text-gray-400 shrink-0" />
+                {/if}
                 <span class="truncate flex-1" title={tab.title}>{tab.title}</span>
                 
                 <!-- 💥 追加: 未保存なら青い ● を表示 -->
@@ -365,22 +369,21 @@
                     <span class="text-blue-400 ml-1 text-[10px]">●</span>
                 {/if}
 
-                <!-- 💥 変更: closeTab ではなく作成した handleTabClose を呼ぶ -->
                 <button 
-                    class="ml-1 w-4 h-4 flex items-center justify-center rounded-full hover:bg-gray-600 hover:text-red-400 transition"
+                    class="ml-1 w-5 h-5 flex items-center justify-center rounded-full hover:bg-gray-600 hover:text-red-400 transition"
                     on:click|stopPropagation={() => handleTabClose(tab.id)}
                 >
-                    ×
+                    <X size={12} />
                 </button>
             </div>
         {/each}
         
         <button 
-            class="px-3 py-1 text-gray-500 hover:text-gray-200 hover:bg-gray-800 transition text-sm"
+            class="px-3 py-1 flex items-center justify-center text-gray-500 hover:text-gray-200 hover:bg-gray-800 transition"
             title="新しいタブを開く"
             on:click={createNewTab}
         >
-            ＋
+            <Plus size={16} />
         </button>
     </div>
 
@@ -413,8 +416,8 @@
                                     on:click={() => handleResultClick(res.path, res.name, false)}
                                     on:contextmenu|preventDefault={() => handleResultClick(res.path, res.name, true)}
                                 >
-                                    <div class="font-bold text-sm text-blue-300">📄 {res.name}</div>
-                                    <div class="text-xs text-gray-400 truncate">{res.snippet}</div>
+                                    <div class="flex items-center font-bold text-sm text-blue-300"><FileText size={14} class="mr-1" /> {res.name}</div>
+                                    <div class="text-xs text-gray-400 truncate mt-1">{res.snippet}</div>
                                 </div>
                             {/each}
                             {#if searchResults.length === 0 && hasSearched}
@@ -426,10 +429,15 @@
             {:else}
                 <!-- 検索タブ以外（通常のエディタ）でのみ表示するボタン -->
                 <button 
-                    class="absolute top-4 right-6 z-10 px-3 py-1 text-xs bg-gray-700 text-gray-300 rounded shadow border border-gray-600 hover:bg-gray-600 hover:text-white transition opacity-60 hover:opacity-100"
+                    class="absolute top-4 right-6 z-10 w-8 h-8 flex items-center justify-center bg-gray-700 text-gray-300 rounded shadow border border-gray-600 hover:bg-gray-600 hover:text-white transition opacity-60 hover:opacity-100"
                     on:click={toggleEditMode}
+                    title={activeTab.isEditing ? 'プレビューモードへ' : '編集モードへ'}
                 >
-                    {activeTab.isEditing ? '📖' : '✏️'}
+                    {#if activeTab.isEditing}
+                        <BookOpen size={16} />
+                    {:else}
+                        <Pencil size={16} />
+                    {/if}
                 </button>
 
                 <!-- 💥 変更: 不要な親枠 <div> をなくし、直接 if 文で切り替える -->
@@ -461,8 +469,8 @@
     {:else}
 
         <div class="flex-1 flex flex-col items-center justify-center text-gray-600 bg-gray-800">
-            <div class="text-4xl mb-4">🗂️</div>
-            <div>ファイルを選択するか、＋ボタンで新規作成してください</div>
+            <Inbox size={48} class="mb-4 text-gray-500" />
+            <div class="text-sm">ファイルを選択するか、＋ボタンで新規作成してください</div>
         </div>
     {/if}
 </div>
@@ -488,10 +496,9 @@
 
             <!-- タグを挿入 -->
              <div class="relative group/tagadd">
-                <button class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition flex justify-between items-center">
-                    <span>🏷️ タグを挿入</span>
-                    <!-- 💥 変更: 展開する向きに合わせて矢印の向きも変える -->
-                    <span class="text-xs">{tabMenu.openSubLeft ? '◀' : '▶'}</span>
+                 <button class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition flex justify-between items-center">
+                    <span class="flex items-center"><Tag size={14} class="mr-2" /> タグを挿入</span>
+                    <span>{#if tabMenu.openSubLeft}<ChevronLeft size={14} />{:else}<ChevronRight size={14} />{/if}</span>
                 </button>
                 
                 <!-- 💥 変更: left-full か right-full かを動的に切り替える -->
@@ -509,8 +516,8 @@
             <!-- タグを削除 -->
             <div class="relative group/tagdel">
                 <button class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition flex justify-between items-center">
-                    <span>🏷️ タグを削除</span>
-                    <span class="text-xs">{tabMenu.openSubLeft ? '◀' : '▶'}</span>
+                    <span class="flex items-center"><Tag size={14} class="mr-2" /> タグを削除</span>
+                    <span>{#if tabMenu.openSubLeft}<ChevronLeft size={14} />{:else}<ChevronRight size={14} />{/if}</span>
                 </button>
                 
                 <!-- 💥 変更: こちらも同様に動的切り替え -->

@@ -2,6 +2,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { openFileInCurrentTab, openFileInNewTab, activeTabId, openTabs, switchTab, registeredTags } from '../lib/stores'; 
   import { getContext } from 'svelte';
+  import { ChevronDown, ChevronRight, Library, FolderOpen, Folder, FileText, Tag, Pin, PinOff, Search, Pencil, ArrowUpDown, ExternalLink } from 'lucide-svelte';
 
   export let node: any;
   export let isReadonly = false; 
@@ -262,21 +263,20 @@
     on:contextmenu={handleContextMenu}
   >
 
-    <span class="mr-1 w-3 text-center text-xs text-gray-500">
+    <span class="mr-1 flex items-center justify-center w-3 text-gray-500">
       {#if node.type === 'Folder'}
-        {isOpen ? '▼' : '▶'}
+        {#if isOpen}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
       {/if}
     </span>
-    <span class="mr-1 w-4 text-center">
+    <span class="mr-1.5 flex items-center justify-center w-4">
       {#if node.type === 'Folder'}
-        <!-- 💥 ライブラリのルートの場合は本アイコンにする -->
         {#if node.is_library_root}
-          📚
+          <Library size={14} class="text-purple-400" />
         {:else}
-          {isOpen ? '📂' : '📁'}
+          {#if isOpen}<FolderOpen size={14} class="text-yellow-400" />{:else}<Folder size={14} class="text-yellow-400" />{/if}
         {/if}
       {:else}
-        📄
+        <FileText size={14} class="text-blue-300" />
       {/if}
     </span>
 
@@ -305,10 +305,9 @@
         <hr class="border-gray-700 my-1">
 
         <!-- 💥 追加: タグ挿入サブメニュー -->
-        <div class="relative group/tagadd">
           <button class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition flex justify-between items-center">
-            <span>🏷️ タグを挿入</span>
-            <span class="text-xs">▶</span>
+            <span class="flex items-center"><Tag size={14} class="mr-2" /> タグを挿入</span>
+            <ChevronRight size={14} />
           </button>
           <!-- 💥 変更: group-hover/tagadd に変更 -->
           <div class="absolute left-full top-0 hidden group-hover/tagadd:block bg-gray-800 border border-gray-600 rounded shadow-xl py-1 w-36 -ml-1">
@@ -320,13 +319,13 @@
               <div class="px-4 py-1.5 text-sm text-gray-500">タグ未登録</div>
             {/each}
           </div>
-        </div>
+        
 
         <!-- 💥 追加: タグ削除サブメニュー -->
         <div class="relative group/tagdel">
           <button class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition flex justify-between items-center">
-            <span>🏷️ タグを削除</span>
-            <span class="text-xs">▶</span>
+            <span class="flex items-center"><Tag size={14} class="mr-2" /> タグを削除</span>
+            <ChevronRight size={14} />
           </button>
           <!-- 💥 変更: group-hover/tagdel に変更 -->
           <div class="absolute left-full top-0 hidden group-hover/tagdel:block bg-gray-800 border border-gray-600 rounded shadow-xl py-1 w-36 -ml-1">
@@ -347,17 +346,17 @@
       <!-- 変更：ピン留め状態によって「ピン留め」と「解除」を切り替え -->
       {#if checkIsPinned(node)}
         <button 
-          class="block w-full text-left px-4 py-2 text-sm text-yellow-500 hover:bg-gray-700 transition"
+          class="flex items-center w-full text-left px-4 py-2 text-sm text-yellow-500 hover:bg-gray-700 transition"
           on:click={() => { unpinNode(node); closeMenu(); }}
         >
-          📌 ピン留め解除
+          <PinOff size={14} class="mr-2" /> ピン留め解除
         </button>
       {:else}
         <button 
-          class="block w-full text-left px-4 py-2 text-sm text-yellow-400 hover:bg-gray-700 transition"
+          class="flex items-center w-full text-left px-4 py-2 text-sm text-yellow-400 hover:bg-gray-700 transition"
           on:click={() => { pinNode(node); closeMenu(); }}
         >
-          📌 ピン留め
+          <Pin size={14} class="mr-2" /> ピン留め
         </button>
       {/if}
 
@@ -368,26 +367,26 @@
           <!-- 💥 スマートフォルダの場合は「条件を編集」にする -->
           {#if node.smart_rules}
             <button 
-              class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
+              class="flex items-center w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
               on:click={() => { editSmartFolder(node); closeMenu(); }}
             >
-              🔍 条件を編集
+              <Search size={14} class="mr-2" /> 条件を編集
             </button>
           {:else}
             <!-- 普通のフォルダの場合は今まで通り -->
             <button 
-              class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
+              class="flex items-center w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
               on:click={() => { renameFolder(); closeMenu(); }}
             >
-              ✏️ 表示名を変更
+              <Pencil size={14} class="mr-2" /> 表示名を変更
             </button>
             
             {#if node.original_path}
               <button 
-                class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
+                class="flex items-center w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
                 on:click={() => { createNewFileInFolder(); closeMenu(); }}
               >
-                📄 新規ファイル作成
+                <FileText size={14} class="mr-2" /> 新規ファイル作成
               </button>
             {/if}
           {/if}
@@ -395,8 +394,8 @@
       {#if node.type === 'Folder'}
         <div class="relative group/sort">
           <button class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition flex justify-between items-center">
-            <span>🔃 ソート順変更</span>
-            <span class="text-xs">▶</span>
+            <span class="flex items-center"><ArrowUpDown size={14} class="mr-2" /> ソート順変更</span>
+            <ChevronRight size={14} />
           </button>
           
           <!-- サブメニュー (ホバーで出現) -->
@@ -429,10 +428,10 @@
 
         {#if node.original_path}
           <button 
-            class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
+            class="flex items-center w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
             on:click={() => { openInExplorer(); closeMenu(); }}
           >
-            📂 エクスプローラーで開く
+            <ExternalLink size={14} class="mr-2" /> エクスプローラーで開く
           </button>
         {/if}
       {/if}

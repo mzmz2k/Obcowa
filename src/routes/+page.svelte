@@ -8,6 +8,8 @@
   import Editor from '../components/Editor.svelte';
   import TreeNode from '../components/TreeNode.svelte';
   import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags } from '../lib/stores';
+  import { RotateCw, ArrowUpDown, Search, FolderPlus, FilePlus, Pin, X, Menu, SquarePen, Settings, Library, Archive, Link } from 'lucide-svelte';
+
 
   let sidebarWidth = 260;
   let isResizing = false;
@@ -558,11 +560,11 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     <div class="p-3 border-b border-gray-700 font-bold flex justify-between items-center text-gray-300">
       <span class="truncate pr-2">{workspaces[currentIndex]?.name || 'リスト'}</span>
       <div class="flex gap-2 shrink-0 relative">
-        <button on:click={handleRefresh} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">↻</button>
+       <button on:click={handleRefresh} class="flex items-center justify-center w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded" title="更新"><RotateCw size={14} /></button>
 
-                <!-- 💥 追加: ソート順設定ボタンとメニュー -->
+        <!-- 💥 追加: ソート順設定ボタンとメニュー -->
         <div class="relative flex items-center">
-          <button on:click|stopPropagation={() => isGlobalSortMenuOpen = !isGlobalSortMenuOpen} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded" title="並び替え">⇅</button>
+          <button on:click|stopPropagation={() => isGlobalSortMenuOpen = !isGlobalSortMenuOpen} class="flex items-center justify-center w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded" title="並び替え"><ArrowUpDown size={14} /></button>
           {#if isGlobalSortMenuOpen}
             <div class="absolute top-8 left-0 bg-gray-800 border border-gray-600 rounded shadow-xl z-50 py-1 w-32 text-sm font-normal">
                <!-- 💥 変更: 固定幅の <span> を使って位置を揃え、記号を ✓ に変更 -->
@@ -589,19 +591,17 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
         </div>
         
         <!-- 💥 変更: 検索ボタンに変更 -->
-        <button on:click={openSearchTab} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded" title="検索">🔍</button>
+        <button on:click={openSearchTab} class="flex items-center justify-center w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded" title="検索"><Search size={14} /></button>
         
         <!-- フォルダ追加メニュー -->
-        <button on:click|stopPropagation={() => isAddFolderMenuOpen = !isAddFolderMenuOpen} class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">📁</button>
+        <button on:click|stopPropagation={() => isAddFolderMenuOpen = !isAddFolderMenuOpen} class="flex items-center justify-center w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded"><FolderPlus size={14} /></button>
         {#if isAddFolderMenuOpen}
           <div class="absolute top-8 right-0 bg-gray-800 border border-gray-600 rounded shadow-xl z-50 py-1 w-40 text-sm font-normal">
             <button class="block w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isAddFolderMenuOpen = false; addFolder(); }}>普通のフォルダ</button>
             
-            <!-- 💥 追加: ファイル追加をここに移動 -->
-            <button class="block w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isAddFolderMenuOpen = false; addFile(); }}>📄 ファイルを追加</button>
+            <button class="flex items-center w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isAddFolderMenuOpen = false; addFile(); }}><FilePlus size={14} class="mr-2" /> ファイルを追加</button>
             
-            <!-- 💥 変更なし（順番がファイル追加の下になりました） -->
-            <button class="block w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isAddFolderMenuOpen = false; sfName=''; sfTarget=''; sfConds=[]; editingSmartNode=null; isSmartFolderModalOpen = true; }}>🔍 条件で抽出</button>
+            <button class="flex items-center w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isAddFolderMenuOpen = false; sfName=''; sfTarget=''; sfConds=[]; editingSmartNode=null; isSmartFolderModalOpen = true; }}><Search size={14} class="mr-2" /> 条件で抽出</button>
           </div>
         {/if}
       </div>
@@ -610,14 +610,14 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     <div class="flex-1 p-2 overflow-auto">
       {#if workspaces[currentIndex]?.pinned && workspaces[currentIndex].pinned.length > 0}
         <div class="mb-2">
-          <div class="text-xs font-bold text-gray-500 mb-1 pl-1">📌 ピン留め</div>
+          <div class="flex items-center text-xs font-bold text-gray-500 mb-1 pl-1"><Pin size={12} class="mr-1" /> ピン留め</div>
           {#each workspaces[currentIndex].pinned as pin}
             <div class="flex items-center justify-between group">
              <div class="flex-1 overflow-hidden">
                 <TreeNode node={getPinnedNode(pin)} isReadonly={false} />
               </div>
               
-              <button on:click={() => unpin(pin.path)} class="text-xs text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 px-1">✕</button>
+              <button on:click={() => unpin(pin.path)} class="flex items-center justify-center text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 p-1"><X size={12} /></button>
             </div>
           {/each}
         </div>
@@ -674,19 +674,19 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
         {/each}
       </select>
       
-      <button on:click|stopPropagation={() => isListMenuOpen = !isListMenuOpen} class="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded">≡</button>
+      <button on:click|stopPropagation={() => isListMenuOpen = !isListMenuOpen} class="flex items-center justify-center w-7 h-7 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"><Menu size={16} /></button>
 
       {#if isListMenuOpen}
         <div class="absolute bottom-10 left-36 bg-gray-800 border border-gray-600 rounded shadow-xl z-50 py-1 w-48 text-sm">
-          <button class="block w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isListMenuOpen = false; isCreateModalOpen = true; }}>📝 リスト作成</button>
-          <button class="block w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isListMenuOpen = false; editingListIndex = currentIndex; isManageModalOpen = true; }}>⚙️ リスト管理</button>
+          <button class="flex items-center w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isListMenuOpen = false; isCreateModalOpen = true; }}><SquarePen size={14} class="mr-2" /> リスト作成</button>
+          <button class="flex items-center w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isListMenuOpen = false; editingListIndex = currentIndex; isManageModalOpen = true; }}><Settings size={14} class="mr-2" /> リスト管理</button>
           <hr class="border-gray-600 my-1">
-          <button class="block w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isListMenuOpen = false; isImportLibraryModalOpen = true; }}>📚 ライブラリを追加</button>
-          <button class="block w-full text-left px-4 py-2 hover:bg-gray-700" on:click={convertToLibrary}>📦 ライブラリ化</button>
+          <button class="flex items-center w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isListMenuOpen = false; isImportLibraryModalOpen = true; }}><Library size={14} class="mr-2" /> ライブラリを追加</button>
+          <button class="flex items-center w-full text-left px-4 py-2 hover:bg-gray-700" on:click={convertToLibrary}><Archive size={14} class="mr-2" /> ライブラリ化</button>
         </div>
       {/if}
       <div class="flex-1"></div>
-      <button on:click={openSettings} class="px-2 py-1 text-gray-400 hover:text-white">⚙️</button>
+      <button on:click={openSettings} class="flex items-center justify-center w-7 h-7 text-gray-400 hover:text-white"><Settings size={16} /></button>
     </div>
   </div>
 
