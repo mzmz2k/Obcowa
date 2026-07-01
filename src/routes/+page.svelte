@@ -135,7 +135,8 @@
         });
       }
       workspaces[wsIndex].nodes = filterOutNode(workspaces[wsIndex].nodes);
-      workspaces = [...workspaces]; saveData();
+      // 💥 変更: saveData(true) に変更
+      workspaces = [...workspaces]; saveData(true);
     },
     pinNode: (targetNode: any) => {
       const ws = workspaces[currentIndex];
@@ -143,14 +144,13 @@
       const path = getNodePath(targetNode);
       if (!ws.pinned.find((p:any) => p.path === path)) {
         ws.pinned.push({ item_type: targetNode.type, name: targetNode.name, path });
-        workspaces = [...workspaces]; saveData();
+        workspaces = [...workspaces]; saveData(true);
       }
     },
     unpinNode: (targetNode: any) => unpin(getNodePath(targetNode)),
     checkIsPinned: (targetNode: any) => workspaces[currentIndex]?.pinned?.some((p:any) => p.path === getNodePath(targetNode)),
-    // 💥 追加: 現在表示しているリストの「タブ挙動」を取得
     getClickBehavior: () => workspaces[currentIndex]?.open_in_new_tab || false,
-    saveWorkspace: () => saveData() ,
+    saveWorkspace: () => saveData(true),
     // 💥 新規追加: ツリーから編集モードを呼び出す
     editSmartFolder: (node: any) => {
       editingSmartNode = node;
@@ -185,9 +185,11 @@
       node.sort_by = by;
       node.sort_order = order;
       workspaces = [...workspaces];
-      saveData();
+      // 💥 変更: saveData(true) に変更
+      saveData(true);
     },
-        // 💥 追加: ライブラリ取得と追加の処理
+
+    // 💥 追加: ライブラリ取得と追加の処理
     getLibraries: () => workspaces.filter(w => w.category === 'Library'),
     addNodeToLibrary: async (node: any, libId: string) => {
       let targetLib = workspaces.find(w => w.id === libId);
@@ -209,7 +211,7 @@
       const clonedNode = cloneNodeAsIndependent(node);
       targetLib.nodes.push(clonedNode);
       workspaces = [...workspaces];
-      await saveData();
+      await saveData(true);
       alert(`ライブラリ「${targetLib.name}」に登録しました`);
     }
 
@@ -217,7 +219,7 @@
 
   function unpin(path: string) {
     workspaces[currentIndex].pinned = workspaces[currentIndex].pinned.filter((p:any) => p.path !== path);
-    workspaces = [...workspaces]; saveData();
+    workspaces = [...workspaces]; saveData(true);
   }
 
     // 💥 追加: ピン留めされた簡単な情報から、ツリー上の「本物」のデータを探し出す関数
@@ -429,9 +431,22 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   }
 
   // 💥 複数ウィンドウでのファイル書き込み競合を防ぐため、保存直前に最新を読み込んでマージ
-  async function saveData() {
+  async function saveData(forceOverwrite = false) {
     try {
+      // 💥 追加: 強制上書きの指示があれば、そのまま全保存する
+      if (forceOverwrite) {
+        await invoke('save_workspaces', { workspaces });
+        return;
+      }
+
       const latestWorkspaces: any[] = await invoke('load_workspaces');
+      
+      // 💥 追加: もしリストの数自体が変わっていた場合（削除や追加された場合）は強制上書きに切り替える
+      if (latestWorkspaces.length !== workspaces.length) {
+        await invoke('save_workspaces', { workspaces });
+        return;
+      }
+
       if (latestWorkspaces.length > 0 && latestWorkspaces[currentIndex]) {
         latestWorkspaces[currentIndex] = workspaces[currentIndex];
         await invoke('save_workspaces', { workspaces: latestWorkspaces });
@@ -461,7 +476,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     
     currentIndex = workspaces.length - 1;
     workspaces = [...workspaces]; 
-    await saveData();
+    await saveData(true);
     
     isCreateModalOpen = false; 
     newListName = '';
@@ -475,7 +490,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     
     if (!ws.linked_libraries.includes(selectedLibraryId)) {
       ws.linked_libraries.push(selectedLibraryId);
-      workspaces = [...workspaces]; await saveData();
+      workspaces = [...workspaces]; await saveData(true);
     }
     isImportLibraryModalOpen = false;
   }
@@ -487,7 +502,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     if (isYes) {
       workspaces.splice(editingListIndex, 1);
       if (currentIndex >= workspaces.length) currentIndex = Math.max(0, workspaces.length - 1);
-      workspaces = [...workspaces]; await saveData();
+      workspaces = [...workspaces]; await saveData(true);
       isManageModalOpen = false;
     }
   }
@@ -741,18 +756,18 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 
       {#if workspaces[editingListIndex]}
         <div class="bg-gray-900 p-4 rounded border border-gray-700 mb-6 max-h-[50vh] overflow-y-auto">
-          <input type="text" class="w-full bg-gray-800 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none mb-4" bind:value={workspaces[editingListIndex].name} on:change={saveData} />
+   <input type="text" class="w-full bg-gray-800 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none mb-4" bind:value={workspaces[editingListIndex].name} on:change={() => saveData(true)} />
           
           <!-- 💥 ファイルクリック動作設定（ワークスペースのみ） -->
           {#if workspaces[editingListIndex].category === 'Active'}
             <div class="mb-4 p-3 bg-gray-800 rounded border border-gray-700">
               <div class="text-xs text-gray-400 mb-2">ファイルをクリックした時の動作</div>
               <label class="flex items-center text-sm cursor-pointer mb-2">
-                <input type="radio" bind:group={workspaces[editingListIndex].open_in_new_tab} value={false} on:change={saveData} class="mr-2 text-blue-500">
+                <input type="radio" bind:group={workspaces[editingListIndex].open_in_new_tab} value={false} on:change={() => saveData(true)} class="mr-2 text-blue-500">
                 今開いているタブを上書きする
               </label>
               <label class="flex items-center text-sm cursor-pointer">
-                <input type="radio" bind:group={workspaces[editingListIndex].open_in_new_tab} value={true} on:change={saveData} class="mr-2 text-blue-500">
+                <input type="radio" bind:group={workspaces[editingListIndex].open_in_new_tab} value={true} on:change={() => saveData(true)} class="mr-2 text-blue-500">
                 新しいタブで開く
               </label>
             </div>
@@ -762,7 +777,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
           {#if workspaces[editingListIndex].category === 'Library'}
             <div class="mb-4 p-3 bg-gray-800 rounded border border-gray-700">
               <label class="flex items-center text-sm text-gray-300 cursor-pointer">
-                <input type="checkbox" bind:checked={workspaces[editingListIndex].is_flat} on:change={saveData} class="mr-2">
+                <input type="checkbox" bind:checked={workspaces[editingListIndex].is_flat} on:change={() => saveData(true)} class="mr-2">
                 このライブラリをフォルダにまとめず、直接中身を展開して表示する
               </label>
             </div>
