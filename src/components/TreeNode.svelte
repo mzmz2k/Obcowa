@@ -399,7 +399,8 @@
           </button>
           
           <!-- サブメニュー (ホバーで出現) -->
-          <div class="absolute left-full top-0 hidden group-hover:block bg-gray-800 border border-gray-600 rounded shadow-xl py-1 w-36 -ml-1">
+         <!-- 💥 group-hover:block を group-hover/sort:block に修正しました -->
+          <div class="absolute left-full top-0 hidden group-hover/sort:block bg-gray-800 border border-gray-600 rounded shadow-xl py-1 w-36 -ml-1">
             
             <!-- 💥 変更: 同様に固定幅の <span> に変更 -->
             <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700" on:click={() => { setNodeSort(node, sortBy, 'asc'); closeMenu(); }}>

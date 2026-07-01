@@ -181,6 +181,7 @@
     setNodeSort: (node: any, by: string, order: string) => {
       node.sort_by = by;
       node.sort_order = order;
+      workspaces = [...workspaces];
       saveData();
     }
 
