@@ -477,33 +477,24 @@ async fn evaluate_smart_folder(
     // 2. ワークスペースが抽出対象にチェックされている場合
     if rules.target_workspace {
         if let Some(nodes) = workspace_nodes {
-            let mut dirs = Vec::new();
             
-            // 💥 変更: フォルダだけでなく、単体で追加されたファイル(File)も確実に拾う
-            fn traverse(nodes: &[VirtualNode], dirs: &mut Vec<String>, files: &mut Vec<FileMeta>) {
+            // 💥 変更: OSの物理フォルダを読み直すのではなく、ツリー上に見えているファイルだけを純粋にかき集める
+            fn traverse(nodes: &[VirtualNode], files: &mut Vec<FileMeta>) {
                 for node in nodes {
                     match node {
-                        VirtualNode::Folder { original_path: Some(path), children, .. } => {
-                            dirs.push(path.clone());
-                            traverse(children, dirs, files);
+                        VirtualNode::Folder { children, .. } => {
+                            traverse(children, files);
                         },
                         VirtualNode::File { path, .. } => {
                             if let Some(meta) = get_file_meta_from_path(std::path::Path::new(path)) {
                                 files.push(meta);
                             }
-                        },
-                        _ => {}
+                        }
                     }
                 }
             }
             
-            traverse(&nodes, &mut dirs, &mut all_files);
-            
-            dirs.sort();
-            dirs.dedup();
-            for dir in dirs {
-                collect_files(std::path::Path::new(&dir), &mut all_files);
-            }
+            traverse(&nodes, &mut all_files);
         }
     }
 
