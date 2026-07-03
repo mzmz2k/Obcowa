@@ -34,9 +34,9 @@ export interface Theme {
 export const defaultThemes: Theme[] = [
     {
         id: 'dark', name: 'ダーク', 
-        bgColor: '#1f2937', textColor: '#e5e7eb', 
-        scrollBg: '#111827', scrollThumb: '#4b5563', accentColor: '#3b82f6',
-        activeHighlightBg: '#1e3a8a', menuBg: '#111827'
+        bgColor: '#26282c', textColor: '#e5e7eb', 
+        scrollBg: '#1a253c', scrollThumb: '#4b5563', accentColor: '#3b82f6',
+        activeHighlightBg: '#1e3a8a', menuBg: '#1a253c'
     },
     {
         id: 'light', name: 'ライト', 

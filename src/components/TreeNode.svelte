@@ -292,7 +292,7 @@
     <span class="truncate">{node.name}</span>
   </div>
 
-  <!-- 💥 カスタムコンテキストメニュー -->
+ <!-- 💥 カスタムコンテキストメニュー -->
   {#if showMenu}
     <div 
       class="fixed border border-black/20 rounded shadow-xl z-50 py-1 w-48"
@@ -300,7 +300,7 @@
     >
       {#if node.type === 'File'}
         <button 
-          class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
+          class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition"
           on:click={async () => {
             const content = await loadFileContent(node.path);
             openFileInNewTab(node.path, node.name, content);
@@ -310,58 +310,56 @@
           新しいタブで開く
         </button>
 
-        <hr class="border-gray-700 my-1">
+        <hr class="border-black/10 my-1">
 
         <!-- 💥 追加: タグ挿入サブメニュー -->
-          <button class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition flex justify-between items-center">
+          <button class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition flex justify-between items-center">
             <span class="flex items-center"><Tag size={14} class="mr-2" /> タグを挿入</span>
             <ChevronRight size={14} />
           </button>
-          <!-- 💥 変更: group-hover/tagadd に変更 -->
           <div class="absolute left-full top-0 hidden group-hover/tagadd:block border border-black/20 rounded shadow-xl py-1 w-36 -ml-1" style="background-color: var(--menu-bg);">
             {#each $registeredTags as tag}
-              <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700 truncate" on:click={() => operateTag(tag, true)}>
+              <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10 truncate" on:click={() => operateTag(tag, true)}>
                 {tag}
               </button>
             {:else}
-              <div class="px-4 py-1.5 text-sm text-gray-500">タグ未登録</div>
+              <div class="px-4 py-1.5 text-sm opacity-50">タグ未登録</div>
             {/each}
           </div>
         
 
         <!-- 💥 追加: タグ削除サブメニュー -->
         <div class="relative group/tagdel">
-          <button class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition flex justify-between items-center">
+          <button class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition flex justify-between items-center">
             <span class="flex items-center"><Tag size={14} class="mr-2" /> タグを削除</span>
             <ChevronRight size={14} />
           </button>
-          <!-- 💥 変更: group-hover/tagdel に変更 -->
           <div class="absolute left-full top-0 hidden group-hover/tagdel:block border border-black/20 rounded shadow-xl py-1 w-36 -ml-1" style="background-color: var(--menu-bg);">
             {#each currentFileTags as tag}
-              <button class="block w-full text-left px-4 py-1.5 text-sm text-red-300 hover:bg-gray-700 truncate" on:click={() => operateTag(tag, false)}>
+              <button class="block w-full text-left px-4 py-1.5 text-sm text-red-400 hover:bg-black/10 truncate" on:click={() => operateTag(tag, false)}>
                 <span class="inline-block w-4">✓</span>{tag}
               </button>
             {:else}
-              <div class="px-4 py-1.5 text-sm text-gray-500">タグなし</div>
+              <div class="px-4 py-1.5 text-sm opacity-50">タグなし</div>
             {/each}
           </div>
         </div>
 
-        <hr class="border-gray-700 my-1">
+        <hr class="border-black/10 my-1">
       
       {/if}
 
       <!-- 変更：ピン留め状態によって「ピン留め」と「解除」を切り替え -->
       {#if checkIsPinned(node)}
         <button 
-          class="flex items-center w-full text-left px-4 py-2 text-sm text-yellow-500 hover:bg-gray-700 transition"
+          class="flex items-center w-full text-left px-4 py-2 text-sm text-[var(--accent-color)] hover:brightness-110 hover:bg-black/10 transition"
           on:click={() => { unpinNode(node); closeMenu(); }}
         >
           <PinOff size={14} class="mr-2" /> ピン留め解除
         </button>
       {:else}
         <button 
-          class="flex items-center w-full text-left px-4 py-2 text-sm text-yellow-400 hover:bg-gray-700 transition"
+          class="flex items-center w-full text-left px-4 py-2 text-sm text-[var(--accent-color)] hover:brightness-110 hover:bg-black/10 transition"
           on:click={() => { pinNode(node); closeMenu(); }}
         >
           <Pin size={14} class="mr-2" /> ピン留め
@@ -376,7 +374,7 @@
           <!-- 💥 スマートフォルダの場合は「条件を編集」にする -->
           {#if node.smart_rules}
             <button 
-              class="flex items-center w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
+              class="flex items-center w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition"
               on:click={() => { editSmartFolder(node); closeMenu(); }}
             >
               <Search size={14} class="mr-2" /> 条件を編集
@@ -384,7 +382,7 @@
           {:else}
             <!-- 普通のフォルダの場合は今まで通り -->
             <button 
-              class="flex items-center w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
+              class="flex items-center w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition"
               on:click={() => { renameFolder(); closeMenu(); }}
             >
               <Pencil size={14} class="mr-2" /> 表示名を変更
@@ -392,7 +390,7 @@
             
             {#if node.original_path}
               <button 
-                class="flex items-center w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
+                class="flex items-center w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition"
                 on:click={() => { createNewFileInFolder(); closeMenu(); }}
               >
                 <FileText size={14} class="mr-2" /> 新規ファイル作成
@@ -402,43 +400,37 @@
       <!-- フォルダの場合にソートサブメニューを追加 -->
       {#if node.type === 'Folder'}
         <div class="relative group/sort">
-          <button class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition flex justify-between items-center">
+          <button class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition flex justify-between items-center">
             <span class="flex items-center"><ArrowUpDown size={14} class="mr-2" /> ソート順変更</span>
             <ChevronRight size={14} />
           </button>
           
-          <!-- サブメニュー (ホバーで出現) -->
-         <!-- 💥 group-hover:block を group-hover/sort:block に修正しました -->
           <div class="absolute left-full top-0 hidden group-hover/sort:block border border-black/20 rounded shadow-xl py-1 w-36 -ml-1" style="background-color: var(--menu-bg);">
-            
-            <!-- 💥 変更: 同様に固定幅の <span> に変更 -->
-            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700" on:click={() => { setNodeSort(node, sortBy, 'asc'); closeMenu(); }}>
+            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10" on:click={() => { setNodeSort(node, sortBy, 'asc'); closeMenu(); }}>
               <span class="inline-block w-4">{sortOrder !== 'desc' ? '✓' : ''}</span>昇順
             </button>
-            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700" on:click={() => { setNodeSort(node, sortBy, 'desc'); closeMenu(); }}>
+            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10" on:click={() => { setNodeSort(node, sortBy, 'desc'); closeMenu(); }}>
               <span class="inline-block w-4">{sortOrder === 'desc' ? '✓' : ''}</span>降順
             </button>
-            
-            <hr class="border-gray-600 my-1">
-            
-            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700" on:click={() => { setNodeSort(node, 'name', sortOrder); closeMenu(); }}>
+            <hr class="border-black/10 my-1">
+            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10" on:click={() => { setNodeSort(node, 'name', sortOrder); closeMenu(); }}>
               <span class="inline-block w-4">{sortBy === 'name' ? '✓' : ''}</span>名前
             </button>
-            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700" on:click={() => { setNodeSort(node, 'created', sortOrder); closeMenu(); }}>
+            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10" on:click={() => { setNodeSort(node, 'created', sortOrder); closeMenu(); }}>
               <span class="inline-block w-4">{sortBy === 'created' ? '✓' : ''}</span>作成日
             </button>
-            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700" on:click={() => { setNodeSort(node, 'modified', sortOrder); closeMenu(); }}>
+            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10" on:click={() => { setNodeSort(node, 'modified', sortOrder); closeMenu(); }}>
               <span class="inline-block w-4">{sortBy === 'modified' ? '✓' : ''}</span>更新日
             </button>
           </div>
         </div>
-        <hr class="border-gray-700 my-1">
+        <hr class="border-black/10 my-1">
       {/if}
         {/if}
 
         {#if node.original_path}
           <button 
-            class="flex items-center w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition"
+            class="flex items-center w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition"
             on:click={() => { openInExplorer(); closeMenu(); }}
           >
             <ExternalLink size={14} class="mr-2" /> エクスプローラーで開く
@@ -452,29 +444,29 @@
         <!-- 💥 追加: ライブラリに登録 (現在のワークスペースのノードのみ表示) -->
         {#if !isLibraryNode}
           <div class="relative group/library">
-            <button class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition flex justify-between items-center">
+            <button class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition flex justify-between items-center">
               <span class="flex items-center"><Library size={14} class="mr-2" /> ライブラリに登録</span>
               <ChevronRight size={14} />
             </button>
             <div class="absolute left-full top-0 hidden group-hover/library:block border border-black/20 rounded shadow-xl py-1 w-48 -ml-1" style="background-color: var(--menu-bg);">
-              <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700 font-bold" on:click={() => { addNodeToLibrary(node, 'new'); closeMenu(); }}>
+              <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10 font-bold" on:click={() => { addNodeToLibrary(node, 'new'); closeMenu(); }}>
                  ＋ 新しいライブラリを作成
               </button>
-              <hr class="border-gray-700 my-1">
+              <hr class="border-black/10 my-1">
               {#each getLibraries() as lib}
-                <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700 truncate" on:click={() => { addNodeToLibrary(node, lib.id); closeMenu(); }}>
+                <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10 truncate" on:click={() => { addNodeToLibrary(node, lib.id); closeMenu(); }}>
                    {lib.name}
                 </button>
               {:else}
-                <div class="px-4 py-1.5 text-xs text-gray-500">既存ライブラリなし</div>
+                <div class="px-4 py-1.5 text-xs opacity-50">既存ライブラリなし</div>
               {/each}
             </div>
           </div>
-          <hr class="border-gray-700 my-1">
+          <hr class="border-black/10 my-1">
         {/if}
 
         <button 
-          class="flex items-center w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition"
+          class="flex items-center w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-black/10 transition"
           on:click={() => { removeNode(node, ownerId); closeMenu(); }}
         >
           <!-- 💥 ライブラリ内なら解除、通常なら削除と表記を変える -->
@@ -490,7 +482,7 @@
   {/if}
 
   {#if isOpen && sortedChildren && sortedChildren.length > 0}
-    <div class="border-l border-gray-600 ml-2 pl-1">
+    <div class="border-l border-black/10 ml-2 pl-1">
       {#each sortedChildren as childNode}
         <svelte:self node={childNode} {ownerId} {isLibraryNode} />
       {/each}

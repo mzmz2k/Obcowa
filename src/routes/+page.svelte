@@ -366,7 +366,7 @@
       const savedTheme = localStorage.getItem('activeTheme');
       if (savedTheme) {
         let t = JSON.parse(savedTheme);
-        t.menuBg = t.menuBg || '#111827'; // 古いデータへの補完
+        t.menuBg = t.menuBg || '#1a253c'; // 古いデータへの補完
         activeTheme.set(t);
       }
       
@@ -378,7 +378,7 @@
           parsed[1].id = 'custom2'; parsed[1].name = 'カスタム２';
           parsed[2].id = 'custom3'; parsed[2].name = 'カスタム３';
         }
-        parsed = parsed.map((t: any) => ({...t, menuBg: t.menuBg || '#111827'})); // 古いデータへの補完
+        parsed = parsed.map((t: any) => ({...t, menuBg: t.menuBg || '#1a253c'})); // 古いデータへの補完
         customThemes.set(parsed);
       }
     } catch (e) {}
@@ -588,13 +588,29 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   let tempFont = '';
   
   let activeSettingsTab = 'general';
-  let tempTheme: Theme;
   let selectedPreset = 'dark';
   let selectedCustomSlot = 'custom1';
 
+  let tempTheme: Theme = { 
+    id: 'temp', name: 'temp', bgColor: '#26282c', textColor: '#e5e7eb', 
+    scrollBg: '#1a253c', scrollThumb: '#4b5563', accentColor: '#3b82f6', 
+    activeHighlightBg: '#1e3a8a', menuBg: '#1a253c' 
+  };
+
   function openSettings() { 
     tempFont = $editorFont; 
-    tempTheme = { ...$activeTheme };
+    tempTheme = { 
+      id: $activeTheme.id || 'custom',
+      name: $activeTheme.name || 'Custom',
+      bgColor: $activeTheme.bgColor || '#26282c',
+      textColor: $activeTheme.textColor || '#e5e7eb',
+      scrollBg: $activeTheme.scrollBg || '#1a253c',
+      scrollThumb: $activeTheme.scrollThumb || '#4b5563',
+      accentColor: $activeTheme.accentColor || '#3b82f6',
+      activeHighlightBg: $activeTheme.activeHighlightBg || '#1e3a8a',
+      menuBg: $activeTheme.menuBg || '#1a253c'
+    };
+    
     activeSettingsTab = 'general';
     isSettingsOpen = true; 
   }
@@ -768,7 +784,12 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
         </div>
       {/if}
       <div class="flex-1"></div>
-      <button on:click={openSettings} class="flex items-center justify-center w-7 h-7 opacity-70 hover:opacity-100 transition"><Settings size={16} /></button>
+      <button 
+        on:click|stopPropagation={openSettings} 
+        class="flex items-center justify-center w-7 h-7 opacity-70 hover:opacity-100 transition relative z-10"
+      >
+        <Settings size={16} />
+      </button>
     </div>
   </div>
 
@@ -779,20 +800,18 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   </div>
 </main>
 
-<!-- 💥 各種モーダル（すべてに text-gray-200 を適用） -->
+<!-- 💥 各種モーダル -->
 
 <!-- 1. リスト作成 -->
 {#if isCreateModalOpen}
-  <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center text-gray-200">
-    <div class="p-6 rounded shadow-lg border border-gray-600 w-96" style="background-color: var(--menu-bg); color: var(--text-color);">
+  <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
+    <div class="p-6 rounded shadow-lg border border-black/20 w-96" style="background-color: var(--menu-bg); color: var(--text-color);">
       <h2 class="text-lg font-bold mb-4">ワークスペースを作成</h2>
-      
-      <!-- 💥 変更: ラジオボタンとプルダウンを削除し、マージン(mb-6)を調整 -->
-      <input type="text" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none mb-6" bind:value={newListName} placeholder="新しい名前" on:keydown={(e) => e.key === 'Enter' && createNewWorkspace()} />
+      <input type="text" class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm outline-none mb-6" bind:value={newListName} placeholder="新しい名前" on:keydown={(e) => e.key === 'Enter' && createNewWorkspace()} />
       
       <div class="flex justify-end gap-2">
-        <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm" on:click={() => isCreateModalOpen = false}>キャンセル</button>
-        <button class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm" on:click={createNewWorkspace}>作成</button>
+        <button class="px-4 py-2 bg-black/10 hover:bg-black/20 rounded text-sm transition" on:click={() => isCreateModalOpen = false}>キャンセル</button>
+        <button class="px-4 py-2 bg-[var(--accent-color)] text-white hover:brightness-110 rounded text-sm shadow transition" on:click={createNewWorkspace}>作成</button>
       </div>
     </div>
   </div>
@@ -800,54 +819,51 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 
 <!-- 2. リスト管理 -->
 {#if isManageModalOpen}
-  <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center text-gray-200">
-    <div class="p-6 rounded shadow-lg border border-gray-600 w-[500px]" style="background-color: var(--menu-bg); color: var(--text-color);">
+  <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
+    <div class="p-6 rounded shadow-lg border border-black/20 w-[500px]" style="background-color: var(--menu-bg); color: var(--text-color);">
       <h2 class="text-lg font-bold mb-4">リスト管理</h2>
       <div class="flex gap-2 mb-4">
-        <select class="flex-1 bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none" bind:value={editingListIndex}>
+        <select class="flex-1 bg-black/10 border border-black/20 rounded p-2 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={editingListIndex}>
           <optgroup label="ワークスペース">{#each workspaces.map((w, i) => ({...w, i})).filter(w => w.category === 'Active') as ws}<option value={ws.i}>{ws.name}</option>{/each}</optgroup>
           <optgroup label="ライブラリ">{#each workspaces.map((w, i) => ({...w, i})).filter(w => w.category === 'Library') as ws}<option value={ws.i}>{ws.name}</option>{/each}</optgroup>
         </select>
-        <button on:click={deleteEditingList} class="px-3 py-2 bg-red-900 hover:bg-red-800 text-red-200 rounded text-sm transition font-bold">削除</button>
+        <button on:click={deleteEditingList} class="px-3 py-2 bg-red-900/50 hover:bg-red-900/80 text-red-100 rounded text-sm transition font-bold">削除</button>
       </div>
 
       {#if workspaces[editingListIndex]}
-        <div class="bg-gray-900 p-4 rounded border border-gray-700 mb-6 max-h-[50vh] overflow-y-auto">
-   <input type="text" class="w-full bg-gray-800 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none mb-4" bind:value={workspaces[editingListIndex].name} on:change={() => saveData(true)} />
+        <div class="bg-black/5 p-4 rounded border border-black/10 mb-6 max-h-[50vh] overflow-y-auto">
+          <input type="text" class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm outline-none mb-4" bind:value={workspaces[editingListIndex].name} on:change={() => saveData(true)} />
           
-          <!-- 💥 ファイルクリック動作設定（ワークスペースのみ） -->
           {#if workspaces[editingListIndex].category === 'Active'}
-            <div class="mb-4 p-3 bg-gray-800 rounded border border-gray-700">
-              <div class="text-xs text-gray-400 mb-2">ファイルをクリックした時の動作</div>
+            <div class="mb-4 p-3 bg-black/5 rounded border border-black/10">
+              <div class="text-xs opacity-70 mb-2">ファイルをクリックした時の動作</div>
               <label class="flex items-center text-sm cursor-pointer mb-2">
-                <input type="radio" bind:group={workspaces[editingListIndex].open_in_new_tab} value={false} on:change={() => saveData(true)} class="mr-2 text-blue-500">
+                <input type="radio" bind:group={workspaces[editingListIndex].open_in_new_tab} value={false} on:change={() => saveData(true)} class="mr-2 accent-[var(--accent-color)]">
                 今開いているタブを上書きする
               </label>
               <label class="flex items-center text-sm cursor-pointer">
-                <input type="radio" bind:group={workspaces[editingListIndex].open_in_new_tab} value={true} on:change={() => saveData(true)} class="mr-2 text-blue-500">
+                <input type="radio" bind:group={workspaces[editingListIndex].open_in_new_tab} value={true} on:change={() => saveData(true)} class="mr-2 accent-[var(--accent-color)]">
                 新しいタブで開く
               </label>
             </div>
           {/if}
 
-          <!-- 💥 ライブラリ固有の設定 -->
           {#if workspaces[editingListIndex].category === 'Library'}
-            <div class="mb-4 p-3 bg-gray-800 rounded border border-gray-700">
-              <label class="flex items-center text-sm text-gray-300 cursor-pointer">
-                <input type="checkbox" bind:checked={workspaces[editingListIndex].is_flat} on:change={() => saveData(true)} class="mr-2">
+            <div class="mb-4 p-3 bg-black/5 rounded border border-black/10">
+              <label class="flex items-center text-sm cursor-pointer">
+                <input type="checkbox" bind:checked={workspaces[editingListIndex].is_flat} on:change={() => saveData(true)} class="mr-2 accent-[var(--accent-color)]">
                 このライブラリをフォルダにまとめず、直接中身を展開して表示する
               </label>
             </div>
           {/if}
 
-          <!-- 💥 ワークスペース固有の設定（リンク解除） -->
           {#if workspaces[editingListIndex].category === 'Active' && workspaces[editingListIndex].linked_libraries?.length > 0}
-            <div class="mb-4 p-3 bg-gray-800 rounded border border-gray-700">
-              <div class="text-xs text-gray-400 mb-2">リンク中のライブラリ</div>
+            <div class="mb-4 p-3 bg-black/5 rounded border border-black/10">
+              <div class="text-xs opacity-70 mb-2">リンク中のライブラリ</div>
               {#each workspaces[editingListIndex].linked_libraries as libId}
                 {@const lib = workspaces.find(w => w.id === libId)}
                 {#if lib}
-                  <div class="flex items-center justify-between text-sm text-gray-300 mb-1">
+                  <div class="flex items-center justify-between text-sm mb-1">
                     <span>{lib.name}</span>
                     <button class="text-xs text-red-400 hover:text-red-300" on:click={() => { workspaces[editingListIndex].linked_libraries = workspaces[editingListIndex].linked_libraries.filter(id => id !== libId); workspaces = [...workspaces]; saveData(); }}>解除</button>
                   </div>
@@ -856,74 +872,73 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
             </div>
           {/if}
 
-          <!-- 💥 リンク管理（移設） -->
-          <div class="p-3 rounded border border-gray-700" style="background-color: var(--menu-bg); color: var(--text-color);">
+          <!-- リンク管理 -->
+          <div class="p-3 bg-black/5 rounded border border-black/10">
             <div class="flex justify-between items-center mb-2">
-              <span class="text-xs text-gray-400">🔗 リンク</span>
-              <button on:click={() => openLinkModal()} class="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs">＋ 追加</button>
+              <span class="text-xs opacity-70">🔗 リンク</span>
+              <button on:click={() => openLinkModal()} class="px-2 py-1 bg-black/20 hover:bg-black/30 rounded text-xs transition">＋ 追加</button>
             </div>
             <div class="space-y-2">
               {#each workspaces[editingListIndex].links || [] as link}
-                <div class="flex items-center justify-between text-sm text-gray-300 bg-gray-900 p-2 rounded">
+                <div class="flex items-center justify-between text-sm bg-black/10 p-2 rounded">
                   <span class="truncate flex-1 pr-2">{link.title}</span>
                   <div class="flex gap-3 shrink-0">
-                    <button class="text-xs text-blue-400 hover:text-blue-300" on:click={() => openLinkModal(link)}>編集</button>
+                    <button class="text-xs text-[var(--accent-color)] hover:brightness-110" on:click={() => openLinkModal(link)}>編集</button>
                     <button class="text-xs text-red-400 hover:text-red-300" on:click={() => deleteLink(link.id)}>削除</button>
                   </div>
                 </div>
               {:else}
-                <div class="text-xs text-gray-500 text-center py-2">リンクはありません</div>
+                <div class="text-xs opacity-50 text-center py-2">リンクはありません</div>
               {/each}
             </div>
           </div>
 
         </div>
       {/if}
-      <div class="flex justify-end"><button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm" on:click={() => isManageModalOpen = false}>閉じる</button></div>
+      <div class="flex justify-end"><button class="px-4 py-2 bg-black/10 hover:bg-black/20 rounded text-sm transition" on:click={() => isManageModalOpen = false}>閉じる</button></div>
     </div>
   </div>
 {/if}
 
 <!-- 3. ライブラリ追加 -->
 {#if isImportLibraryModalOpen}
-  <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center text-gray-200">
-    <div class="p-6 rounded shadow-lg border border-gray-600 w-96" style="background-color: var(--menu-bg); color: var(--text-color);">
+  <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
+    <div class="p-6 rounded shadow-lg border border-black/20 w-96" style="background-color: var(--menu-bg); color: var(--text-color);">
       <h2 class="text-lg font-bold mb-4">ライブラリを追加</h2>
-      <select class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm mb-4" bind:value={selectedLibraryId}>
+      <select class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm mb-4 outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={selectedLibraryId}>
         <option value="" disabled selected>ライブラリを選択</option>
         {#each workspaces.filter(w => w.category === 'Library') as lib}<option value={lib.id}>{lib.name}</option>{/each}
       </select>
       <div class="flex justify-end gap-2">
-        <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm" on:click={() => isImportLibraryModalOpen = false}>キャンセル</button>
-        <button class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm" on:click={importLibrary}>追加</button>
+        <button class="px-4 py-2 bg-black/10 hover:bg-black/20 rounded text-sm transition" on:click={() => isImportLibraryModalOpen = false}>キャンセル</button>
+        <button class="px-4 py-2 bg-[var(--accent-color)] text-white hover:brightness-110 rounded text-sm shadow transition" on:click={importLibrary}>追加</button>
       </div>
     </div>
   </div>
 {/if}
 
-<!-- リンク・設定モーダル（既存のまま文字色だけ修正） -->
+<!-- リンク・設定モーダル -->
 {#if linkContextMenu.show}
   <div class="fixed inset-0 z-40" on:click={closeLinkMenu} on:contextmenu|preventDefault={closeLinkMenu}></div>
-  <div class="fixed border border-gray-600 rounded shadow-xl z-50 py-1 w-32 text-gray-200" style="left: {linkContextMenu.x}px; top: {linkContextMenu.y}px; background-color: var(--menu-bg); color: var(--text-color);">
-    <button class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-700" on:click={() => { openLinkModal(linkContextMenu.link); closeLinkMenu(); }}>編集</button>
-    <button class="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700" on:click={() => deleteLink(linkContextMenu.link.id)}>削除</button>
+  <div class="fixed border border-black/20 rounded shadow-xl z-50 py-1 w-32" style="left: {linkContextMenu.x}px; top: {linkContextMenu.y}px; background-color: var(--menu-bg); color: var(--text-color);">
+    <button class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition" on:click={() => { openLinkModal(linkContextMenu.link); closeLinkMenu(); }}>編集</button>
+    <button class="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-black/10 transition" on:click={() => deleteLink(linkContextMenu.link.id)}>削除</button>
   </div>
 {/if}
 
 {#if isLinkModalOpen}
-  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center text-gray-200">
-    <div class="p-6 rounded shadow-lg border border-gray-600 w-96" style="background-color: var(--menu-bg); color: var(--text-color);">
+  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="p-6 rounded shadow-lg border border-black/20 w-96" style="background-color: var(--menu-bg); color: var(--text-color);">
       <h2 class="text-lg font-bold mb-4">{editingLinkId ? 'リンクを編集' : 'リンクを追加'}</h2>
-      <input type="text" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm mb-4" bind:value={linkTitle} placeholder="表示テキスト" />
-      <input type="text" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm mb-6" bind:value={linkUrl} placeholder="URL" />
+      <input type="text" class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm mb-4 outline-none" bind:value={linkTitle} placeholder="表示テキスト" />
+      <input type="text" class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm mb-6 outline-none" bind:value={linkUrl} placeholder="URL" />
       <div class="flex justify-end gap-2">
-        <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm" on:click={() => isLinkModalOpen = false}>キャンセル</button>
-        <button class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm" on:click={saveLink}>保存</button>
+        <button class="px-4 py-2 bg-black/10 hover:bg-black/20 rounded text-sm transition" on:click={() => isLinkModalOpen = false}>キャンセル</button>
+        <button class="px-4 py-2 bg-[var(--accent-color)] text-white hover:brightness-110 rounded text-sm shadow transition" on:click={saveLink}>保存</button>
       </div>
     </div>
   </div>
 {/if}
-
 {#if isSettingsOpen}
   <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
     <!-- モーダル自体もテーマ色と連動 -->
@@ -1037,18 +1052,17 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     </div>
   </div>
 {/if}
-
-<!-- 💥 追加: 新規ファイル作成モーダル -->
+<!-- 💥 新規ファイル作成モーダル -->
 {#if isNewFileModalOpen}
-  <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center text-gray-200">
-    <div class="p-6 rounded shadow-lg border border-gray-600 w-96" style="background-color: var(--menu-bg); color: var(--text-color);">
+  <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
+    <div class="p-6 rounded shadow-lg border border-black/20 w-96" style="background-color: var(--menu-bg); color: var(--text-color);">
       <h2 class="text-lg font-bold mb-4">新規ファイル作成</h2>
       
       <div class="mb-4">
-        <div class="text-xs text-gray-400 mb-1">ファイル名</div>
+        <div class="text-xs opacity-70 mb-1">ファイル名</div>
         <input 
           type="text" 
-          class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none" 
+          class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm outline-none" 
           bind:value={newFileName} 
           use:selectBaseName
           on:keydown={(e) => e.key === 'Enter' && createNewFileConfirm()}
@@ -1056,18 +1070,16 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
       </div>
 
       <div class="mb-6">
-        <div class="text-xs text-gray-400 mb-1">タグの挿入 (オプション)</div>
-        <select class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none" bind:value={selectedTagForNew}>
+        <div class="text-xs opacity-70 mb-1">タグの挿入 (オプション)</div>
+        <select class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={selectedTagForNew}>
           <option value="">指定しない</option>
-          {#each $registeredTags as tag}
-            <option value={tag}>{tag}</option>
-          {/each}
+          {#each $registeredTags as tag}<option value={tag}>{tag}</option>{/each}
         </select>
       </div>
 
       <div class="flex justify-end gap-2">
-        <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm" on:click={() => isNewFileModalOpen = false}>キャンセル</button>
-        <button class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm" on:click={createNewFileConfirm}>作成</button>
+        <button class="px-4 py-2 bg-black/10 hover:bg-black/20 rounded text-sm transition" on:click={() => isNewFileModalOpen = false}>キャンセル</button>
+        <button class="px-4 py-2 bg-[var(--accent-color)] text-white hover:brightness-110 rounded text-sm shadow transition" on:click={createNewFileConfirm}>作成</button>
       </div>
     </div>
   </div>
@@ -1075,83 +1087,77 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 
 <!-- 💥 条件で抽出（スマートフォルダ）モーダル -->
 {#if isSmartFolderModalOpen}
-<div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center text-gray-200">
-    <div class="p-6 rounded shadow-lg border border-gray-600 w-[550px] max-h-[90vh] overflow-y-auto" style="background-color: var(--menu-bg); color: var(--text-color);">
-      <!-- 💥 タイトルを切り替え -->
+<div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
+    <div class="p-6 rounded shadow-lg border border-black/20 w-[550px] max-h-[90vh] overflow-y-auto" style="background-color: var(--menu-bg); color: var(--text-color);">
       <h2 class="text-lg font-bold mb-4">{editingSmartNode ? '条件を編集' : '条件で抽出'}</h2>
       
       <div class="mb-4 space-y-2">
-        <input type="text" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none" bind:value={sfName} placeholder="リストに表示する名前" />
+        <input type="text" class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm outline-none" bind:value={sfName} placeholder="リストに表示する名前" />
         <div class="flex gap-2">
-          <input type="text" class="flex-1 bg-gray-700 text-gray-400 border border-gray-600 rounded p-2 text-sm" value={sfTarget} readonly placeholder="抽出元のフォルダ" />
-          <button on:click={selectSfTarget} class="px-3 bg-gray-700 hover:bg-gray-600 rounded text-sm border border-gray-600">選択</button>
+          <input type="text" class="flex-1 bg-black/5 border border-black/20 rounded p-2 text-sm opacity-70" value={sfTarget} readonly placeholder="抽出元のフォルダ" />
+          <button on:click={selectSfTarget} class="px-3 bg-black/10 hover:bg-black/20 rounded text-sm border border-black/20 transition">選択</button>
         </div>
-        <label class="flex items-center text-sm cursor-pointer mt-2 text-gray-300">
-          <input type="checkbox" bind:checked={sfTargetWorkspace} class="mr-2"> このワークスペースから抽出する
+        <label class="flex items-center text-sm cursor-pointer mt-2">
+          <input type="checkbox" bind:checked={sfTargetWorkspace} class="mr-2 accent-[var(--accent-color)]"> このワークスペースから抽出する
         </label>
-
       </div>
 
-      <div class="bg-gray-900 p-4 rounded border border-gray-700 mb-4">
+      <div class="bg-black/5 p-4 rounded border border-black/10 mb-4">
         <div class="flex justify-between items-center mb-3">
-          <select class="bg-gray-700 text-gray-200 border border-gray-600 rounded p-1 text-sm outline-none" bind:value={sfMatch}>
+          <select class="bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={sfMatch}>
             <option value="AND">すべての条件を満たす (AND)</option>
             <option value="OR">いずれかの条件を満たす (OR)</option>
           </select>
-          <button class="text-sm px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded" on:click={() => sfConds.length < 5 && sfConds.push({ cond_type: 'Tag', tag: '', include_inline: false, is_exclude: false }) && (sfConds = sfConds)} disabled={sfConds.length >= 5}>＋ 条件を追加</button>
+          <button class="text-sm px-2 py-1 bg-black/10 hover:bg-black/20 rounded transition" on:click={() => sfConds.length < 5 && sfConds.push({ cond_type: 'Tag', tag: '', include_inline: false, is_exclude: false }) && (sfConds = sfConds)} disabled={sfConds.length >= 5}>＋ 条件を追加</button>
         </div>
 
         <div class="space-y-3">
           {#each sfConds as cond, i}
-            <div class="flex flex-col gap-2 p-3 bg-gray-800 border border-gray-600 rounded relative">
+            <div class="flex flex-col gap-2 p-3 bg-black/5 border border-black/10 rounded relative">
               <button class="absolute top-2 right-2 text-red-400 hover:text-red-300 text-xs" on:click={() => { sfConds.splice(i, 1); sfConds = sfConds; }}>✕</button>
               
-              <select class="w-48 bg-gray-700 text-gray-200 border border-gray-600 rounded p-1 text-sm outline-none" value={cond.cond_type} on:change={(e) => changeCondType(i, e.target.value)}>
+              <select class="w-48 bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" value={cond.cond_type} on:change={(e) => changeCondType(i, e.target.value)}>
                 <option value="Tag">タグ</option>
                 <option value="Date">作成日 / 更新日</option>
               </select>
 
               {#if cond.cond_type === 'Tag'}
                 <div class="flex items-center gap-2">
-                  <input type="text" class="flex-1 bg-gray-700 text-gray-200 border border-gray-600 rounded p-1 text-sm outline-none" bind:value={cond.tag} placeholder="タグ名 (例: memo)" />
-                  
-                  <!-- 💥 マッチモードの選択肢を追加 -->
-                  <select class="w-24 bg-gray-700 text-gray-200 border border-gray-600 rounded p-1 text-sm outline-none" bind:value={cond.match_mode}>
+                  <input type="text" class="flex-1 bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" bind:value={cond.tag} placeholder="タグ名 (例: memo)" />
+                  <select class="w-24 bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={cond.match_mode}>
                     <option value="contains">部分一致</option>
                     <option value="exact">完全一致</option>
                     <option value="starts">前方一致</option>
                     <option value="ends">後方一致</option>
                   </select>
-
-                  <select class="w-20 bg-gray-700 text-gray-200 border border-gray-600 rounded p-1 text-sm outline-none" bind:value={cond.is_exclude}>
+                  <select class="w-20 bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={cond.is_exclude}>
                     <option value={false}>がある</option><option value={true}>がない</option>
                   </select>
                 </div>
-                <label class="flex items-center text-xs text-gray-400 cursor-pointer"><input type="checkbox" bind:checked={cond.include_inline} class="mr-2">本文中のタグも含める</label>
+                <label class="flex items-center text-xs opacity-70 cursor-pointer"><input type="checkbox" bind:checked={cond.include_inline} class="mr-2 accent-[var(--accent-color)]">本文中のタグも含める</label>
               {:else}
                 <div class="flex items-center gap-2">
-                  <select class="bg-gray-700 text-gray-200 border border-gray-600 rounded p-1 text-sm outline-none" bind:value={cond.date_type}>
+                  <select class="bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={cond.date_type}>
                     <option value="created">作成日</option><option value="updated">更新日</option>
                   </select>
                   <span class="text-sm">が新しいもの</span>
-                  <input type="number" class="w-16 bg-gray-700 text-gray-200 border border-gray-600 rounded p-1 text-sm outline-none" bind:value={cond.limit} min="1" max="100" />
+                  <input type="number" class="w-16 bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" bind:value={cond.limit} min="1" max="100" />
                   <span class="text-sm">件</span>
                 </div>
               {/if}
             </div>
           {/each}
-          {#if sfConds.length === 0}<div class="text-xs text-gray-500 text-center py-2">条件がありません（すべて抽出されます）</div>{/if}
+          {#if sfConds.length === 0}<div class="text-xs opacity-50 text-center py-2">条件がありません（すべて抽出されます）</div>{/if}
         </div>
       </div>
 
-      <label class="flex items-center text-sm cursor-pointer mb-6 text-gray-300">
-        <input type="checkbox" bind:checked={sfKeep} class="mr-2"> 抽出したものの元のフォルダ構成を維持する
+      <label class="flex items-center text-sm cursor-pointer mb-6">
+        <input type="checkbox" bind:checked={sfKeep} class="mr-2 accent-[var(--accent-color)]"> 抽出したものの元のフォルダ構成を維持する
       </label>
 
- <div class="flex justify-end gap-2">
-        <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm" on:click={() => isSmartFolderModalOpen = false}>キャンセル</button>
-        <!-- 💥 ボタンの文字と呼び出す関数を切り替え -->
-        <button class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm" on:click={saveSmartFolder}>{editingSmartNode ? '保存して更新' : '抽出して追加'}</button>
+      <div class="flex justify-end gap-2">
+        <button class="px-4 py-2 bg-black/10 hover:bg-black/20 rounded text-sm transition" on:click={() => isSmartFolderModalOpen = false}>キャンセル</button>
+        <button class="px-4 py-2 bg-[var(--accent-color)] text-white hover:brightness-110 rounded text-sm shadow transition" on:click={saveSmartFolder}>{editingSmartNode ? '保存して更新' : '抽出して追加'}</button>
       </div>
     </div>
   </div>
