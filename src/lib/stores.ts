@@ -19,45 +19,6 @@ export const currentWorkspaceIndex = writable<number>(0);
 
 export const registeredTags = writable<string[]>([]);
 
-export interface Theme {
-    id: string;
-    name: string;
-    bgColor: string;
-    textColor: string;
-    scrollBg: string;
-    scrollThumb: string;
-    accentColor: string;
-    activeHighlightBg: string;
-    menuBg: string; // 💥 追加: メニューやタブ領域の背景色
-}
-
-export const defaultThemes: Theme[] = [
-    {
-        id: 'dark', name: 'ダーク', 
-        bgColor: '#26282c', textColor: '#e5e7eb', 
-        scrollBg: '#1a253c', scrollThumb: '#4b5563', accentColor: '#3b82f6',
-        activeHighlightBg: '#1e3a8a', menuBg: '#1a253c'
-    },
-    {
-        id: 'light', name: 'ライト', 
-        bgColor: '#ffffff', textColor: '#1f2937', 
-        scrollBg: '#f3f4f6', scrollThumb: '#d1d5db', accentColor: '#3b82f6',
-        activeHighlightBg: '#dbeafe', menuBg: '#f3f4f6'
-    },
-    {
-        id: 'parchment', name: '羊皮紙', 
-        bgColor: '#fdf6e3', textColor: '#5c4a3d', 
-        scrollBg: '#ede0ce', scrollThumb: '#c9b49b', accentColor: '#8b5a2b',
-        activeHighlightBg: '#f5deb3', menuBg: '#ede0ce'
-    }
-];
-
-export const activeTheme = writable<Theme>(defaultThemes[0]);
-export const customThemes = writable<Theme[]>([
-    { ...defaultThemes[0], id: 'custom1', name: 'カスタム１' },
-    { ...defaultThemes[0], id: 'custom2', name: 'カスタム２' },
-    { ...defaultThemes[0], id: 'custom3', name: 'カスタム３' }
-]);
 
 // 💥 追加: 検索用の特殊なタブを作成・表示する関数
 export function openSearchTab() {

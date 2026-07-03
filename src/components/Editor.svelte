@@ -1,10 +1,11 @@
 <script lang="ts">
-    import { openTabs, activeTabId, createNewTab, closeTab, switchTab, editorFont, currentWorkspaceIndex, openFileInNewTab, registeredTags,activeTheme } from '$lib/stores';
+    import { openTabs, activeTabId, createNewTab, closeTab, switchTab, editorFont, currentWorkspaceIndex, openFileInNewTab, registeredTags } from '$lib/stores';
     import { invoke, convertFileSrc } from '@tauri-apps/api/core';
     import { openUrl } from '@tauri-apps/plugin-opener';
     import { marked } from 'marked';
     import { tick } from 'svelte';
     import { Search, FileText, BookOpen, Pencil, Inbox, Tag, ChevronLeft, ChevronRight, Plus, X } from 'lucide-svelte';
+    import { activeTheme } from '../lib/theme';
 
      marked.use({ breaks: true });
 

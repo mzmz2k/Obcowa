@@ -7,7 +7,9 @@
   import { getCurrentWindow } from '@tauri-apps/api/window'; 
   import Editor from '../components/Editor.svelte';
   import TreeNode from '../components/TreeNode.svelte';
-  import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, activeTheme, customThemes, defaultThemes, type Theme } from '../lib/stores';
+  import ThemeSettings from '../components/ThemeSettings.svelte';
+  import { activeTheme, initTheme, applyThemeToRoot, type Theme } from '../lib/theme';
+  import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags } from '../lib/stores';
   import { cloneNodeAsIndependent } from '../lib/library';
   import { RotateCw, ArrowUpDown, Search, FolderPlus, FilePlus, Pin, X, Menu, SquarePen, Settings, Library, Archive, Link } from 'lucide-svelte';
  
@@ -361,27 +363,10 @@
       const savedTags = localStorage.getItem('registeredTags');
       if (savedTags) registeredTags.set(JSON.parse(savedTags));
     } catch (e) {}
-    // テーマの復元と壊れたデータの自動修復
-    try {
-      const savedTheme = localStorage.getItem('activeTheme');
-      if (savedTheme) {
-        let t = JSON.parse(savedTheme);
-        t.menuBg = t.menuBg || '#1a253c'; // 古いデータへの補完
-        activeTheme.set(t);
-      }
-      
-      const savedCustoms = localStorage.getItem('customThemes');
-      if (savedCustoms) {
-        let parsed = JSON.parse(savedCustoms);
-        if (parsed.length >= 3) {
-          parsed[0].id = 'custom1'; parsed[0].name = 'カスタム１';
-          parsed[1].id = 'custom2'; parsed[1].name = 'カスタム２';
-          parsed[2].id = 'custom3'; parsed[2].name = 'カスタム３';
-        }
-        parsed = parsed.map((t: any) => ({...t, menuBg: t.menuBg || '#1a253c'})); // 古いデータへの補完
-        customThemes.set(parsed);
-      }
-    } catch (e) {}
+
+    // 💥 移動したテーマの初期化・復元処理を呼び出す
+    initTheme();
+
     try {
       workspaces = await invoke('load_workspaces');
       if (workspaces.length === 0) {
@@ -583,51 +568,28 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   function handleLinkContextMenu(e: MouseEvent, link: any) { e.preventDefault(); linkContextMenu = { show: true, x: e.clientX, y: e.clientY, link }; }
   function closeLinkMenu() { linkContextMenu.show = false; }
 
-  // 設定とテーマ
+    // 設定とテーマ
   let isSettingsOpen = false; 
   let tempFont = '';
-  
   let activeSettingsTab = 'general';
-  let selectedPreset = 'dark';
-  let selectedCustomSlot = 'custom1';
-
+  
   let tempTheme: Theme = { 
-    id: 'temp', name: 'temp', bgColor: '#26282c', textColor: '#e5e7eb', 
-    scrollBg: '#1a253c', scrollThumb: '#4b5563', accentColor: '#3b82f6', 
-    activeHighlightBg: '#1e3a8a', menuBg: '#1a253c' 
+    id: 'temp', name: 'temp', bgColor: '#1f2937', textColor: '#e5e7eb', 
+    scrollBg: '#111827', scrollThumb: '#4b5563', accentColor: '#3b82f6', 
+    activeHighlightBg: '#1e3a8a', menuBg: '#111827' 
   };
 
   function openSettings() { 
-    tempFont = $editorFont; 
+    tempFont = $editorFont || 'sans-serif'; 
     tempTheme = { 
-      id: $activeTheme.id || 'custom',
-      name: $activeTheme.name || 'Custom',
-      bgColor: $activeTheme.bgColor || '#26282c',
-      textColor: $activeTheme.textColor || '#e5e7eb',
-      scrollBg: $activeTheme.scrollBg || '#1a253c',
-      scrollThumb: $activeTheme.scrollThumb || '#4b5563',
-      accentColor: $activeTheme.accentColor || '#3b82f6',
-      activeHighlightBg: $activeTheme.activeHighlightBg || '#1e3a8a',
-      menuBg: $activeTheme.menuBg || '#1a253c'
+      id: $activeTheme.id || 'custom', name: $activeTheme.name || 'Custom',
+      bgColor: $activeTheme.bgColor || '#1f2937', textColor: $activeTheme.textColor || '#e5e7eb',
+      scrollBg: $activeTheme.scrollBg || '#111827', scrollThumb: $activeTheme.scrollThumb || '#4b5563',
+      accentColor: $activeTheme.accentColor || '#3b82f6', activeHighlightBg: $activeTheme.activeHighlightBg || '#1e3a8a',
+      menuBg: $activeTheme.menuBg || '#111827'
     };
-    
     activeSettingsTab = 'general';
     isSettingsOpen = true; 
-  }
-  
-  function applyPreset() {
-    const t = defaultThemes.find(x => x.id === selectedPreset) || $customThemes.find(x => x.id === selectedPreset);
-    if (t) tempTheme = { ...t };
-  }
-
-  function saveCustomTheme() {
-    const index = $customThemes.findIndex(x => x.id === selectedCustomSlot);
-    if (index !== -1) {
-      $customThemes[index] = { ...tempTheme, id: selectedCustomSlot, name: $customThemes[index].name };
-      customThemes.set($customThemes);
-      localStorage.setItem('customThemes', JSON.stringify($customThemes));
-      alert('カスタムテーマを保存しました');
-    }
   }
 
   function saveSettings() { 
@@ -641,16 +603,9 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     isSettingsOpen = false; 
   }
 
-    // 💥 追加: スクロールバーなどアプリ全体に確実にテーマを適用するため、htmlのルートに直接CSS変数をセットする
+  // 💥 移動したCSS変数の適用処理を呼び出す
   $: if (typeof document !== 'undefined' && $activeTheme) {
-    const root = document.documentElement;
-    root.style.setProperty('--bg-color', $activeTheme.bgColor);
-    root.style.setProperty('--text-color', $activeTheme.textColor);
-    root.style.setProperty('--scroll-bg', $activeTheme.scrollBg);
-    root.style.setProperty('--scroll-thumb', $activeTheme.scrollThumb);
-    root.style.setProperty('--accent-color', $activeTheme.accentColor);
-    root.style.setProperty('--active-highlight-bg', $activeTheme.activeHighlightBg);
-    root.style.setProperty('--menu-bg', $activeTheme.menuBg); // 💥 追加
+    applyThemeToRoot($activeTheme);
   }
 
 </script>
@@ -979,67 +934,10 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
             </div>
           </div>
 
-        {:else if activeSettingsTab === 'theme'}
-          <h2 class="text-lg font-bold mb-6">テーマ設定</h2>
+       {:else if activeSettingsTab === 'theme'}
           
-          <div class="mb-6 bg-black/5 p-4 rounded border border-black/10">
-            <div class="flex justify-between items-center">
-              <span class="text-sm font-bold">テーマの適用</span>
-              <div class="flex gap-2">
-                <!-- 💥 select に背景色を指定 -->
-                <select class="border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={selectedPreset}>
-                  <optgroup label="プリセット">{#each defaultThemes as theme}<option value={theme.id}>{theme.name}</option>{/each}</optgroup>
-                  <optgroup label="カスタム">{#each $customThemes as theme}<option value={theme.id}>{theme.name}</option>{/each}</optgroup>
-                </select>
-                <button class="px-4 py-1.5 bg-[var(--accent-color)] text-white rounded text-sm font-bold shadow hover:brightness-110 transition" on:click={applyPreset}>適用</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="space-y-4 mb-6 px-2">
-            <div class="flex justify-between items-center border-b border-black/5 pb-2">
-              <span class="text-sm">エディタ・メニュー背景色</span>
-              <input type="color" bind:value={tempTheme.bgColor} class="w-14 h-8 bg-transparent cursor-pointer rounded" />
-            </div>
-          <div class="flex justify-between items-center border-b border-black/5 pb-2">
-              <span class="text-sm">メニュー・ポップアップ背景色</span>
-              <input type="color" bind:value={tempTheme.menuBg} class="w-14 h-8 bg-transparent cursor-pointer rounded" />
-            </div>
-            <div class="flex justify-between items-center border-b border-black/5 pb-2">
-              <span class="text-sm">文字色（全体・アイコン）</span>
-              <input type="color" bind:value={tempTheme.textColor} class="w-14 h-8 bg-transparent cursor-pointer rounded" />
-            </div>
-            <!-- 💥 追加: ツリー選択時の背景色 -->
-            <div class="flex justify-between items-center border-b border-black/5 pb-2">
-              <span class="text-sm">ツリー選択時の背景色</span>
-              <input type="color" bind:value={tempTheme.activeHighlightBg} class="w-14 h-8 bg-transparent cursor-pointer rounded" />
-            </div>
-            <div class="flex justify-between items-center border-b border-black/5 pb-2">
-              <span class="text-sm">スクロールバーの背景色</span>
-              <input type="color" bind:value={tempTheme.scrollBg} class="w-14 h-8 bg-transparent cursor-pointer rounded" />
-            </div>
-            <div class="flex justify-between items-center border-b border-black/5 pb-2">
-              <span class="text-sm">スクロールバーの色</span>
-              <input type="color" bind:value={tempTheme.scrollThumb} class="w-14 h-8 bg-transparent cursor-pointer rounded" />
-            </div>
-            <div class="flex justify-between items-center pb-2">
-              <span class="text-sm">ハイライト色（タブ上部等）</span>
-              <input type="color" bind:value={tempTheme.accentColor} class="w-14 h-8 bg-transparent cursor-pointer rounded" />
-            </div>
-          </div>
-
-          <div class="mt-auto bg-black/5 p-4 rounded border border-black/10">
-            <div class="flex justify-between items-center">
-              <span class="text-sm font-bold">現在の状態をカスタムテーマに保存</span>
-              <div class="flex gap-2">
-                <!-- 💥 select に背景色を指定 -->
-                <select class="border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={selectedCustomSlot}>
-                  {#each $customThemes as theme}<option value={theme.id}>{theme.name}</option>{/each}
-                </select>
-                <button class="px-4 py-1.5 bg-black/30 hover:bg-black/50 rounded text-sm transition" on:click={saveCustomTheme}>保存</button>
-              </div>
-            </div>
-          </div>
+          <!-- 💥 新しく作った別ファイル（コンポーネント）を呼び出し、tempThemeを渡して連動させる -->
+          <ThemeSettings bind:tempTheme={tempTheme} />
         {/if}
 
         <!-- 共通の保存・キャンセルボタン -->
