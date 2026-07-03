@@ -576,7 +576,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   let tempTheme: Theme = { 
     id: 'temp', name: 'temp', bgColor: '#1f2937', textColor: '#e5e7eb', 
     scrollBg: '#111827', scrollThumb: '#4b5563', accentColor: '#3b82f6', 
-    activeHighlightBg: '#1e3a8a', menuBg: '#111827' 
+    activeHighlightBg: '#1e3a8a', menuBg: '#111827' , selectionBg: '#4b5563'
   };
 
   function openSettings() { 
@@ -586,7 +586,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
       bgColor: $activeTheme.bgColor || '#1f2937', textColor: $activeTheme.textColor || '#e5e7eb',
       scrollBg: $activeTheme.scrollBg || '#111827', scrollThumb: $activeTheme.scrollThumb || '#4b5563',
       accentColor: $activeTheme.accentColor || '#3b82f6', activeHighlightBg: $activeTheme.activeHighlightBg || '#1e3a8a',
-      menuBg: $activeTheme.menuBg || '#111827'
+      menuBg: $activeTheme.menuBg || '#111827', selectionBg: $activeTheme.selectionBg || '#4b5563' // 💥 追加
     };
     activeSettingsTab = 'general';
     isSettingsOpen = true; 
@@ -1060,3 +1060,14 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     </div>
   </div>
 {/if}
+
+
+<style>
+  /* 💥 アプリ全体の文字選択時のハイライト色を設定 */
+  :global(::selection) {
+    background-color: var(--selection-bg);
+  }
+  :global(::-moz-selection) {
+    background-color: var(--selection-bg);
+  }
+</style>

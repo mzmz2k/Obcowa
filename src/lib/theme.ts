@@ -10,6 +10,7 @@ export interface Theme {
     accentColor: string;
     activeHighlightBg: string;
     menuBg: string;
+    selectionBg: string; // 💥 追加: 文字選択時の背景色
 }
 
 export const defaultThemes: Theme[] = [
@@ -17,19 +18,22 @@ export const defaultThemes: Theme[] = [
         id: 'dark', name: 'ダーク', 
         bgColor: '#1f2937', textColor: '#e5e7eb', 
         scrollBg: '#111827', scrollThumb: '#4b5563', accentColor: '#3b82f6',
-        activeHighlightBg: '#1e3a8a', menuBg: '#111827'
+        activeHighlightBg: '#1e3a8a', menuBg: '#111827',
+        selectionBg: '#4b5563'
     },
     {
         id: 'light', name: 'ライト', 
         bgColor: '#ffffff', textColor: '#1f2937', 
         scrollBg: '#f3f4f6', scrollThumb: '#d1d5db', accentColor: '#3b82f6',
-        activeHighlightBg: '#dbeafe', menuBg: '#f3f4f6'
+        activeHighlightBg: '#dbeafe', menuBg: '#f3f4f6',
+        selectionBg: '#bfdbfe' 
     },
     {
         id: 'parchment', name: '羊皮紙', 
         bgColor: '#fdf6e3', textColor: '#5c4a3d', 
         scrollBg: '#ede0ce', scrollThumb: '#c9b49b', accentColor: '#8b5a2b',
-        activeHighlightBg: '#f5deb3', menuBg: '#ede0ce'
+        activeHighlightBg: '#f5deb3', menuBg: '#ede0ce',
+        selectionBg: '#deb887'
     }
 ];
 
@@ -49,6 +53,7 @@ export function initTheme() {
         if (savedTheme) {
             let t = JSON.parse(savedTheme);
             t.menuBg = t.menuBg || '#111827';
+            t.selectionBg = t.selectionBg || '#4b5563'; // 💥 追加
             activeTheme.set(t);
         }
         
@@ -60,7 +65,8 @@ export function initTheme() {
                 parsed[1].id = 'custom2'; parsed[1].name = 'カスタム２';
                 parsed[2].id = 'custom3'; parsed[2].name = 'カスタム３';
             }
-            parsed = parsed.map((t: any) => ({...t, menuBg: t.menuBg || '#111827'}));
+            // 💥 追加: selectionBg の補完も追加
+            parsed = parsed.map((t: any) => ({...t, menuBg: t.menuBg || '#111827', selectionBg: t.selectionBg || '#4b5563'}));
             customThemes.set(parsed);
         }
     } catch (e) {
@@ -73,10 +79,9 @@ export function applyThemeToRoot(theme: Theme) {
     if (typeof document === 'undefined') return;
     const root = document.documentElement;
     root.style.setProperty('--bg-color', theme.bgColor);
-    root.style.setProperty('--text-color', theme.textColor);
-    root.style.setProperty('--scroll-bg', theme.scrollBg);
-    root.style.setProperty('--scroll-thumb', theme.scrollThumb);
+// （中略）
     root.style.setProperty('--accent-color', theme.accentColor);
     root.style.setProperty('--active-highlight-bg', theme.activeHighlightBg);
     root.style.setProperty('--menu-bg', theme.menuBg);
+    root.style.setProperty('--selection-bg', theme.selectionBg); // 💥 追加
 }

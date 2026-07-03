@@ -52,6 +52,11 @@
     <span class="text-sm">文字色（全体・アイコン）</span>
     <input type="color" bind:value={tempTheme.textColor} class="w-14 h-8 bg-transparent cursor-pointer rounded" />
   </div>
+    <!-- 💥 追加: 文字選択時の色 -->
+  <div class="flex justify-between items-center border-b border-black/5 pb-2">
+    <span class="text-sm">文字選択時の色</span>
+    <input type="color" bind:value={tempTheme.selectionBg} class="w-14 h-8 bg-transparent cursor-pointer rounded" />
+  </div>
   <div class="flex justify-between items-center border-b border-black/5 pb-2">
     <span class="text-sm">ツリー選択時の背景色</span>
     <input type="color" bind:value={tempTheme.activeHighlightBg} class="w-14 h-8 bg-transparent cursor-pointer rounded" />
