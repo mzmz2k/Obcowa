@@ -7,7 +7,7 @@
   import { getCurrentWindow } from '@tauri-apps/api/window'; 
   import Editor from '../components/Editor.svelte';
   import TreeNode from '../components/TreeNode.svelte';
-  import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags } from '../lib/stores';
+  import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, activeTheme, customThemes, defaultThemes, type Theme } from '../lib/stores';
   import { cloneNodeAsIndependent } from '../lib/library';
   import { RotateCw, ArrowUpDown, Search, FolderPlus, FilePlus, Pin, X, Menu, SquarePen, Settings, Library, Archive, Link } from 'lucide-svelte';
  
@@ -361,7 +361,27 @@
       const savedTags = localStorage.getItem('registeredTags');
       if (savedTags) registeredTags.set(JSON.parse(savedTags));
     } catch (e) {}
-
+    // テーマの復元と壊れたデータの自動修復
+    try {
+      const savedTheme = localStorage.getItem('activeTheme');
+      if (savedTheme) {
+        let t = JSON.parse(savedTheme);
+        t.menuBg = t.menuBg || '#111827'; // 古いデータへの補完
+        activeTheme.set(t);
+      }
+      
+      const savedCustoms = localStorage.getItem('customThemes');
+      if (savedCustoms) {
+        let parsed = JSON.parse(savedCustoms);
+        if (parsed.length >= 3) {
+          parsed[0].id = 'custom1'; parsed[0].name = 'カスタム１';
+          parsed[1].id = 'custom2'; parsed[1].name = 'カスタム２';
+          parsed[2].id = 'custom3'; parsed[2].name = 'カスタム３';
+        }
+        parsed = parsed.map((t: any) => ({...t, menuBg: t.menuBg || '#111827'})); // 古いデータへの補完
+        customThemes.set(parsed);
+      }
+    } catch (e) {}
     try {
       workspaces = await invoke('load_workspaces');
       if (workspaces.length === 0) {
@@ -563,70 +583,106 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   function handleLinkContextMenu(e: MouseEvent, link: any) { e.preventDefault(); linkContextMenu = { show: true, x: e.clientX, y: e.clientY, link }; }
   function closeLinkMenu() { linkContextMenu.show = false; }
 
-  // 設定
-  let isSettingsOpen = false; let tempFont = '';
-  function openSettings() { tempFont = $editorFont; isSettingsOpen = true; }
+  // 設定とテーマ
+  let isSettingsOpen = false; 
+  let tempFont = '';
+  
+  let activeSettingsTab = 'general';
+  let tempTheme: Theme;
+  let selectedPreset = 'dark';
+  let selectedCustomSlot = 'custom1';
+
+  function openSettings() { 
+    tempFont = $editorFont; 
+    tempTheme = { ...$activeTheme };
+    activeSettingsTab = 'general';
+    isSettingsOpen = true; 
+  }
+  
+  function applyPreset() {
+    const t = defaultThemes.find(x => x.id === selectedPreset) || $customThemes.find(x => x.id === selectedPreset);
+    if (t) tempTheme = { ...t };
+  }
+
+  function saveCustomTheme() {
+    const index = $customThemes.findIndex(x => x.id === selectedCustomSlot);
+    if (index !== -1) {
+      $customThemes[index] = { ...tempTheme, id: selectedCustomSlot, name: $customThemes[index].name };
+      customThemes.set($customThemes);
+      localStorage.setItem('customThemes', JSON.stringify($customThemes));
+      alert('カスタムテーマを保存しました');
+    }
+  }
+
   function saveSettings() { 
     $editorFont = tempFont; 
+    $activeTheme = { ...tempTheme };
     if (workspaces[currentIndex]) {
       workspaces[currentIndex].editor_font = tempFont;
       saveData();
     }
+    localStorage.setItem('activeTheme', JSON.stringify($activeTheme));
     isSettingsOpen = false; 
+  }
+
+    // 💥 追加: スクロールバーなどアプリ全体に確実にテーマを適用するため、htmlのルートに直接CSS変数をセットする
+  $: if (typeof document !== 'undefined' && $activeTheme) {
+    const root = document.documentElement;
+    root.style.setProperty('--bg-color', $activeTheme.bgColor);
+    root.style.setProperty('--text-color', $activeTheme.textColor);
+    root.style.setProperty('--scroll-bg', $activeTheme.scrollBg);
+    root.style.setProperty('--scroll-thumb', $activeTheme.scrollThumb);
+    root.style.setProperty('--accent-color', $activeTheme.accentColor);
+    root.style.setProperty('--active-highlight-bg', $activeTheme.activeHighlightBg);
+    root.style.setProperty('--menu-bg', $activeTheme.menuBg); // 💥 追加
   }
 
 </script>
 
 <svelte:window on:mousemove={doResize} on:mouseup={stopResize} on:click={() => { isListMenuOpen = false; isAddFolderMenuOpen = false; isGlobalSortMenuOpen = false; }} />
-<main class="h-screen w-screen flex bg-gray-900 text-gray-200 select-none">
+<main class="h-screen w-screen flex select-none transition-colors duration-200"
+      style="background-color: var(--bg-color); color: var(--text-color);">
   
-  <div class="bg-gray-800 flex flex-col" style="width: {sidebarWidth}px">
+  <div class="flex flex-col border-r border-black/10" style="width: {sidebarWidth}px; background-color: var(--bg-color);">
 
-    <div class="p-3 border-b border-gray-700 font-bold flex justify-between items-center text-gray-300">
+    <!-- 💥 左上のトップバー -->
+    <div class="p-3 border-b border-black/10 font-bold flex justify-between items-center">
       <span class="truncate pr-2">{workspaces[currentIndex]?.name || 'リスト'}</span>
       <div class="flex gap-2 shrink-0 relative">
-       <button on:click={handleRefresh} class="flex items-center justify-center w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded" title="更新"><RotateCw size={14} /></button>
+       <button on:click={handleRefresh} class="flex items-center justify-center w-6 h-6 hover:opacity-70 rounded transition" title="更新"><RotateCw size={14} /></button>
 
-        <!-- 💥 追加: ソート順設定ボタンとメニュー -->
         <div class="relative flex items-center">
-          <button on:click|stopPropagation={() => isGlobalSortMenuOpen = !isGlobalSortMenuOpen} class="flex items-center justify-center w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded" title="並び替え"><ArrowUpDown size={14} /></button>
+          <button on:click|stopPropagation={() => isGlobalSortMenuOpen = !isGlobalSortMenuOpen} class="flex items-center justify-center w-6 h-6 hover:opacity-70 rounded transition" title="並び替え"><ArrowUpDown size={14} /></button>
           {#if isGlobalSortMenuOpen}
-            <div class="absolute top-8 left-0 bg-gray-800 border border-gray-600 rounded shadow-xl z-50 py-1 w-32 text-sm font-normal">
-               <!-- 💥 変更: 固定幅の <span> を使って位置を揃え、記号を ✓ に変更 -->
-              <button class="block w-full text-left px-4 py-1.5 hover:bg-gray-700" on:click={() => changeGlobalSort('order', 'asc')}>
+            <div class="absolute top-8 left-0 border border-black/20 rounded shadow-xl z-50 py-1 w-32 text-sm font-normal" style="background-color: var(--bg-color); color: var(--text-color);">
+              <button class="block w-full text-left px-4 py-1.5 hover:bg-black/10 transition" on:click={() => changeGlobalSort('order', 'asc')}>
                 <span class="inline-block w-4">{workspaces[currentIndex]?.sort_order !== 'desc' ? '✓' : ''}</span>昇順
               </button>
-              <button class="block w-full text-left px-4 py-1.5 hover:bg-gray-700" on:click={() => changeGlobalSort('order', 'desc')}>
+              <button class="block w-full text-left px-4 py-1.5 hover:bg-black/10 transition" on:click={() => changeGlobalSort('order', 'desc')}>
                 <span class="inline-block w-4">{workspaces[currentIndex]?.sort_order === 'desc' ? '✓' : ''}</span>降順
               </button>
-              
-              <hr class="border-gray-600 my-1">
-              
-              <button class="block w-full text-left px-4 py-1.5 hover:bg-gray-700" on:click={() => changeGlobalSort('by', 'name')}>
+              <hr class="border-black/10 my-1">
+              <button class="block w-full text-left px-4 py-1.5 hover:bg-black/10 transition" on:click={() => changeGlobalSort('by', 'name')}>
                 <span class="inline-block w-4">{workspaces[currentIndex]?.sort_by === 'name' || !workspaces[currentIndex]?.sort_by ? '✓' : ''}</span>名前
               </button>
-              <button class="block w-full text-left px-4 py-1.5 hover:bg-gray-700" on:click={() => changeGlobalSort('by', 'created')}>
+              <button class="block w-full text-left px-4 py-1.5 hover:bg-black/10 transition" on:click={() => changeGlobalSort('by', 'created')}>
                 <span class="inline-block w-4">{workspaces[currentIndex]?.sort_by === 'created' ? '✓' : ''}</span>作成日
               </button>
-              <button class="block w-full text-left px-4 py-1.5 hover:bg-gray-700" on:click={() => changeGlobalSort('by', 'modified')}>
+              <button class="block w-full text-left px-4 py-1.5 hover:bg-black/10 transition" on:click={() => changeGlobalSort('by', 'modified')}>
                 <span class="inline-block w-4">{workspaces[currentIndex]?.sort_by === 'modified' ? '✓' : ''}</span>更新日
               </button>
             </div>
           {/if}
         </div>
         
-        <!-- 💥 変更: 検索ボタンに変更 -->
-        <button on:click={openSearchTab} class="flex items-center justify-center w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded" title="検索"><Search size={14} /></button>
+        <button on:click={openSearchTab} class="flex items-center justify-center w-6 h-6 hover:opacity-70 rounded transition" title="検索"><Search size={14} /></button>
         
-        <!-- フォルダ追加メニュー -->
-        <button on:click|stopPropagation={() => isAddFolderMenuOpen = !isAddFolderMenuOpen} class="flex items-center justify-center w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded"><FolderPlus size={14} /></button>
+        <button on:click|stopPropagation={() => isAddFolderMenuOpen = !isAddFolderMenuOpen} class="flex items-center justify-center w-6 h-6 hover:opacity-70 rounded transition"><FolderPlus size={14} /></button>
         {#if isAddFolderMenuOpen}
-          <div class="absolute top-8 right-0 bg-gray-800 border border-gray-600 rounded shadow-xl z-50 py-1 w-40 text-sm font-normal">
-            <button class="block w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isAddFolderMenuOpen = false; addFolder(); }}>普通のフォルダ</button>
-            
-            <button class="flex items-center w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isAddFolderMenuOpen = false; addFile(); }}><FilePlus size={14} class="mr-2" /> ファイルを追加</button>
-            
-            <button class="flex items-center w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isAddFolderMenuOpen = false; sfName=''; sfTarget=''; sfConds=[]; editingSmartNode=null; isSmartFolderModalOpen = true; }}><Search size={14} class="mr-2" /> 条件で抽出</button>
+          <div class="absolute top-8 right-0 border border-black/20 rounded shadow-xl z-50 py-1 w-40 text-sm font-normal" style="background-color: var(--bg-color); color: var(--text-color);">
+            <button class="block w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isAddFolderMenuOpen = false; addFolder(); }}>普通のフォルダ</button>
+            <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isAddFolderMenuOpen = false; addFile(); }}><FilePlus size={14} class="mr-2" /> ファイルを追加</button>
+            <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isAddFolderMenuOpen = false; sfName=''; sfTarget=''; sfConds=[]; editingSmartNode=null; isSmartFolderModalOpen = true; }}><Search size={14} class="mr-2" /> 条件で抽出</button>
           </div>
         {/if}
       </div>
@@ -693,29 +749,30 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     {/if}
 
     <!-- UI下部 -->
-    <div class="p-2 border-t border-gray-700 bg-gray-800 flex items-center gap-1 relative">
-      <select class="w-32 bg-gray-700 text-xs text-gray-200 rounded py-1 px-1 outline-none border border-gray-600" value={currentIndex} on:change={changeWorkspace}>
+    <div class="p-2 border-t border-black/10 flex items-center gap-1 relative" style="background-color: var(--menu-bg);">
+      <!-- 💥 select にも背景色スタイルを指定 -->
+      <select class="w-32 text-xs rounded py-1 px-1 outline-none border border-black/20" style="background-color: var(--bg-color); color: var(--text-color);" value={currentIndex} on:change={changeWorkspace}>
         {#each workspaces.map((w, i) => ({...w, originalIndex: i})).filter(w => w.category === 'Active') as ws}
           <option value={ws.originalIndex}>{ws.name}</option>
         {/each}
       </select>
       
-      <button on:click|stopPropagation={() => isListMenuOpen = !isListMenuOpen} class="flex items-center justify-center w-7 h-7 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"><Menu size={16} /></button>
+      <button on:click|stopPropagation={() => isListMenuOpen = !isListMenuOpen} class="flex items-center justify-center w-7 h-7 hover:opacity-70 rounded transition"><Menu size={16} /></button>
 
       {#if isListMenuOpen}
-        <div class="absolute bottom-10 left-36 bg-gray-800 border border-gray-600 rounded shadow-xl z-50 py-1 w-48 text-sm">
-          <button class="flex items-center w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isListMenuOpen = false; isCreateModalOpen = true; }}><SquarePen size={14} class="mr-2" /> リスト作成</button>
-          <button class="flex items-center w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isListMenuOpen = false; editingListIndex = currentIndex; isManageModalOpen = true; }}><Settings size={14} class="mr-2" /> リスト管理</button>
-          <hr class="border-gray-600 my-1">
-          <button class="flex items-center w-full text-left px-4 py-2 hover:bg-gray-700" on:click={() => { isListMenuOpen = false; isImportLibraryModalOpen = true; }}><Library size={14} class="mr-2" /> ライブラリを追加</button>
+        <div class="absolute bottom-10 left-36 border border-black/20 rounded shadow-xl z-50 py-1 w-48 text-sm" style="background-color: var(--menu-bg); color: var(--text-color);">
+          <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isListMenuOpen = false; isCreateModalOpen = true; }}><SquarePen size={14} class="mr-2" /> リスト作成</button>
+          <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isListMenuOpen = false; editingListIndex = currentIndex; isManageModalOpen = true; }}><Settings size={14} class="mr-2" /> リスト管理</button>
+          <hr class="border-black/10 my-1">
+          <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isListMenuOpen = false; isImportLibraryModalOpen = true; }}><Library size={14} class="mr-2" /> ライブラリを追加</button>
         </div>
       {/if}
       <div class="flex-1"></div>
-      <button on:click={openSettings} class="flex items-center justify-center w-7 h-7 text-gray-400 hover:text-white"><Settings size={16} /></button>
+      <button on:click={openSettings} class="flex items-center justify-center w-7 h-7 opacity-70 hover:opacity-100 transition"><Settings size={16} /></button>
     </div>
   </div>
 
-  <div class="w-1 bg-gray-700 hover:bg-blue-500 cursor-col-resize z-10" on:mousedown={startResize}></div>
+  <div class="w-1 bg-black/20 hover:bg-[var(--accent-color)] cursor-col-resize z-10 transition-colors" on:mousedown={startResize}></div>
   <div class="flex-1 overflow-hidden relative">
     {#if isResizing}<div class="absolute inset-0 z-50 cursor-col-resize"></div>{/if}
     <Editor />
@@ -727,7 +784,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 <!-- 1. リスト作成 -->
 {#if isCreateModalOpen}
   <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center text-gray-200">
-    <div class="bg-gray-800 p-6 rounded shadow-lg border border-gray-600 w-96">
+    <div class="p-6 rounded shadow-lg border border-gray-600 w-96" style="background-color: var(--menu-bg); color: var(--text-color);">
       <h2 class="text-lg font-bold mb-4">ワークスペースを作成</h2>
       
       <!-- 💥 変更: ラジオボタンとプルダウンを削除し、マージン(mb-6)を調整 -->
@@ -744,7 +801,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 <!-- 2. リスト管理 -->
 {#if isManageModalOpen}
   <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center text-gray-200">
-    <div class="bg-gray-800 p-6 rounded shadow-lg border border-gray-600 w-[500px]">
+    <div class="p-6 rounded shadow-lg border border-gray-600 w-[500px]" style="background-color: var(--menu-bg); color: var(--text-color);">
       <h2 class="text-lg font-bold mb-4">リスト管理</h2>
       <div class="flex gap-2 mb-4">
         <select class="flex-1 bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none" bind:value={editingListIndex}>
@@ -800,7 +857,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
           {/if}
 
           <!-- 💥 リンク管理（移設） -->
-          <div class="p-3 bg-gray-800 rounded border border-gray-700">
+          <div class="p-3 rounded border border-gray-700" style="background-color: var(--menu-bg); color: var(--text-color);">
             <div class="flex justify-between items-center mb-2">
               <span class="text-xs text-gray-400">🔗 リンク</span>
               <button on:click={() => openLinkModal()} class="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs">＋ 追加</button>
@@ -830,7 +887,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 <!-- 3. ライブラリ追加 -->
 {#if isImportLibraryModalOpen}
   <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center text-gray-200">
-    <div class="bg-gray-800 p-6 rounded shadow-lg border border-gray-600 w-96">
+    <div class="p-6 rounded shadow-lg border border-gray-600 w-96" style="background-color: var(--menu-bg); color: var(--text-color);">
       <h2 class="text-lg font-bold mb-4">ライブラリを追加</h2>
       <select class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm mb-4" bind:value={selectedLibraryId}>
         <option value="" disabled selected>ライブラリを選択</option>
@@ -847,7 +904,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 <!-- リンク・設定モーダル（既存のまま文字色だけ修正） -->
 {#if linkContextMenu.show}
   <div class="fixed inset-0 z-40" on:click={closeLinkMenu} on:contextmenu|preventDefault={closeLinkMenu}></div>
-  <div class="fixed bg-gray-800 border border-gray-600 rounded shadow-xl z-50 py-1 w-32 text-gray-200" style="left: {linkContextMenu.x}px; top: {linkContextMenu.y}px;">
+  <div class="fixed border border-gray-600 rounded shadow-xl z-50 py-1 w-32 text-gray-200" style="left: {linkContextMenu.x}px; top: {linkContextMenu.y}px; background-color: var(--menu-bg); color: var(--text-color);">
     <button class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-700" on:click={() => { openLinkModal(linkContextMenu.link); closeLinkMenu(); }}>編集</button>
     <button class="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700" on:click={() => deleteLink(linkContextMenu.link.id)}>削除</button>
   </div>
@@ -855,7 +912,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 
 {#if isLinkModalOpen}
   <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center text-gray-200">
-    <div class="bg-gray-800 p-6 rounded shadow-lg border border-gray-600 w-96">
+    <div class="p-6 rounded shadow-lg border border-gray-600 w-96" style="background-color: var(--menu-bg); color: var(--text-color);">
       <h2 class="text-lg font-bold mb-4">{editingLinkId ? 'リンクを編集' : 'リンクを追加'}</h2>
       <input type="text" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm mb-4" bind:value={linkTitle} placeholder="表示テキスト" />
       <input type="text" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm mb-6" bind:value={linkUrl} placeholder="URL" />
@@ -868,40 +925,115 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 {/if}
 
 {#if isSettingsOpen}
-  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center text-gray-200">
-    <div class="bg-gray-800 p-6 rounded shadow-lg border border-gray-600 w-[500px]">
-      <h2 class="text-lg font-bold mb-4">設定</h2>
+  <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
+    <!-- モーダル自体もテーマ色と連動 -->
+    <div class="rounded shadow-xl border border-black/20 flex overflow-hidden w-[700px] h-[550px]" style="background-color: var(--menu-bg); color: var(--text-color);">
       
-      <div class="mb-6">
-        <div class="text-sm text-gray-400 mb-1">フォント名</div>
-        <input type="text" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm" bind:value={tempFont} placeholder="フォント名" />
+      <!-- 左サイドバー（タブ） -->
+      <div class="w-1/4 bg-black/10 p-4 space-y-2 text-sm border-r border-black/10">
+        <button class="w-full text-left p-2 rounded transition-colors {activeSettingsTab === 'general' ? 'bg-[var(--accent-color)] text-white font-bold' : 'hover:bg-black/10'}" on:click={() => activeSettingsTab = 'general'}>一般</button>
+        <button class="w-full text-left p-2 rounded transition-colors {activeSettingsTab === 'theme' ? 'bg-[var(--accent-color)] text-white font-bold' : 'hover:bg-black/10'}" on:click={() => activeSettingsTab = 'theme'}>テーマ</button>
       </div>
 
-      <hr class="border-gray-700 mb-6">
-
-      <div class="mb-6">
-        <div class="text-sm text-gray-400 mb-2">タグの管理</div>
+      <!-- 右コンテンツ -->
+      <div class="w-3/4 p-6 overflow-y-auto flex flex-col relative">
         
-        <div class="flex gap-2 mb-4">
-          <input type="text" class="flex-1 bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none" bind:value={newTagInput} placeholder="新しいタグ名を入力" on:keydown={(e) => e.key === 'Enter' && addTag()} />
-          <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm" on:click={addTag}>登録</button>
-        </div>
+        {#if activeSettingsTab === 'general'}
+          <h2 class="text-lg font-bold mb-6">一般設定</h2>
+          
+          <div class="mb-6">
+            <div class="text-sm opacity-80 mb-2">フォント名</div>
+            <input type="text" class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm outline-none" bind:value={tempFont} placeholder="フォント名" />
+          </div>
 
-        <div class="flex gap-2">
-          <select class="flex-1 bg-gray-700 text-gray-200 border border-gray-600 rounded p-2 text-sm outline-none" bind:value={selectedTagToRemove}>
-            <option value="" disabled selected>登録済みのタグ一覧</option>
-            {#each $registeredTags as tag}
-              <option value={tag}>{tag}</option>
-            {/each}
-          </select>
-          <button class="px-4 py-2 bg-red-900 hover:bg-red-800 text-red-200 rounded text-sm" on:click={removeTag}>削除</button>
+          <hr class="border-black/10 mb-6">
+
+          <div class="mb-6">
+            <div class="text-sm opacity-80 mb-2">タグの管理</div>
+            <div class="flex gap-2 mb-4">
+              <input type="text" class="flex-1 bg-black/10 border border-black/20 rounded p-2 text-sm outline-none" bind:value={newTagInput} placeholder="新しいタグ名を入力" on:keydown={(e) => e.key === 'Enter' && addTag()} />
+              <button class="px-4 py-2 bg-black/20 hover:bg-black/30 rounded text-sm transition" on:click={addTag}>登録</button>
+            </div>
+            <div class="flex gap-2">
+              <!-- 💥 select に背景色を指定 -->
+              <select class="flex-1 border border-black/20 rounded p-2 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={selectedTagToRemove}>
+                <option value="" disabled selected>登録済みのタグ一覧</option>
+                {#each $registeredTags as tag}<option value={tag}>{tag}</option>{/each}
+              </select>
+              <button class="px-4 py-2 bg-red-900/50 hover:bg-red-900/80 text-red-100 rounded text-sm transition" on:click={removeTag}>削除</button>
+            </div>
+          </div>
+
+        {:else if activeSettingsTab === 'theme'}
+          <h2 class="text-lg font-bold mb-6">テーマ設定</h2>
+          
+          <div class="mb-6 bg-black/5 p-4 rounded border border-black/10">
+            <div class="flex justify-between items-center">
+              <span class="text-sm font-bold">テーマの適用</span>
+              <div class="flex gap-2">
+                <!-- 💥 select に背景色を指定 -->
+                <select class="border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={selectedPreset}>
+                  <optgroup label="プリセット">{#each defaultThemes as theme}<option value={theme.id}>{theme.name}</option>{/each}</optgroup>
+                  <optgroup label="カスタム">{#each $customThemes as theme}<option value={theme.id}>{theme.name}</option>{/each}</optgroup>
+                </select>
+                <button class="px-4 py-1.5 bg-[var(--accent-color)] text-white rounded text-sm font-bold shadow hover:brightness-110 transition" on:click={applyPreset}>適用</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-4 mb-6 px-2">
+            <div class="flex justify-between items-center border-b border-black/5 pb-2">
+              <span class="text-sm">エディタ・メニュー背景色</span>
+              <input type="color" bind:value={tempTheme.bgColor} class="w-14 h-8 bg-transparent cursor-pointer rounded" />
+            </div>
+          <div class="flex justify-between items-center border-b border-black/5 pb-2">
+              <span class="text-sm">メニュー・ポップアップ背景色</span>
+              <input type="color" bind:value={tempTheme.menuBg} class="w-14 h-8 bg-transparent cursor-pointer rounded" />
+            </div>
+            <div class="flex justify-between items-center border-b border-black/5 pb-2">
+              <span class="text-sm">文字色（全体・アイコン）</span>
+              <input type="color" bind:value={tempTheme.textColor} class="w-14 h-8 bg-transparent cursor-pointer rounded" />
+            </div>
+            <!-- 💥 追加: ツリー選択時の背景色 -->
+            <div class="flex justify-between items-center border-b border-black/5 pb-2">
+              <span class="text-sm">ツリー選択時の背景色</span>
+              <input type="color" bind:value={tempTheme.activeHighlightBg} class="w-14 h-8 bg-transparent cursor-pointer rounded" />
+            </div>
+            <div class="flex justify-between items-center border-b border-black/5 pb-2">
+              <span class="text-sm">スクロールバーの背景色</span>
+              <input type="color" bind:value={tempTheme.scrollBg} class="w-14 h-8 bg-transparent cursor-pointer rounded" />
+            </div>
+            <div class="flex justify-between items-center border-b border-black/5 pb-2">
+              <span class="text-sm">スクロールバーの色</span>
+              <input type="color" bind:value={tempTheme.scrollThumb} class="w-14 h-8 bg-transparent cursor-pointer rounded" />
+            </div>
+            <div class="flex justify-between items-center pb-2">
+              <span class="text-sm">ハイライト色（タブ上部等）</span>
+              <input type="color" bind:value={tempTheme.accentColor} class="w-14 h-8 bg-transparent cursor-pointer rounded" />
+            </div>
+          </div>
+
+          <div class="mt-auto bg-black/5 p-4 rounded border border-black/10">
+            <div class="flex justify-between items-center">
+              <span class="text-sm font-bold">現在の状態をカスタムテーマに保存</span>
+              <div class="flex gap-2">
+                <!-- 💥 select に背景色を指定 -->
+                <select class="border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={selectedCustomSlot}>
+                  {#each $customThemes as theme}<option value={theme.id}>{theme.name}</option>{/each}
+                </select>
+                <button class="px-4 py-1.5 bg-black/30 hover:bg-black/50 rounded text-sm transition" on:click={saveCustomTheme}>保存</button>
+              </div>
+            </div>
+          </div>
+        {/if}
+
+        <!-- 共通の保存・キャンセルボタン -->
+        <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-black/10">
+          <button class="px-5 py-2 bg-black/20 hover:bg-black/30 rounded text-sm transition font-bold" on:click={() => isSettingsOpen = false}>キャンセル</button>
+          <button class="px-5 py-2 bg-[var(--accent-color)] text-white rounded text-sm transition font-bold shadow hover:brightness-110" on:click={saveSettings}>設定を保存して閉じる</button>
         </div>
       </div>
 
-      <div class="flex justify-end gap-2 mt-4">
-        <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm" on:click={() => isSettingsOpen = false}>キャンセル</button>
-        <button class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm" on:click={saveSettings}>保存</button>
-      </div>
     </div>
   </div>
 {/if}
@@ -909,7 +1041,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 <!-- 💥 追加: 新規ファイル作成モーダル -->
 {#if isNewFileModalOpen}
   <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center text-gray-200">
-    <div class="bg-gray-800 p-6 rounded shadow-lg border border-gray-600 w-96">
+    <div class="p-6 rounded shadow-lg border border-gray-600 w-96" style="background-color: var(--menu-bg); color: var(--text-color);">
       <h2 class="text-lg font-bold mb-4">新規ファイル作成</h2>
       
       <div class="mb-4">
@@ -944,7 +1076,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 <!-- 💥 条件で抽出（スマートフォルダ）モーダル -->
 {#if isSmartFolderModalOpen}
 <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center text-gray-200">
-    <div class="bg-gray-800 p-6 rounded shadow-lg border border-gray-600 w-[550px] max-h-[90vh] overflow-y-auto">
+    <div class="p-6 rounded shadow-lg border border-gray-600 w-[550px] max-h-[90vh] overflow-y-auto" style="background-color: var(--menu-bg); color: var(--text-color);">
       <!-- 💥 タイトルを切り替え -->
       <h2 class="text-lg font-bold mb-4">{editingSmartNode ? '条件を編集' : '条件で抽出'}</h2>
       

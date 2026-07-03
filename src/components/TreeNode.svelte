@@ -271,16 +271,11 @@
   <!-- 💥 isActive のときに背景色を青っぽくする -->
   <div 
     class="flex items-center p-1 rounded text-sm cursor-pointer select-none transition-colors 
-           {isActive ? 'bg-blue-900 text-white font-bold' : 'text-gray-300 hover:bg-gray-700'}"
+           {isActive ? 'font-bold' : 'hover:opacity-70'}"
+    style="{isActive ? 'background-color: var(--active-highlight-bg); color: var(--text-color);' : 'background-color: transparent; color: inherit;'}"
     on:click={handleClick}
     on:contextmenu={handleContextMenu}
   >
-
-    <span class="mr-1 flex items-center justify-center w-3 text-gray-500">
-      {#if node.type === 'Folder'}
-        {#if isOpen}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
-      {/if}
-    </span>
     <span class="mr-1.5 flex items-center justify-center w-4">
       {#if node.type === 'Folder'}
         {#if node.is_virtual_wrapper}
@@ -300,8 +295,8 @@
   <!-- 💥 カスタムコンテキストメニュー -->
   {#if showMenu}
     <div 
-      class="fixed bg-gray-800 border border-gray-600 rounded shadow-xl z-50 py-1 w-48"
-      style="left: {menuX}px; top: {menuY}px;"
+      class="fixed border border-black/20 rounded shadow-xl z-50 py-1 w-48"
+      style="left: {menuX}px; top: {menuY}px; background-color: var(--menu-bg); color: var(--text-color);"
     >
       {#if node.type === 'File'}
         <button 
@@ -323,7 +318,7 @@
             <ChevronRight size={14} />
           </button>
           <!-- 💥 変更: group-hover/tagadd に変更 -->
-          <div class="absolute left-full top-0 hidden group-hover/tagadd:block bg-gray-800 border border-gray-600 rounded shadow-xl py-1 w-36 -ml-1">
+          <div class="absolute left-full top-0 hidden group-hover/tagadd:block border border-black/20 rounded shadow-xl py-1 w-36 -ml-1" style="background-color: var(--menu-bg);">
             {#each $registeredTags as tag}
               <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700 truncate" on:click={() => operateTag(tag, true)}>
                 {tag}
@@ -341,7 +336,7 @@
             <ChevronRight size={14} />
           </button>
           <!-- 💥 変更: group-hover/tagdel に変更 -->
-          <div class="absolute left-full top-0 hidden group-hover/tagdel:block bg-gray-800 border border-gray-600 rounded shadow-xl py-1 w-36 -ml-1">
+          <div class="absolute left-full top-0 hidden group-hover/tagdel:block border border-black/20 rounded shadow-xl py-1 w-36 -ml-1" style="background-color: var(--menu-bg);">
             {#each currentFileTags as tag}
               <button class="block w-full text-left px-4 py-1.5 text-sm text-red-300 hover:bg-gray-700 truncate" on:click={() => operateTag(tag, false)}>
                 <span class="inline-block w-4">✓</span>{tag}
@@ -414,7 +409,7 @@
           
           <!-- サブメニュー (ホバーで出現) -->
          <!-- 💥 group-hover:block を group-hover/sort:block に修正しました -->
-          <div class="absolute left-full top-0 hidden group-hover/sort:block bg-gray-800 border border-gray-600 rounded shadow-xl py-1 w-36 -ml-1">
+          <div class="absolute left-full top-0 hidden group-hover/sort:block border border-black/20 rounded shadow-xl py-1 w-36 -ml-1" style="background-color: var(--menu-bg);">
             
             <!-- 💥 変更: 同様に固定幅の <span> に変更 -->
             <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700" on:click={() => { setNodeSort(node, sortBy, 'asc'); closeMenu(); }}>
@@ -461,7 +456,7 @@
               <span class="flex items-center"><Library size={14} class="mr-2" /> ライブラリに登録</span>
               <ChevronRight size={14} />
             </button>
-            <div class="absolute left-full top-0 hidden group-hover/library:block bg-gray-800 border border-gray-600 rounded shadow-xl py-1 w-48 -ml-1">
+            <div class="absolute left-full top-0 hidden group-hover/library:block border border-black/20 rounded shadow-xl py-1 w-48 -ml-1" style="background-color: var(--menu-bg);">
               <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700 font-bold" on:click={() => { addNodeToLibrary(node, 'new'); closeMenu(); }}>
                  ＋ 新しいライブラリを作成
               </button>

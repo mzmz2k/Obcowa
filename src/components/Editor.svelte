@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { openTabs, activeTabId, createNewTab, closeTab, switchTab, editorFont, currentWorkspaceIndex, openFileInNewTab, registeredTags } from '$lib/stores';
+    import { openTabs, activeTabId, createNewTab, closeTab, switchTab, editorFont, currentWorkspaceIndex, openFileInNewTab, registeredTags,activeTheme } from '$lib/stores';
     import { invoke, convertFileSrc } from '@tauri-apps/api/core';
     import { openUrl } from '@tauri-apps/plugin-opener';
     import { marked } from 'marked';
@@ -348,29 +348,29 @@
 
 <svelte:window on:click={closeTabMenu} />
 
-<div class="h-full flex flex-col bg-gray-900">
+<div class="h-full flex flex-col transition-colors duration-200" style="background-color: var(--bg-color); color: var(--text-color);">
     
     <!-- タブバーエリア -->
-    <div class="flex bg-[#1e1e1e] border-b border-gray-700 flex-wrap select-none">
+    <div class="flex border-b border-black/10 flex-wrap select-none" style="background-color: var(--menu-bg);">
         {#each $openTabs as tab}
             <div 
-                class="flex items-center px-2 py-1 text-xs max-w-[120px] cursor-pointer border-r border-gray-700 border-b border-b-gray-800 transition-colors
-                       { $activeTabId === tab.id ? 'bg-gray-800 text-gray-200 border-t-2 border-t-blue-500' : 'bg-[#1e1e1e] text-gray-500 hover:bg-gray-800' }"
+                class="flex items-center px-2 py-1 text-xs max-w-[120px] cursor-pointer border-r border-black/10 border-b transition-colors
+                       { $activeTabId === tab.id ? 'border-t-2' : 'border-t-2 border-t-transparent hover:opacity-70' }"
+                style="{ $activeTabId === tab.id ? 'background-color: var(--bg-color); color: var(--text-color); border-top-color: var(--accent-color); border-bottom-color: transparent;' : 'background-color: transparent; color: inherit;' }"
                 on:click={() => handleTabClick(tab.id)}
                 on:contextmenu={(e) => handleTabContextMenu(e, tab)}
             >
                 {#if tab.path === '__SEARCH__'}
-                    <Search size={14} class="mr-1.5 text-gray-400 shrink-0" />
+                    <Search size={14} class="mr-1.5 opacity-70 shrink-0" />
                 {/if}
                 <span class="truncate flex-1" title={tab.title}>{tab.title}</span>
                 
-                <!-- 💥 追加: 未保存なら青い ● を表示 -->
                 {#if tab.isDirty}
-                    <span class="text-blue-400 ml-1 text-[10px]">●</span>
+                    <span class="ml-1 text-[10px]" style="color: var(--accent-color);">●</span>
                 {/if}
 
                 <button 
-                    class="ml-1 w-5 h-5 flex items-center justify-center rounded-full hover:bg-gray-600 hover:text-red-400 transition"
+                    class="ml-1 w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/10 hover:text-red-400 transition"
                     on:click|stopPropagation={() => handleTabClose(tab.id)}
                 >
                     <X size={12} />
@@ -379,7 +379,7 @@
         {/each}
         
         <button 
-            class="px-3 py-1 flex items-center justify-center text-gray-500 hover:text-gray-200 hover:bg-gray-800 transition"
+            class="px-3 py-1 flex items-center justify-center opacity-60 hover:opacity-100 hover:bg-black/10 transition"
             title="新しいタブを開く"
             on:click={createNewTab}
         >
@@ -387,9 +387,9 @@
         </button>
     </div>
 
-<!-- エディタ / プレビュー エリア -->
+    <!-- エディタ / プレビュー エリア -->
     {#if activeTab}
-        <div class="flex-1 relative bg-gray-800 flex flex-col overflow-hidden">
+        <div class="flex-1 relative flex flex-col overflow-hidden" style="background-color: var(--bg-color);">
             
             <!-- 💥 検索タブだった場合の UI -->
             {#if activeTab.path === '__SEARCH__'}
@@ -444,8 +444,8 @@
                 {#if activeTab.isEditing}
                     <textarea 
                         bind:this={editArea}
-                        class="flex-1 w-full bg-transparent text-gray-200 resize-none focus:outline-none text-sm p-6 overflow-y-auto"
-                        style="font-family: {$editorFont};"
+                        class="flex-1 w-full bg-transparent resize-none focus:outline-none text-sm p-6 overflow-y-auto"
+                        style="font-family: {$editorFont}; color: var(--text-color);"
                         value={activeTab.content}
                         on:input={handleInput}
                     ></textarea>
@@ -457,7 +457,7 @@
                     >
                         <!-- svelte-ignore a11y-click-events-have-key-events -->
                         <!-- svelte-ignore a11y-no-static-element-interactions -->
-                        <div class="prose prose-invert max-w-none select-text cursor-text" on:click={handlePreviewClick}>
+                        <div class="prose max-w-none select-text cursor-text editor-preview" style="color: var(--text-color);" on:click={handlePreviewClick}>
                             {@html renderedHtml}
                         </div>
                     </div>
@@ -468,8 +468,8 @@
         </div>
     {:else}
 
-        <div class="flex-1 flex flex-col items-center justify-center text-gray-600 bg-gray-800">
-            <Inbox size={48} class="mb-4 text-gray-500" />
+        <div class="flex-1 flex flex-col items-center justify-center opacity-60" style="background-color: var(--bg-color);">
+            <Inbox size={48} class="mb-4" />
             <div class="text-sm">ファイルを選択するか、＋ボタンで新規作成してください</div>
         </div>
     {/if}
@@ -478,8 +478,8 @@
 <!-- 💥 追加: タブの右クリックメニュー -->
 {#if tabMenu.show}
     <div 
-      class="fixed bg-gray-800 border border-gray-600 rounded shadow-xl z-50 py-1 w-48 text-gray-200"
-      style="left: {tabMenu.x}px; top: {tabMenu.y}px;"
+      class="fixed border border-black/20 rounded shadow-xl z-50 py-1 w-48"
+      style="left: {tabMenu.x}px; top: {tabMenu.y}px; background-color: var(--menu-bg); color: var(--text-color);"
     >
         {#if tabMenu.path && tabMenu.path !== '__SEARCH__'}
             <button 
@@ -496,43 +496,31 @@
 
             <!-- タグを挿入 -->
              <div class="relative group/tagadd">
-                 <button class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition flex justify-between items-center">
+                 <button class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition flex justify-between items-center">
                     <span class="flex items-center"><Tag size={14} class="mr-2" /> タグを挿入</span>
                     <span>{#if tabMenu.openSubLeft}<ChevronLeft size={14} />{:else}<ChevronRight size={14} />{/if}</span>
                 </button>
-                
-                <!-- 💥 変更: left-full か right-full かを動的に切り替える -->
-                <div class="absolute {tabMenu.openSubLeft ? 'right-full -mr-1' : 'left-full -ml-1'} top-0 hidden group-hover/tagadd:block bg-gray-800 border border-gray-600 rounded shadow-xl py-1 w-36">
+                <div class="absolute {tabMenu.openSubLeft ? 'right-full -mr-1' : 'left-full -ml-1'} top-0 hidden group-hover/tagadd:block border border-black/20 rounded shadow-xl py-1 w-36" style="background-color: var(--menu-bg);">
                     {#each $registeredTags as tag}
-                        <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-gray-700 truncate" on:click={() => operateTagForTab(tag, true)}>
-                            {tag}
-                        </button>
-                    {:else}
-                        <div class="px-4 py-1.5 text-sm text-gray-500">タグ未登録</div>
-                    {/each}
+                        <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10 truncate" on:click={() => operateTagForTab(tag, true)}>{tag}</button>
+                    {:else}<div class="px-4 py-1.5 text-sm opacity-50">タグ未登録</div>{/each}
                 </div>
             </div>
 
             <!-- タグを削除 -->
             <div class="relative group/tagdel">
-                <button class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition flex justify-between items-center">
+                <button class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition flex justify-between items-center">
                     <span class="flex items-center"><Tag size={14} class="mr-2" /> タグを削除</span>
                     <span>{#if tabMenu.openSubLeft}<ChevronLeft size={14} />{:else}<ChevronRight size={14} />{/if}</span>
                 </button>
-                
-                <!-- 💥 変更: こちらも同様に動的切り替え -->
-                <div class="absolute {tabMenu.openSubLeft ? 'right-full -mr-1' : 'left-full -ml-1'} top-0 hidden group-hover/tagdel:block bg-gray-800 border border-gray-600 rounded shadow-xl py-1 w-36">
+                <div class="absolute {tabMenu.openSubLeft ? 'right-full -mr-1' : 'left-full -ml-1'} top-0 hidden group-hover/tagdel:block border border-black/20 rounded shadow-xl py-1 w-36" style="background-color: var(--menu-bg);">
                     {#each tabMenu.tags as tag}
-                        <button class="block w-full text-left px-4 py-1.5 text-sm text-red-300 hover:bg-gray-700 truncate" on:click={() => operateTagForTab(tag, false)}>
-                            <span class="inline-block w-4">✓</span>{tag}
-                        </button>
-                    {:else}
-                        <div class="px-4 py-1.5 text-sm text-gray-500">タグなし</div>
-                    {/each}
+                        <button class="block w-full text-left px-4 py-1.5 text-sm text-red-400 hover:bg-black/10 truncate" on:click={() => operateTagForTab(tag, false)}><span class="inline-block w-4">✓</span>{tag}</button>
+                    {:else}<div class="px-4 py-1.5 text-sm opacity-50">タグなし</div>{/each}
                 </div>
             </div>
         {:else}
-            <div class="px-4 py-2 text-sm text-gray-500">操作できません</div>
+            <div class="px-4 py-2 text-sm opacity-50">操作できません</div>
         {/if}
     </div>
 {/if}
@@ -545,5 +533,33 @@
     .no-scrollbar {
         -ms-overflow-style: none;
         scrollbar-width: none;
+    }
+
+        /* スクロールバー全体の色適用 */
+
+    :global(*) {
+        scrollbar-width: thin !important;
+        scrollbar-color: var(--scroll-thumb, #4b5563) var(--scroll-bg, #1f2937) !important;
+    }
+    
+    :global(*::-webkit-scrollbar) {
+        width: 12px;
+        height: 12px;
+        background-color: var(--scroll-bg, #1f2937);
+    }
+    :global(*::-webkit-scrollbar-thumb) {
+        background-color: var(--scroll-thumb, #4b5563);
+        border-radius: 6px;
+        border: 2px solid var(--scroll-bg, #1f2937);
+    }
+    :global(*::-webkit-scrollbar-corner) {
+        background-color: var(--scroll-bg, #1f2937);
+    }
+
+        :global(.editor-preview * ) {
+        color: var(--text-color) !important;
+    }
+    :global(.editor-preview a ) {
+        color: var(--accent-color) !important;
     }
 </style>
