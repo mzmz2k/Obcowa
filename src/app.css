@@ -27,3 +27,10 @@ html, body {
   scrollbar-width: thin;
   scrollbar-color: #4b5563 #1f2937;
 }
+/* アプリ全体の文字選択時のハイライト色 */
+::selection {
+  background-color: var(--selection-bg);
+}
+::-moz-selection {
+  background-color: var(--selection-bg);
+}

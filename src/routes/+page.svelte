@@ -1061,13 +1061,3 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   </div>
 {/if}
 
-
-<style>
-  /* 💥 アプリ全体の文字選択時のハイライト色を設定 */
-  :global(::selection) {
-    background-color: var(--selection-bg);
-  }
-  :global(::-moz-selection) {
-    background-color: var(--selection-bg);
-  }
-</style>
