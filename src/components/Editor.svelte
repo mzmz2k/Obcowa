@@ -536,31 +536,5 @@
         scrollbar-width: none;
     }
 
-        /* スクロールバー全体の色適用 */
 
-    :global(*) {
-        scrollbar-width: thin !important;
-        scrollbar-color: var(--scroll-thumb, #4b5563) var(--scroll-bg, #1f2937) !important;
-    }
-    
-    :global(*::-webkit-scrollbar) {
-        width: 12px;
-        height: 12px;
-        background-color: var(--scroll-bg, #1f2937);
-    }
-    :global(*::-webkit-scrollbar-thumb) {
-        background-color: var(--scroll-thumb, #4b5563);
-        border-radius: 6px;
-        border: 2px solid var(--scroll-bg, #1f2937);
-    }
-    :global(*::-webkit-scrollbar-corner) {
-        background-color: var(--scroll-bg, #1f2937);
-    }
-
-        :global(.editor-preview * ) {
-        color: var(--text-color) !important;
-    }
-    :global(.editor-preview a ) {
-        color: var(--accent-color) !important;
-    }
 </style>
