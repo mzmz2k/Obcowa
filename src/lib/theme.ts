@@ -79,7 +79,9 @@ export function applyThemeToRoot(theme: Theme) {
     if (typeof document === 'undefined') return;
     const root = document.documentElement;
     root.style.setProperty('--bg-color', theme.bgColor);
-// （中略）
+    root.style.setProperty('--text-color', theme.textColor);
+    root.style.setProperty('--scroll-bg', theme.scrollBg);
+    root.style.setProperty('--scroll-thumb', theme.scrollThumb);
     root.style.setProperty('--accent-color', theme.accentColor);
     root.style.setProperty('--active-highlight-bg', theme.activeHighlightBg);
     root.style.setProperty('--menu-bg', theme.menuBg);
