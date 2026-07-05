@@ -4,7 +4,8 @@
     import { openUrl } from '@tauri-apps/plugin-opener';
     import { marked } from 'marked';
     import { tick } from 'svelte';
-    import { Search, FileText, BookOpen, Pencil, Inbox, Tag, ChevronLeft, ChevronRight, Plus, X } from 'lucide-svelte';
+    import { Search, FileText, Inbox, Tag, ChevronLeft, ChevronRight, Plus, X } from 'lucide-svelte';
+    import EditorHeader from './EditorHeader.svelte';
     import { activeTheme } from '../lib/theme';
 
      marked.use({ breaks: true });
@@ -428,20 +429,8 @@
                     </div>
                 </div>
             {:else}
-                <!-- 検索タブ以外（通常のエディタ）でのみ表示するボタン -->
-                <button 
-                    class="absolute top-4 right-6 z-10 w-8 h-8 flex items-center justify-center bg-gray-700 text-gray-300 rounded shadow border border-gray-600 hover:bg-gray-600 hover:text-white transition opacity-60 hover:opacity-100"
-                    on:click={toggleEditMode}
-                    title={activeTab.isEditing ? 'プレビューモードへ' : '編集モードへ'}
-                >
-                    {#if activeTab.isEditing}
-                        <BookOpen size={16} />
-                    {:else}
-                        <Pencil size={16} />
-                    {/if}
-                </button>
+                <EditorHeader {activeTab} {toggleEditMode} />
 
-                <!-- 💥 変更: 不要な親枠 <div> をなくし、直接 if 文で切り替える -->
                 {#if activeTab.isEditing}
                     <textarea 
                         bind:this={editArea}
