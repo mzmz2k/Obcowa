@@ -98,9 +98,9 @@
         title={activeTab.isEditing ? 'プレビューモードへ' : '編集モードへ'}
     >
         {#if activeTab.isEditing}
-            <BookOpen size={14} />
+            <BookOpen size={17} />
         {:else}
-            <Pencil size={14} />
+            <Pencil size={17} />
         {/if}
     </button>
   </div>
