@@ -1,13 +1,12 @@
 // --- START OF src/lib/imageViewer.ts ---
 import { invoke } from '@tauri-apps/api/core';
 
-// 生成した画像URLを一時保存するキャッシュ
 const imageBlobCache = new Map<string, string>();
 
 /**
  * Obsidian形式の画像リンク文字列から、HTMLのimgタグ（プレースホルダー）を生成します。
  */
-export function generateImageHtml(filenameWithOpts: string, activeTabPath: string): string {
+export function generateImageHtml(filenameWithOpts: string, activeTabPath: string, imageFolderPath: string = ''): string {
     if (!activeTabPath) return '';
 
     const parts = filenameWithOpts.split('|');
@@ -16,15 +15,26 @@ export function generateImageHtml(filenameWithOpts: string, activeTabPath: strin
 
     const parentDir = activeTabPath.replace(/\\/g, '/').replace(/\/[^\/]+$/, '');
     const cleanFilename = filename.replace(/\\/g, '/').replace(/^\//, '');
-    const absoluteImagePath = `${parentDir}/${cleanFilename}`;
+    
+    // 💥 変更: 設定フォルダがあればそれを最優先し、元の階層は「予備(fallback)」とする
+    let primaryPath = `${parentDir}/${cleanFilename}`;
+    let fallbackPath = '';
 
-    // すでに画像を読み込み済みの場合は、そのURLを直接返す（入力中のチラつき防止）
-    if (imageBlobCache.has(absoluteImagePath)) {
-        return `<img src="${imageBlobCache.get(absoluteImagePath)}" alt="${filename}"${sizeAttr} style="border-radius: 4px; display: inline-block; margin: 0.5rem 0;" />`;
+    if (imageFolderPath.trim() !== '') {
+        primaryPath = `${imageFolderPath.replace(/\\/g, '/')}/${cleanFilename}`;
+        fallbackPath = `${parentDir}/${cleanFilename}`;
     }
 
-    // まだ読み込んでいない場合は、目印（data-local-image）をつけた空のimgタグを返す
-    return `<img data-local-image="${absoluteImagePath}" alt="${filename} (読込中...)"${sizeAttr} style="border-radius: 4px; display: inline-block; margin: 0.5rem 0; min-height: 40px; min-width: 40px; background-color: rgba(0,0,0,0.1);" />`;
+    if (imageBlobCache.has(primaryPath)) {
+        return `<img src="${imageBlobCache.get(primaryPath)}" alt="${filename}"${sizeAttr} style="border-radius: 4px; display: inline-block; margin: 0.5rem 0;" />`;
+    }
+    if (fallbackPath && imageBlobCache.has(fallbackPath)) {
+        return `<img src="${imageBlobCache.get(fallbackPath)}" alt="${filename}"${sizeAttr} style="border-radius: 4px; display: inline-block; margin: 0.5rem 0;" />`;
+    }
+
+    const fallbackAttr = fallbackPath ? ` data-fallback-image="${fallbackPath}"` : '';
+
+    return `<img data-local-image="${primaryPath}"${fallbackAttr} alt="${filename} (読込中...)"${sizeAttr} style="border-radius: 4px; display: inline-block; margin: 0.5rem 0; min-height: 40px; min-width: 40px; background-color: rgba(0,0,0,0.1);" />`;
 }
 
 /**
@@ -33,50 +43,62 @@ export function generateImageHtml(filenameWithOpts: string, activeTabPath: strin
 export async function loadImagesInDom() {
     const placeholders = document.querySelectorAll('img[data-local-image]');
     for (const img of placeholders) {
-        const path = img.getAttribute('data-local-image');
-        if (!path) continue;
+        const primaryPath = img.getAttribute('data-local-image');
+        const fallbackPath = img.getAttribute('data-fallback-image');
+        if (!primaryPath) continue;
 
-        if (imageBlobCache.has(path)) {
-            img.setAttribute('src', imageBlobCache.get(path)!);
+        if (imageBlobCache.has(primaryPath)) {
+            img.setAttribute('src', imageBlobCache.get(primaryPath)!);
             img.removeAttribute('data-local-image');
+            img.removeAttribute('data-fallback-image');
             continue;
         }
 
         try {
-            // 既存のファイル読み込みコマンドを使って画像のバイナリデータを取得
-            const bytes: number[] = await invoke('read_file_content', { path });
-            const uint8Array = new Uint8Array(bytes);
-            
-            // ブラウザが表示できるBlob URLに変換
-            const blob = new Blob([uint8Array], { type: getMimeType(path) });
-            const blobUrl = URL.createObjectURL(blob);
-            
-            imageBlobCache.set(path, blobUrl);
-            img.setAttribute('src', blobUrl);
-            img.removeAttribute('data-local-image');
+            // 1. まず優先パス（設定フォルダ）から読み込みを試す
+            const bytes: number[] = await invoke('read_file_content', { path: primaryPath });
+            setImageData(img, primaryPath, bytes);
         } catch (err) {
-            console.error("画像の読み込みに失敗しました:", path, err);
-            img.setAttribute('alt', `❌ 読込失敗: ${path.split('/').pop()}`);
+            // 2. 失敗した場合、予備パス（元のフォルダ階層）があればそちらを試す
+            if (fallbackPath) {
+                try {
+                    const fallbackBytes: number[] = await invoke('read_file_content', { path: fallbackPath });
+                    setImageData(img, fallbackPath, fallbackBytes);
+                    continue;
+                } catch (fallbackErr) {
+                    // 両方失敗した場合は下の「失敗」処理へ進む
+                }
+            }
+            img.setAttribute('alt', `❌ 読込失敗: ${primaryPath.split('/').pop()}`);
             img.removeAttribute('data-local-image');
         }
     }
 }
 
-/**
- * タブを切り替えた時に、そのファイルの画像キャッシュを破棄します。
- * これにより「タブを開く都度に画像を新しく読み込む」ことができます。
- */
-export function resetImageCache(activeTabPath: string) {
+// 読み込んだバイナリデータを画面に反映させる補助関数
+function setImageData(img: Element, path: string, bytes: number[]) {
+    const uint8Array = new Uint8Array(bytes);
+    const blob = new Blob([uint8Array], { type: getMimeType(path) });
+    const blobUrl = URL.createObjectURL(blob);
+    
+    imageBlobCache.set(path, blobUrl);
+    img.setAttribute('src', blobUrl);
+    img.removeAttribute('data-local-image');
+    img.removeAttribute('data-fallback-image');
+}
+
+export function resetImageCache(activeTabPath: string, imageFolderPath: string = '') {
     const parentDir = activeTabPath.replace(/\\/g, '/').replace(/\/[^\/]+$/, '');
+    const imgDir = imageFolderPath ? imageFolderPath.replace(/\\/g, '/') : parentDir;
+
     for (const [path, url] of imageBlobCache.entries()) {
-        if (path.startsWith(parentDir)) {
-            URL.revokeObjectURL(url); // メモリ解放
+        if (path.startsWith(parentDir) || path.startsWith(imgDir)) {
+            URL.revokeObjectURL(url);
             imageBlobCache.delete(path);
         }
     }
 }
 
-// 拡張子から画像の種類を判別する補助関数
 function getMimeType(path: string): string {
     const ext = path.split('.').pop()?.toLowerCase();
     switch (ext) {

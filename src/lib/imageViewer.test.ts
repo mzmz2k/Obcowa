@@ -1,5 +1,7 @@
 // --- START OF src/lib/imageViewer.ts ---
 import { invoke } from '@tauri-apps/api/core';
+import { describe, it, expect, vi } from 'vitest';
+import { generateImageHtml, resetImageCache } from './imageViewer';
 
 // 生成した画像URLを一時保存するキャッシュ
 const imageBlobCache = new Map<string, string>();
@@ -89,4 +91,22 @@ function getMimeType(path: string): string {
         default: return 'application/octet-stream';
     }
 }
+
+vi.mock('@tauri-apps/api/core', () => ({
+    invoke: vi.fn()
+}));
+
+describe('ImageViewer Logic', () => {
+    it('設定フォルダがない場合、元の階層のみを探すプレースホルダーを生成する', () => {
+        const html = generateImageHtml('image.png', 'C:/docs/note.md', '');
+        expect(html).toContain('data-local-image="C:/docs/image.png"');
+        expect(html).not.toContain('data-fallback-image');
+    });
+
+    it('設定フォルダがある場合、優先パスと予備パス（fallback）の両方を生成する', () => {
+        const html = generateImageHtml('image.png', 'C:/docs/note.md', 'D:/Assets');
+        expect(html).toContain('data-local-image="D:/Assets/image.png"');
+        expect(html).toContain('data-fallback-image="C:/docs/image.png"');
+    });
+});
 // --- END OF src/lib/imageViewer.ts ---

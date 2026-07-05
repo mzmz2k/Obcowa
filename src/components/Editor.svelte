@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { openTabs, activeTabId, createNewTab, closeTab, switchTab, editorFont, currentWorkspaceIndex, openFileInNewTab, registeredTags } from '$lib/stores';
+    import { openTabs, activeTabId, createNewTab, closeTab, switchTab, editorFont, currentWorkspaceIndex, openFileInNewTab, registeredTags, imageFolderPath } from '$lib/stores';
     import { invoke, convertFileSrc } from '@tauri-apps/api/core';
     import { openUrl } from '@tauri-apps/plugin-opener';
     import { marked } from 'marked';
@@ -14,19 +14,17 @@
     $: activeTab = $openTabs.find(t => t.id === $activeTabId);
 
 // 💥冒頭のプロパティ（Frontmatter）を削除する関数
-    function removeFrontmatter(content: string) {
-        // 先頭が --- で始まり、次の --- が来るまでの間を消去する
+function removeFrontmatter(content: string) {
         return content.replace(/^---\n[\s\S]*?\n---\n/, '');
     }
 
-    // 💥 activeTab.path（タブのパス）を受け取り、画像ロジックに渡すように修正
-function parseObsidianImages(content: string, tabPath: string) {
+    function parseObsidianImages(content: string, tabPath: string) {
         return content.replace(/!\[\[(.*?)\]\]/g, (match, filename) => {
-            return generateImageHtml(filename, tabPath);
+            // 💥 変更: ストアから画像フォルダのパスを取得して渡す ($imageFolderPath)
+            return generateImageHtml(filename, tabPath, $imageFolderPath);
         });
     }
 
-    // 💥 HTMLが画面に反映された直後に画像をロードするように処理を拡張
     $: renderedHtml = (() => {
         if (!activeTab) return '';
         
@@ -63,15 +61,14 @@ function parseObsidianImages(content: string, tabPath: string) {
         }
     }
 
-// 💥 タブをクリックした時に直前の作業を保存してから切り替える
-    async function handleTabClick(tabId: string) {
+async function handleTabClick(tabId: string) {
         clearTimeout(saveTimeout);
         await saveCurrentTab();
         
-        // 💥 切り替え先のタブの画像キャッシュをリセットし、「都度読み込み」させる
         const nextTab = $openTabs.find(t => t.id === tabId);
         if (nextTab && nextTab.path) {
-            resetImageCache(nextTab.path);
+            // 💥 変更: ここにも $imageFolderPath を渡す
+            resetImageCache(nextTab.path, $imageFolderPath);
         }
 
         switchTab(tabId);

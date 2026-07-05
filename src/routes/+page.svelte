@@ -7,9 +7,9 @@
   import { getCurrentWindow } from '@tauri-apps/api/window'; 
   import Editor from '../components/Editor.svelte';
   import TreeNode from '../components/TreeNode.svelte';
-  import ThemeSettings from '../components/ThemeSettings.svelte';
-  import { activeTheme, initTheme, applyThemeToRoot, type Theme } from '../lib/theme';
-  import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags } from '../lib/stores';
+  import SettingsModal from '../components/SettingsModal.svelte';
+  import { activeTheme, initTheme, applyThemeToRoot } from '../lib/theme';
+  import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, imageFolderPath } from '../lib/stores';
   import { cloneNodeAsIndependent } from '../lib/library';
   import { RotateCw, ArrowUpDown, Search, FolderPlus, FilePlus, Pin, X, Menu, SquarePen, Settings, Library, Archive, Link } from 'lucide-svelte';
  
@@ -53,10 +53,12 @@
   let selectedTagForNew = '';
   let newFileCallback: (() => void) | null = null;
 
-  let newTagInput = '';
   let selectedTagToRemove = '';
 
-    // 💥 追加: ファイル名（拡張子の前）だけを選択状態にするアクション
+  function openSettings() {
+      isSettingsOpen = true;
+  }
+
   function selectBaseName(node: HTMLInputElement) {
     setTimeout(() => {
       node.focus();
@@ -64,23 +66,6 @@
       if (idx > 0) node.setSelectionRange(0, idx);
       else node.select();
     }, 10);
-  }
-
-  // 💥 追加: タグの追加と削除
-  function addTag() {
-    const t = newTagInput.trim();
-    if (t && !$registeredTags.includes(t)) {
-      $registeredTags = [...$registeredTags, t];
-      localStorage.setItem('registeredTags', JSON.stringify($registeredTags));
-      newTagInput = '';
-    }
-  }
-  function removeTag() {
-    if (selectedTagToRemove) {
-      $registeredTags = $registeredTags.filter(t => t !== selectedTagToRemove);
-      localStorage.setItem('registeredTags', JSON.stringify($registeredTags));
-      selectedTagToRemove = '';
-    }
   }
 
   // 💥 追加: ファイル作成の実行
@@ -358,13 +343,15 @@
     await saveData();
   }
   onMount(async () => {
-    // 💥 追加: ローカルストレージからタグ一覧を復元する
     try {
       const savedTags = localStorage.getItem('registeredTags');
       if (savedTags) registeredTags.set(JSON.parse(savedTags));
+      
+      // 💥 追加: ローカルストレージから画像フォルダパスを復元する
+      const savedImageFolder = localStorage.getItem('imageFolderPath');
+      if (savedImageFolder) imageFolderPath.set(savedImageFolder);
     } catch (e) {}
 
-    // 💥 移動したテーマの初期化・復元処理を呼び出す
     initTheme();
 
     try {
@@ -579,29 +566,6 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     activeHighlightBg: '#1e3a8a', menuBg: '#111827' , selectionBg: '#4b5563'
   };
 
-  function openSettings() { 
-    tempFont = $editorFont || 'sans-serif'; 
-    tempTheme = { 
-      id: $activeTheme.id || 'custom', name: $activeTheme.name || 'Custom',
-      bgColor: $activeTheme.bgColor || '#1f2937', textColor: $activeTheme.textColor || '#e5e7eb',
-      scrollBg: $activeTheme.scrollBg || '#111827', scrollThumb: $activeTheme.scrollThumb || '#4b5563',
-      accentColor: $activeTheme.accentColor || '#3b82f6', activeHighlightBg: $activeTheme.activeHighlightBg || '#1e3a8a',
-      menuBg: $activeTheme.menuBg || '#111827', selectionBg: $activeTheme.selectionBg || '#4b5563' // 💥 追加
-    };
-    activeSettingsTab = 'general';
-    isSettingsOpen = true; 
-  }
-
-  function saveSettings() { 
-    $editorFont = tempFont; 
-    $activeTheme = { ...tempTheme };
-    if (workspaces[currentIndex]) {
-      workspaces[currentIndex].editor_font = tempFont;
-      saveData();
-    }
-    localStorage.setItem('activeTheme', JSON.stringify($activeTheme));
-    isSettingsOpen = false; 
-  }
 
   // 💥 移動したCSS変数の適用処理を呼び出す
   $: if (typeof document !== 'undefined' && $activeTheme) {
@@ -895,60 +859,12 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   </div>
 {/if}
 {#if isSettingsOpen}
-  <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
-    <!-- モーダル自体もテーマ色と連動 -->
-    <div class="rounded shadow-xl border border-black/20 flex overflow-hidden w-[700px] h-[550px]" style="background-color: var(--menu-bg); color: var(--text-color);">
-      
-      <!-- 左サイドバー（タブ） -->
-      <div class="w-1/4 bg-black/10 p-4 space-y-2 text-sm border-r border-black/10">
-        <button class="w-full text-left p-2 rounded transition-colors {activeSettingsTab === 'general' ? 'bg-[var(--accent-color)] text-white font-bold' : 'hover:bg-black/10'}" on:click={() => activeSettingsTab = 'general'}>一般</button>
-        <button class="w-full text-left p-2 rounded transition-colors {activeSettingsTab === 'theme' ? 'bg-[var(--accent-color)] text-white font-bold' : 'hover:bg-black/10'}" on:click={() => activeSettingsTab = 'theme'}>テーマ</button>
-      </div>
-
-      <!-- 右コンテンツ -->
-      <div class="w-3/4 p-6 overflow-y-auto flex flex-col relative">
-        
-        {#if activeSettingsTab === 'general'}
-          <h2 class="text-lg font-bold mb-6">一般設定</h2>
-          
-          <div class="mb-6">
-            <div class="text-sm opacity-80 mb-2">フォント名</div>
-            <input type="text" class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm outline-none" bind:value={tempFont} placeholder="フォント名" />
-          </div>
-
-          <hr class="border-black/10 mb-6">
-
-          <div class="mb-6">
-            <div class="text-sm opacity-80 mb-2">タグの管理</div>
-            <div class="flex gap-2 mb-4">
-              <input type="text" class="flex-1 bg-black/10 border border-black/20 rounded p-2 text-sm outline-none" bind:value={newTagInput} placeholder="新しいタグ名を入力" on:keydown={(e) => e.key === 'Enter' && addTag()} />
-              <button class="px-4 py-2 bg-black/20 hover:bg-black/30 rounded text-sm transition" on:click={addTag}>登録</button>
-            </div>
-            <div class="flex gap-2">
-              <!-- 💥 select に背景色を指定 -->
-              <select class="flex-1 border border-black/20 rounded p-2 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={selectedTagToRemove}>
-                <option value="" disabled selected>登録済みのタグ一覧</option>
-                {#each $registeredTags as tag}<option value={tag}>{tag}</option>{/each}
-              </select>
-              <button class="px-4 py-2 bg-red-900/50 hover:bg-red-900/80 text-red-100 rounded text-sm transition" on:click={removeTag}>削除</button>
-            </div>
-          </div>
-
-       {:else if activeSettingsTab === 'theme'}
-          
-          <!-- 💥 新しく作った別ファイル（コンポーネント）を呼び出し、tempThemeを渡して連動させる -->
-          <ThemeSettings bind:tempTheme={tempTheme} />
-        {/if}
-
-        <!-- 共通の保存・キャンセルボタン -->
-        <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-black/10">
-          <button class="px-5 py-2 bg-black/20 hover:bg-black/30 rounded text-sm transition font-bold" on:click={() => isSettingsOpen = false}>キャンセル</button>
-          <button class="px-5 py-2 bg-[var(--accent-color)] text-white rounded text-sm transition font-bold shadow hover:brightness-110" on:click={saveSettings}>設定を保存して閉じる</button>
-        </div>
-      </div>
-
-    </div>
-  </div>
+  <SettingsModal 
+    bind:workspaces={workspaces}
+    currentIndex={currentIndex}
+    on:save={async () => { await saveData(true); isSettingsOpen = false; }}
+    on:close={() => isSettingsOpen = false}
+  />
 {/if}
 <!-- 💥 新規ファイル作成モーダル -->
 {#if isNewFileModalOpen}

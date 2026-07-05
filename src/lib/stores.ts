@@ -18,9 +18,11 @@ export const editorFont = writable<string>('sans-serif');
 export const currentWorkspaceIndex = writable<number>(0);
 
 export const registeredTags = writable<string[]>([]);
+// 画像を保存しているフォルダのパス
+export const imageFolderPath = writable<string>('');
 
 
-// 💥 追加: 検索用の特殊なタブを作成・表示する関数
+// 💥 検索用の特殊なタブを作成・表示する関数
 export function openSearchTab() {
     const newId = "search-tab";
     openTabs.update(tabs => {
