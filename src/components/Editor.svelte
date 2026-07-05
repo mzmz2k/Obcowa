@@ -7,40 +7,47 @@
     import { Search, FileText, Inbox, Tag, ChevronLeft, ChevronRight, Plus, X } from 'lucide-svelte';
     import EditorHeader from './EditorHeader.svelte';
     import { activeTheme } from '../lib/theme';
+    import { generateImageHtml, resetImageCache, loadImagesInDom } from '../lib/imageViewer';
 
      marked.use({ breaks: true });
 
     $: activeTab = $openTabs.find(t => t.id === $activeTabId);
 
-    // 💥 追加：冒頭のプロパティ（Frontmatter）を削除する関数
+// 💥冒頭のプロパティ（Frontmatter）を削除する関数
     function removeFrontmatter(content: string) {
         // 先頭が --- で始まり、次の --- が来るまでの間を消去する
         return content.replace(/^---\n[\s\S]*?\n---\n/, '');
     }
 
-    function parseObsidianImages(content: string) {
+    // 💥 activeTab.path（タブのパス）を受け取り、画像ロジックに渡すように修正
+function parseObsidianImages(content: string, tabPath: string) {
         return content.replace(/!\[\[(.*?)\]\]/g, (match, filename) => {
-            const mockAbsPath = `/path/to/vault/images/${filename}`;
-            const assetUrl = convertFileSrc(mockAbsPath);
-            return `<img src="${assetUrl}" alt="${filename}" class="max-w-full h-auto rounded" />`;
+            return generateImageHtml(filename, tabPath);
         });
     }
 
+    // 💥 HTMLが画面に反映された直後に画像をロードするように処理を拡張
     $: renderedHtml = (() => {
         if (!activeTab) return '';
         
-        // .txt ファイルの場合は Markdown 変換をスキップ
+        let htmlStr = '';
         if (activeTab.path.endsWith('.txt')) {
-            // タグを無効化（サニタイズ）しつつ、改行を <br> にする
             const safeText = activeTab.content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            return safeText.replace(/\n/g, '<br>');
+            htmlStr = safeText.replace(/\n/g, '<br>');
+        } else {
+            htmlStr = marked(parseObsidianImages(removeFrontmatter(activeTab.content), activeTab.path));
         }
-        
-        // .md などそれ以外は通常通り Markdown 変換
-        return marked(parseObsidianImages(removeFrontmatter(activeTab.content)));
+
+        // tick() は Svelteが「画面を最新に更新し終わった瞬間」を待つ命令です
+        tick().then(() => {
+            // 画面の更新が終わったら、画像を読み込む関数を実行
+            loadImagesInDom();
+        });
+
+        return htmlStr;
     })();
 
-        // 💥 追加: アクティブなタブを保存する共通関数
+        // 💥 アクティブなタブを保存する共通関数
     async function saveCurrentTab() {
         if (activeTab && activeTab.isDirty && activeTab.path && activeTab.path !== '__SEARCH__') {
             try {
@@ -56,14 +63,21 @@
         }
     }
 
-    // 💥 追加: タブをクリックした時に直前の作業を保存してから切り替える
+// 💥 タブをクリックした時に直前の作業を保存してから切り替える
     async function handleTabClick(tabId: string) {
         clearTimeout(saveTimeout);
         await saveCurrentTab();
+        
+        // 💥 切り替え先のタブの画像キャッシュをリセットし、「都度読み込み」させる
+        const nextTab = $openTabs.find(t => t.id === tabId);
+        if (nextTab && nextTab.path) {
+            resetImageCache(nextTab.path);
+        }
+
         switchTab(tabId);
     }
 
-    // 💥 追加: タブを閉じる時に未保存なら保存して閉じる
+    // 💥 タブを閉じる時に未保存なら保存して閉じる
     async function handleTabClose(tabId: string) {
         const tab = $openTabs.find(t => t.id === tabId);
         if (tab && tab.isDirty && tab.path && tab.path !== '__SEARCH__') {
@@ -72,13 +86,13 @@
         closeTab(tabId);
     }
 
-      // 💥 追加: タブの右クリックメニュー用
+      // 💥 タブの右クリックメニュー用
     let tabMenu = { show: false, x: 0, y: 0, tabId: '', path: '', title: '', content: '', tags: [] as string[], openSubLeft: false };
 
     function handleTabContextMenu(e: MouseEvent, tab: any) {
         e.preventDefault();
 
-        // 💥 追加: メニューが画面外にはみ出ないようにX座標を調整
+        // 💥  メニューが画面外にはみ出ないようにX座標を調整
         // 親メニューの幅(約200px)が画面右端を超える場合は左にズラす
         let adjustedX = e.clientX;
         if (adjustedX + 200 > window.innerWidth) {
@@ -105,7 +119,7 @@
         tabMenu.show = false;
     }
 
-    // 💥 追加: タグ抽出関数（タブ上の未保存データから拾うため）
+    // 💥  タグ抽出関数（タブ上の未保存データから拾うため）
     function extractTags(content: string) {
         const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
         const tags: string[] = [];
@@ -134,7 +148,7 @@
         return [...new Set(tags)];
     }
 
-    // 💥 追加: タブ上でタグを書き込み、即座に保存する関数
+    // 💥  タブ上でタグを書き込み、即座に保存する関数
     async function operateTagForTab(tag: string, isAdd: boolean) {
         if (!tabMenu.path) { closeTabMenu(); return; }
         
@@ -257,7 +271,7 @@
         }
     }
 
-       // 💥 追加: 自動保存タイマー
+       // 💥  自動保存タイマー
     let saveTimeout: ReturnType<typeof setTimeout>;
 
     function handleInput(event: Event) {
@@ -273,7 +287,7 @@
             return tabs;
         });
 
-        // 💥 追加: 1.5秒間入力が止まったら自動保存
+        // 💥  1.5秒間入力が止まったら自動保存
         clearTimeout(saveTimeout);
         saveTimeout = setTimeout(() => {
             saveCurrentTab();
@@ -293,14 +307,14 @@
         }
     }
 
-        // 💥 追加: 検索用の状態管理
+        // 💥  検索用の状態管理
     let searchQuery = '';
     let includeLibrary = false;
     let searchResults: any[] = [];
     let isSearching = false;
     let hasSearched = false;
 
-    // 💥 追加: 検索実行処理
+    // 💥  検索実行処理
     async function executeSearch() {
         if (!searchQuery.trim()) return;
         isSearching = true;
@@ -318,7 +332,7 @@
         }
     }
 
-    // 💥 追加: 検索結果をクリックして新規タブで開く
+    // 💥  検索結果をクリックして新規タブで開く
     async function handleResultClick(path: string, name: string, forceNewTab: boolean = false) {
         // 右クリック（強制新規）でなく、かつ既に開いているタブがあればそれに切り替える
         if (!forceNewTab) {
@@ -465,7 +479,7 @@
     {/if}
 </div>
 
-<!-- 💥 追加: タブの右クリックメニュー -->
+<!-- 💥  タブの右クリックメニュー -->
 {#if tabMenu.show}
     <div 
       class="fixed border border-black/20 rounded shadow-xl z-50 py-1 w-48"
