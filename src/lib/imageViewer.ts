@@ -10,105 +10,93 @@ export function generateImageHtml(filenameWithOpts: string, activeTabPath: strin
     if (!activeTabPath) return '';
 
     const parts = filenameWithOpts.split('|');
-    const filename = parts[0].trim();
+    const rawFilename = parts[0].trim();
+    // フォルダ指定付き（sub/image.pngなど）で書かれていても、純粋なファイル名だけを抽出する
+    const filename = rawFilename.split(/[/\\]/).pop() || rawFilename;
     const sizeAttr = parts.length > 1 ? ` width="${parts[1].trim()}"` : ' class="max-w-full h-auto"';
 
+    // 探索の起点となる元のフォルダ
     const parentDir = activeTabPath.replace(/\\/g, '/').replace(/\/[^\/]+$/, '');
-    const cleanFilename = filename.replace(/\\/g, '/').replace(/^\//, '');
     
-    // 💥 変更: 設定フォルダがあればそれを最優先し、元の階層は「予備(fallback)」とする
-    let primaryPath = `${parentDir}/${cleanFilename}`;
-    let fallbackPath = '';
+    // キャッシュキー
+    const cacheKey = imageFolderPath ? `${imageFolderPath}/${filename}` : `${parentDir}/${filename}`;
 
-    if (imageFolderPath.trim() !== '') {
-        primaryPath = `${imageFolderPath.replace(/\\/g, '/')}/${cleanFilename}`;
-        fallbackPath = `${parentDir}/${cleanFilename}`;
+    if (imageBlobCache.has(cacheKey)) {
+        return `<img src="${imageBlobCache.get(cacheKey)}" alt="${filename}"${sizeAttr} style="border-radius: 4px; display: inline-block; margin: 0.5rem 0;" />`;
     }
 
-    if (imageBlobCache.has(primaryPath)) {
-        return `<img src="${imageBlobCache.get(primaryPath)}" alt="${filename}"${sizeAttr} style="border-radius: 4px; display: inline-block; margin: 0.5rem 0;" />`;
-    }
-    if (fallbackPath && imageBlobCache.has(fallbackPath)) {
-        return `<img src="${imageBlobCache.get(fallbackPath)}" alt="${filename}"${sizeAttr} style="border-radius: 4px; display: inline-block; margin: 0.5rem 0;" />`;
-    }
-
-    const fallbackAttr = fallbackPath ? ` data-fallback-image="${fallbackPath}"` : '';
-
-    return `<img data-local-image="${primaryPath}"${fallbackAttr} alt="${filename} (読込中...)"${sizeAttr} style="border-radius: 4px; display: inline-block; margin: 0.5rem 0; min-height: 40px; min-width: 40px; background-color: rgba(0,0,0,0.1);" />`;
+    // パスではなく、「探すべきファイル名」と「探すべきディレクトリ」を目印として埋め込む
+    return `<img data-img-filename="${filename}" data-primary-dir="${imageFolderPath}" data-fallback-dir="${parentDir}" data-cache-key="${cacheKey}" alt="${filename} (読込中...)"${sizeAttr} style="border-radius: 4px; display: inline-block; margin: 0.5rem 0; min-height: 40px; min-width: 40px; background-color: rgba(0,0,0,0.1);" />`;
 }
 
 /**
- * 画面上に存在する目印のついたimgタグを探し、Rust経由で画像を読み込んで表示させます。
+ * 画面上に存在する目印のついたimgタグを探し、Rust経由で画像を検索・読み込んで表示させます。
  */
 export async function loadImagesInDom() {
-    const placeholders = document.querySelectorAll('img[data-local-image]');
+    const placeholders = document.querySelectorAll('img[data-img-filename]');
     for (const img of placeholders) {
-        const primaryPath = img.getAttribute('data-local-image');
-        const fallbackPath = img.getAttribute('data-fallback-image');
-        if (!primaryPath) continue;
+        const filename = img.getAttribute('data-img-filename');
+        const primaryDir = img.getAttribute('data-primary-dir');
+        const fallbackDir = img.getAttribute('data-fallback-dir');
+        const cacheKey = img.getAttribute('data-cache-key');
+        
+        if (!filename || !cacheKey) continue;
 
-        if (imageBlobCache.has(primaryPath)) {
-            img.setAttribute('src', imageBlobCache.get(primaryPath)!);
-            img.removeAttribute('data-local-image');
-            img.removeAttribute('data-fallback-image');
+        if (imageBlobCache.has(cacheKey)) {
+            img.setAttribute('src', imageBlobCache.get(cacheKey)!);
+            img.removeAttribute('data-img-filename');
             continue;
         }
 
         try {
-            // 1. まず優先パス（設定フォルダ）から読み込みを試す
-            const bytes: number[] = await invoke('read_file_content', { path: primaryPath });
-            setImageData(img, primaryPath, bytes);
-        } catch (err) {
-            // 2. 失敗した場合、予備パス（元のフォルダ階層）があればそちらを試す
-            if (fallbackPath) {
-                try {
-                    const fallbackBytes: number[] = await invoke('read_file_content', { path: fallbackPath });
-                    setImageData(img, fallbackPath, fallbackBytes);
-                    continue;
-                } catch (fallbackErr) {
-                    // 両方失敗した場合は下の「失敗」処理へ進む
-                }
+            let foundPath: string | null = null;
+
+            // 1. まず優先フォルダ（設定フォルダ）の奥深くまで探す
+            if (primaryDir) {
+                foundPath = await invoke('find_image_file', { dirPath: primaryDir, fileName: filename });
             }
-            img.setAttribute('alt', `❌ 読込失敗: ${primaryPath.split('/').pop()}`);
-            img.removeAttribute('data-local-image');
+            
+            // 2. 見つからなければ、元のファイル階層の奥深くまで探す
+            if (!foundPath && fallbackDir) {
+                foundPath = await invoke('find_image_file', { dirPath: fallbackDir, fileName: filename });
+            }
+
+            if (foundPath) {
+                // 発見した絶対パスを使って画像を読み込む
+                const bytes: number[] = await invoke('read_file_content', { path: foundPath });
+                setImageData(img, cacheKey, bytes);
+            } else {
+                throw new Error("File not found in any directory");
+            }
+        } catch (err) {
+            img.setAttribute('alt', `❌ 読込失敗: ${filename}`);
+            img.removeAttribute('data-img-filename');
         }
     }
 }
 
 // 読み込んだバイナリデータを画面に反映させる補助関数
-function setImageData(img: Element, path: string, bytes: number[]) {
-    const uint8Array = new Uint8Array(bytes);
-    const blob = new Blob([uint8Array], { type: getMimeType(path) });
+function setImageData(img: Element, cacheKey: string, bytes: number[]) {
+    // MIMEタイプの推測は仮置き（ブラウザは中身で判別してくれるためoctet-streamでも表示されます）
+    const blob = new Blob([new Uint8Array(bytes)], { type: 'application/octet-stream' });
     const blobUrl = URL.createObjectURL(blob);
     
-    imageBlobCache.set(path, blobUrl);
+    imageBlobCache.set(cacheKey, blobUrl);
     img.setAttribute('src', blobUrl);
-    img.removeAttribute('data-local-image');
-    img.removeAttribute('data-fallback-image');
+    img.removeAttribute('data-img-filename');
+    img.removeAttribute('data-primary-dir');
+    img.removeAttribute('data-fallback-dir');
+    img.removeAttribute('data-cache-key');
 }
 
 export function resetImageCache(activeTabPath: string, imageFolderPath: string = '') {
     const parentDir = activeTabPath.replace(/\\/g, '/').replace(/\/[^\/]+$/, '');
     const imgDir = imageFolderPath ? imageFolderPath.replace(/\\/g, '/') : parentDir;
 
-    for (const [path, url] of imageBlobCache.entries()) {
-        if (path.startsWith(parentDir) || path.startsWith(imgDir)) {
+    for (const [key, url] of imageBlobCache.entries()) {
+        if (key.startsWith(parentDir) || key.startsWith(imgDir)) {
             URL.revokeObjectURL(url);
-            imageBlobCache.delete(path);
+            imageBlobCache.delete(key);
         }
     }
 }
-
-function getMimeType(path: string): string {
-    const ext = path.split('.').pop()?.toLowerCase();
-    switch (ext) {
-        case 'png': return 'image/png';
-        case 'jpg':
-        case 'jpeg': return 'image/jpeg';
-        case 'gif': return 'image/gif';
-        case 'webp': return 'image/webp';
-        case 'svg': return 'image/svg+xml';
-        default: return 'application/octet-stream';
-    }
-}
-// --- END OF src/lib/imageViewer.ts ---

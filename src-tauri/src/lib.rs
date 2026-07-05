@@ -624,6 +624,39 @@ fn check_tag_match(content: &str, target_tag: &str, match_mode: &str, include_in
     false
 }
 
+//  サブフォルダの奥深くまで再帰的にファイルを探し出す関数
+#[tauri::command]
+async fn find_image_file(dir_path: String, file_name: String) -> Result<Option<String>, String> {
+    if dir_path.trim().is_empty() {
+        return Ok(None);
+    }
+    
+    // 再帰的に探すための内部関数
+    fn find_recursive(dir: &std::path::Path, target: &str) -> Option<String> {
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    // フォルダならさらに奥へ潜る
+                    if let Some(found) = find_recursive(&path, target) {
+                        return Some(found);
+                    }
+                } else if path.is_file() {
+                    // ファイルなら名前を比較
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        if name == target {
+                            return Some(path.to_string_lossy().into_owned());
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    Ok(find_recursive(std::path::Path::new(&dir_path), &file_name))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -641,7 +674,8 @@ pub fn run() {
             create_new_file,
             open_folder,
             evaluate_smart_folder,
-            search_files
+            search_files,
+            find_image_file // 新しく作った関数を登録
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
