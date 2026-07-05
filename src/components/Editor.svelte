@@ -440,9 +440,9 @@ async function handleTabClick(tabId: string) {
                     </div>
                 </div>
             {:else}
-                <EditorHeader {activeTab} {toggleEditMode} />
+               <EditorHeader {activeTab} {toggleEditMode} />
 
-                {#if activeTab.isEditing}
+               {#if activeTab.isEditing}
                     <textarea 
                         bind:this={editArea}
                         class="flex-1 w-full bg-transparent resize-none focus:outline-none text-sm p-6 overflow-y-auto"
