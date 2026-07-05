@@ -35,8 +35,8 @@ export default defineConfig(async () => ({
 		environment: 'jsdom', // 💥 追加: テスト環境全体を最初から仮想ブラウザにする
 		include: ['src/**/*.{test,spec}.{js,ts}'] // ←ここは既存のものがあればそのまま残してください
 	},
-  resolve: {
-    conditions: process.env.VITEST ? ['browser'] : []
-  }
+//  resolve: {
+//    conditions: process.env.VITEST ? ['browser'] : []
+//  },
 
 }));
