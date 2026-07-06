@@ -4,6 +4,8 @@
   import { getContext } from 'svelte';
   import { ChevronDown, ChevronRight, Library, FolderOpen, Folder, FileText, Tag, Pin, PinOff, Search, Pencil, ArrowUpDown, ExternalLink } from 'lucide-svelte';
 
+  import { extractTags, updateTagsInContent } from '../lib/utils/tagUtils';
+
   export let node: any;
   // 💥 変更: isReadonly を削除し、親から引き継ぐ情報に変更
   export let ownerId: string;
@@ -110,98 +112,23 @@
     return await loadFileContent(node.path);
   }
 
-  // 💥 変更: あらゆる形式（インライン・リスト）のタグを読み取る関数
-  function extractTags(content: string) {
-    const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-    const tags: string[] = [];
-    if (match) {
-      const lines = match[1].split(/\r?\n/);
-      let inTags = false;
-      
-      for (const line of lines) {
-        if (line.startsWith('tags:') || line.startsWith('tag:')) {
-          inTags = true;
-          // tags: [A, B] のようなインライン形式も拾う
-          const inlineStr = line.substring(line.indexOf(':') + 1).trim();
-          if (inlineStr) {
-            tags.push(...inlineStr.replace(/[\[\]]/g, '').split(',').map(t => t.trim()).filter(t => t));
-            inTags = false; 
-          }
-          continue;
-        }
-        
-        // リスト形式（- A）を拾う
-        if (inTags) {
-          if (line.trim().startsWith('- ')) {
-            tags.push(line.trim().substring(2).trim());
-          } else if (line.trim() !== '' && !line.startsWith(' ')) {
-            inTags = false; // 次のプロパティ（aliases:など）が始まったらタグブロック終了
-          }
-        }
-      }
-    }
-    return [...new Set(tags)]; // 重複を排除して返す
-  }
 
-  // 💥 変更: タグの追加・削除を実行し、常にリスト形式で書き込む
+
+ // 💥 変更: operateTag の中身を大幅にスリム化
   async function operateTag(tag: string, isAdd: boolean) {
     let content = await getTargetContent();
-    let tags = extractTags(content);
     
-    if (isAdd) {
-      if (tags.includes(tag)) { closeMenu(); return; }
-      tags.push(tag);
-    } else {
-      if (!tags.includes(tag)) { closeMenu(); return; }
-      tags = tags.filter(t => t !== tag);
+    // 💥 追加: ロジック専用ファイルに文字列処理を任せる
+    const newContent = updateTagsInContent(content, tag, isAdd);
+    
+    // 変更がなければ何もせずに閉じる
+    if (content === newContent) {
+      closeMenu();
+      return;
     }
+    content = newContent;
 
-    const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-    if (match) {
-      let fm = match[1];
-      let newFmLines: string[] = [];
-      const lines = fm.split(/\r?\n/);
-      let inTagsBlock = false;
-      let hasTags = false;
-
-      for (const line of lines) {
-        // タグの記述を見つけたら、新しいリスト形式で展開して書き換える
-        if (line.startsWith('tags:') || line.startsWith('tag:')) {
-          inTagsBlock = true;
-          hasTags = true;
-          if (tags.length > 0) {
-            newFmLines.push(`tags:`);
-            tags.forEach(t => newFmLines.push(`  - ${t}`));
-          }
-          continue;
-        }
-        
-        // 古いタグの記述行はスキップ（消去）する
-        if (inTagsBlock) {
-          if (line.trim().startsWith('- ') || line.trim() === '') {
-            continue;
-          } else if (!line.startsWith(' ') && line.includes(':')) {
-            inTagsBlock = false; 
-          }
-        }
-        
-        if (!inTagsBlock) newFmLines.push(line);
-      }
-
-      // プロパティ自体はあるが tags が無かった場合
-      if (!hasTags && tags.length > 0) {
-        newFmLines.push(`tags:`);
-        tags.forEach(t => newFmLines.push(`  - ${t}`));
-      }
-
-      content = content.replace(/^---\r?\n[\s\S]*?\r?\n---/, `---\n${newFmLines.join('\n')}\n---`);
-    } else {
-      // プロパティが存在しない場合は先頭に作成する
-      if (tags.length > 0) {
-        let tagsYaml = `tags:\n` + tags.map(t => `  - ${t}`).join('\n');
-        content = `---\n${tagsYaml}\n---\n\n${content}`;
-      }
-    }
+    // 💥 削除: ここにあった match 等の巨大な文字列置換ロジック（約45行）をまるごと削除します
 
     // 保存処理
     try {
