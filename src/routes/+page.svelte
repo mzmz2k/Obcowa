@@ -8,7 +8,8 @@
   import Editor from '../components/Editor/Editor.svelte';
   import TreeNode from '../components/TreeNode.svelte';
   import SettingsModal from '../components/Settings/SettingsModal.svelte';
-    import NewFileModal from '../components/Modals/NewFileModal.svelte';
+  import NewFileModal from '../components/Modals/NewFileModal.svelte';
+  import SmartFolderModal from '../components/Modals/SmartFolderModal.svelte';
   import { activeTheme, initTheme, applyThemeToRoot } from '../lib/settings/theme';
   import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, imageFolderPath } from '../lib/stores';
   import { cloneNodeAsIndependent } from '../lib/library';
@@ -38,11 +39,8 @@
 
   // --- メニューとモーダルの状態 ---
   let isListMenuOpen = false, isCreateModalOpen = false, isManageModalOpen = false, isImportLibraryModalOpen = false;
-  // 💥 追加: フォルダ追加メニューとスマートフォルダ関連
+  // 💥フォルダ追加メニューとスマートフォルダ関連
   let isAddFolderMenuOpen = false, isSmartFolderModalOpen = false;
-  let sfName = '', sfTarget = '', sfMatch = 'AND', sfKeep = true;
-  let sfTargetWorkspace = false; // 💥 追加: チェックボックス用フラグ
-  let sfConds: any[] = [];
   let editingSmartNode: any = null;
 
   let newListName = '', newListMode = 'Active', sourceLibraryId = 'none';
@@ -119,20 +117,9 @@
     // 💥 新規追加: ツリーから編集モードを呼び出す
     editSmartFolder: (node: any) => {
       editingSmartNode = node;
-      sfName = node.name;
-      sfTarget = node.smart_rules.target_dir;
-      sfTargetWorkspace = node.smart_rules.target_workspace || false; // 💥 追加
-      sfMatch = node.smart_rules.match_type;
-      sfKeep = node.smart_rules.keep_structure;
-      // 条件はコピーして渡す（キャンセル時に反映させないため）
-      sfConds = JSON.parse(JSON.stringify(node.smart_rules.conditions));
-      
-      // 💥 過去のデータで match_mode が無い場合は補完する
-      sfConds.forEach(c => {
-        if (c.cond_type === 'Tag' && !c.match_mode) c.match_mode = 'contains';
-      });
       isSmartFolderModalOpen = true;
     },
+    
     openNewFileModal: (dirPath: string, callback: () => void) => {
       newFileTargetDir = dirPath;
       newFileCallback = callback;
@@ -265,41 +252,6 @@
     return updatedNodes;
   }
 
-  // 💥 追加: スマートフォルダ操作関数
-  function changeCondType(idx: number, type: string) {
-    // 💥 match_mode: 'contains' を追加
-    if (type === 'Tag') sfConds[idx] = { cond_type: 'Tag', tag: '', match_mode: 'contains', include_inline: false, is_exclude: false };
-    else sfConds[idx] = { cond_type: 'Date', date_type: 'updated', limit: 10 };
-  }
-  async function selectSfTarget() {
-    const path = await openDialog({ directory: true });
-    if (typeof path === 'string') sfTarget = path;
-  }
-  async function saveSmartFolder() {
-    if (!sfName || (!sfTarget && !sfTargetWorkspace)) return alert("名前と、少なくとも１つの抽出元を指定してください");
-    
-    const rules = { target_dir: sfTarget, target_workspace: sfTargetWorkspace, match_type: sfMatch, conditions: sfConds, keep_structure: sfKeep };
-    try {
-      // 💥 変更: 同様に workspaceNodes を渡す
-      const children = await invoke('evaluate_smart_folder', { 
-        rules, 
-        workspaceNodes: workspaces[currentIndex].nodes 
-      });
-      
-      if (editingSmartNode) {
-        editingSmartNode.name = sfName;
-        editingSmartNode.smart_rules = rules;
-        editingSmartNode.children = children; 
-      } else {
-        // 💥 変更: original_path が空にならないように補完（更新判定のため）
-        workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, { type: "Folder", name: sfName, original_path: sfTarget || "__workspace__", children, smart_rules: rules }];
-      }
-      
-      workspaces = [...workspaces];
-      await saveData();
-      isSmartFolderModalOpen = false;
-    } catch (e) { alert("抽出に失敗しました: " + e); }
-  }
 
     async function handleRefresh() {
     if (!workspaces[currentIndex]) return;
@@ -593,7 +545,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
           <div class="absolute top-8 right-0 border border-black/20 rounded shadow-xl z-50 py-1 w-40 text-sm font-normal" style="background-color: var(--bg-color); color: var(--text-color);">
             <button class="block w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isAddFolderMenuOpen = false; addFolder(); }}>普通のフォルダ</button>
             <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isAddFolderMenuOpen = false; addFile(); }}><FilePlus size={14} class="mr-2" /> ファイルを追加</button>
-            <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isAddFolderMenuOpen = false; sfName=''; sfTarget=''; sfConds=[]; editingSmartNode=null; isSmartFolderModalOpen = true; }}><Search size={14} class="mr-2" /> 条件で抽出</button>
+            <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isAddFolderMenuOpen = false; editingSmartNode=null; isSmartFolderModalOpen = true; }}><Search size={14} class="mr-2" /> 条件で抽出</button>
           </div>
         {/if}
       </div>
@@ -852,80 +804,22 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 />
 
 <!-- 💥 条件で抽出（スマートフォルダ）モーダル -->
-{#if isSmartFolderModalOpen}
-<div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
-    <div class="p-6 rounded shadow-lg border border-black/20 w-[550px] max-h-[90vh] overflow-y-auto" style="background-color: var(--menu-bg); color: var(--text-color);">
-      <h2 class="text-lg font-bold mb-4">{editingSmartNode ? '条件を編集' : '条件で抽出'}</h2>
-      
-      <div class="mb-4 space-y-2">
-        <input type="text" class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm outline-none" bind:value={sfName} placeholder="リストに表示する名前" />
-        <div class="flex gap-2">
-          <input type="text" class="flex-1 bg-black/5 border border-black/20 rounded p-2 text-sm opacity-70" value={sfTarget} readonly placeholder="抽出元のフォルダ" />
-          <button on:click={selectSfTarget} class="px-3 bg-black/10 hover:bg-black/20 rounded text-sm border border-black/20 transition">選択</button>
-        </div>
-        <label class="flex items-center text-sm cursor-pointer mt-2">
-          <input type="checkbox" bind:checked={sfTargetWorkspace} class="mr-2 accent-[var(--accent-color)]"> このワークスペースから抽出する
-        </label>
-      </div>
-
-      <div class="bg-black/5 p-4 rounded border border-black/10 mb-4">
-        <div class="flex justify-between items-center mb-3">
-          <select class="bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={sfMatch}>
-            <option value="AND">すべての条件を満たす (AND)</option>
-            <option value="OR">いずれかの条件を満たす (OR)</option>
-          </select>
-          <button class="text-sm px-2 py-1 bg-black/10 hover:bg-black/20 rounded transition" on:click={() => sfConds.length < 5 && sfConds.push({ cond_type: 'Tag', tag: '', include_inline: false, is_exclude: false }) && (sfConds = sfConds)} disabled={sfConds.length >= 5}>＋ 条件を追加</button>
-        </div>
-
-        <div class="space-y-3">
-          {#each sfConds as cond, i}
-            <div class="flex flex-col gap-2 p-3 bg-black/5 border border-black/10 rounded relative">
-              <button class="absolute top-2 right-2 text-red-400 hover:text-red-300 text-xs" on:click={() => { sfConds.splice(i, 1); sfConds = sfConds; }}>✕</button>
-              
-              <select class="w-48 bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" value={cond.cond_type} on:change={(e) => changeCondType(i, e.target.value)}>
-                <option value="Tag">タグ</option>
-                <option value="Date">作成日 / 更新日</option>
-              </select>
-
-              {#if cond.cond_type === 'Tag'}
-                <div class="flex items-center gap-2">
-                  <input type="text" class="flex-1 bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" bind:value={cond.tag} placeholder="タグ名 (例: memo)" />
-                  <select class="w-24 bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={cond.match_mode}>
-                    <option value="contains">部分一致</option>
-                    <option value="exact">完全一致</option>
-                    <option value="starts">前方一致</option>
-                    <option value="ends">後方一致</option>
-                  </select>
-                  <select class="w-20 bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={cond.is_exclude}>
-                    <option value={false}>がある</option><option value={true}>がない</option>
-                  </select>
-                </div>
-                <label class="flex items-center text-xs opacity-70 cursor-pointer"><input type="checkbox" bind:checked={cond.include_inline} class="mr-2 accent-[var(--accent-color)]">本文中のタグも含める</label>
-              {:else}
-                <div class="flex items-center gap-2">
-                  <select class="bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={cond.date_type}>
-                    <option value="created">作成日</option><option value="updated">更新日</option>
-                  </select>
-                  <span class="text-sm">が新しいもの</span>
-                  <input type="number" class="w-16 bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" bind:value={cond.limit} min="1" max="100" />
-                  <span class="text-sm">件</span>
-                </div>
-              {/if}
-            </div>
-          {/each}
-          {#if sfConds.length === 0}<div class="text-xs opacity-50 text-center py-2">条件がありません（すべて抽出されます）</div>{/if}
-        </div>
-      </div>
-
-      <label class="flex items-center text-sm cursor-pointer mb-6">
-        <input type="checkbox" bind:checked={sfKeep} class="mr-2 accent-[var(--accent-color)]"> 抽出したものの元のフォルダ構成を維持する
-      </label>
-
-      <div class="flex justify-end gap-2">
-        <button class="px-4 py-2 bg-black/10 hover:bg-black/20 rounded text-sm transition" on:click={() => isSmartFolderModalOpen = false}>キャンセル</button>
-        <button class="px-4 py-2 bg-[var(--accent-color)] text-white hover:brightness-110 rounded text-sm shadow transition" on:click={saveSmartFolder}>{editingSmartNode ? '保存して更新' : '抽出して追加'}</button>
-      </div>
-    </div>
-  </div>
-{/if}
-
+<!-- 子から抽出完了(save)の知らせが来たら、親が責任を持ってツリーに組み込んで保存します -->
+<SmartFolderModal
+  bind:isOpen={isSmartFolderModalOpen}
+  editingSmartNode={editingSmartNode}
+  workspaceNodes={workspaces[currentIndex]?.nodes || []}
+  on:save={(e) => {
+    const { name, rules, children } = e.detail;
+    if (editingSmartNode) {
+      editingSmartNode.name = name;
+      editingSmartNode.smart_rules = rules;
+      editingSmartNode.children = children;
+    } else {
+      const newNode = { type: "Folder", name, original_path: rules.target_dir || "__workspace__", children, smart_rules: rules };
+      workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, newNode];
+    }
+    workspaces = [...workspaces];
+    saveData();
+  }}
+/>
