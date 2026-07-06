@@ -1,6 +1,6 @@
 // --- START OF src/lib/imageViewer.test.ts ---
 import { describe, it, expect, vi } from 'vitest';
-import { generateImageHtml, resetImageCache } from 'imageViewer';
+import { generateImageHtml, resetImageCache } from './imageViewer';
 
 vi.mock('@tauri-apps/api/core', () => ({
     invoke: vi.fn()
