@@ -3,45 +3,17 @@
     import { openTabs, activeTabId, currentWorkspaceIndex, openFileInNewTab, switchTab, closeTab, editorFont } from '$lib/stores';
     import { invoke } from '@tauri-apps/api/core';
     import { tick } from 'svelte';
-    import { Search, FileText, Inbox } from 'lucide-svelte';
+    import { Inbox } from 'lucide-svelte';
     
     // 💥 独立させた子部品たちをインポート
     import EditorHeader from './EditorHeader.svelte';
     import TabBar from './TabBar.svelte';
     import EditorPreview from './EditorPreview.svelte';
+    import EditorSearch from './EditorSearch.svelte';
     import { resetImageCache } from '../../lib/editor/imageViewer';
     import { imageFolderPath } from '../../lib/stores';
 
     $: activeTab = $openTabs.find(t => t.id === $activeTabId);
-
-    // --- 検索機能 ---
-    let searchQuery = '';
-    let includeLibrary = false;
-    let searchResults: any[] = [];
-    let isSearching = false;
-    let hasSearched = false;
-
-    async function executeSearch() {
-        if (!searchQuery.trim()) return;
-        isSearching = true; hasSearched = true;
-        try { searchResults = await invoke('search_files', { workspaceIndex: $currentWorkspaceIndex, includeLibrary, query: searchQuery }); } 
-        catch (e) { alert("検索に失敗しました: " + e); } 
-        finally { isSearching = false; }
-    }
-
-    async function handleResultClick(path: string, name: string, forceNewTab: boolean = false) {
-        if (!forceNewTab) {
-            const existingTab = $openTabs.find(t => t.path === path);
-            if (existingTab) { switchTab(existingTab.id); return; }
-        }
-        try {
-            const bytes: number[] = await invoke('read_file_content', { path });
-            let content = "";
-            try { content = new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes)); } 
-            catch (e) { content = new TextDecoder('shift-jis').decode(new Uint8Array(bytes)); }
-            openFileInNewTab(path, name, content);
-        } catch(e) {}
-    }
 
     // --- タブと保存の管理 ---
     let saveTimeout: ReturnType<typeof setTimeout>;
@@ -116,33 +88,7 @@
         <div class="flex-1 relative flex flex-col overflow-hidden" style="background-color: var(--bg-color);">
             
             {#if activeTab.path === '__SEARCH__'}
-                <div class="p-8 flex flex-col h-full text-gray-200">
-                    <h2 class="text-xl font-bold mb-4" style="color: var(--text-color);">ファイル検索</h2>
-                    <div class="flex gap-4 items-center mb-6">
-                        <input type="text" bind:value={searchQuery} on:keydown={(e) => e.key === 'Enter' && executeSearch()} class="flex-1 border border-gray-600 rounded p-2 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" placeholder="検索キーワードを入力... (Enterで検索)">
-                        <label class="flex items-center text-sm cursor-pointer select-none"style="color: var(--text-color);">
-                            <input type="checkbox" bind:checked={includeLibrary} class="mr-2"> ライブラリを含める
-                        </label>
-                        <button on:click={executeSearch} disabled={isSearching} class="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 rounded text-sm font-bold transition">検索</button>
-                    </div>
-                    <div class="flex-1 overflow-y-auto pr-2">
-                        {#if isSearching}
-                            <div class="text-gray-400 text-center py-10">検索中...</div>
-                        {:else}
-                            {#each searchResults as res}
-                                <!-- svelte-ignore a11y-click-events-have-key-events -->
-                                <!-- svelte-ignore a11y-no-static-element-interactions -->
-                                <div class="py-1.5 px-2 border-b border-gray-700/50 cursor-pointer hover:bg-gray-700 transition" on:click={() => handleResultClick(res.path, res.name, false)} on:contextmenu|preventDefault={() => handleResultClick(res.path, res.name, true)}>
-                                    <div class="flex items-center font-bold text-sm text-blue-300"><FileText size={14} class="mr-1" /> {res.name}</div>
-                                    <div class="text-xs text-gray-400 truncate mt-1">{res.snippet}</div>
-                                </div>
-                            {/each}
-                            {#if searchResults.length === 0 && hasSearched}
-                                <div class="text-gray-500 text-center py-10">見つかりませんでした</div>
-                            {/if}
-                        {/if}
-                    </div>
-                </div>
+                <EditorSearch />
             {:else}
                 
                 <EditorHeader {activeTab} {toggleEditMode} />
