@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/svelte';
 import ThemeSettings from './ThemeSettings.svelte';
-import { defaultThemes } from '../../lib/Settings/theme';
+import { defaultThemes } from '../../lib/settings/theme';
 
 describe('ThemeSettings.svelte のテスト', () => {
   it('エラーなく設定画面が描画されること', () => {

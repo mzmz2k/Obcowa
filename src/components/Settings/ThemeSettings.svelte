@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { activeTheme, customThemes, defaultThemes, type Theme } from '../../lib/Settings/theme';
+  import { activeTheme, customThemes, defaultThemes, type Theme } from '../../lib/settings/theme';
   import { get } from 'svelte/store';
 
   export let tempTheme: Theme;
