@@ -5,10 +5,10 @@
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { getCurrentWindow } from '@tauri-apps/api/window'; 
-  import Editor from '../components/Editor.svelte';
+  import Editor from '../components/Editor/Editor.svelte';
   import TreeNode from '../components/TreeNode.svelte';
-  import SettingsModal from '../components/SettingsModal.svelte';
-  import { activeTheme, initTheme, applyThemeToRoot } from '../lib/theme';
+  import SettingsModal from '../components/Settings/SettingsModal.svelte';
+  import { activeTheme, initTheme, applyThemeToRoot } from '../lib/settings/theme';
   import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, imageFolderPath } from '../lib/stores';
   import { cloneNodeAsIndependent } from '../lib/library';
   import { RotateCw, ArrowUpDown, Search, FolderPlus, FilePlus, Pin, X, Menu, SquarePen, Settings, Library, Archive, Link } from 'lucide-svelte';

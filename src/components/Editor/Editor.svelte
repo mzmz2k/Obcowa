@@ -6,8 +6,8 @@
     import { tick } from 'svelte';
     import { Search, FileText, Inbox, Tag, ChevronLeft, ChevronRight, Plus, X } from 'lucide-svelte';
     import EditorHeader from './EditorHeader.svelte';
-    import { activeTheme } from '../lib/theme';
-    import { generateImageHtml, resetImageCache, loadImagesInDom } from '../lib/imageViewer';
+    import { activeTheme } from '../../lib/settings/theme';
+    import { generateImageHtml, resetImageCache, loadImagesInDom } from '../../lib/Editor/imageViewer';
 
      marked.use({ breaks: true });
 

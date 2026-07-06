@@ -2,8 +2,8 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import ThemeSettings from './ThemeSettings.svelte';
-  import { activeTheme, type Theme } from '../lib/theme';
-  import { editorFont, registeredTags, imageFolderPath } from '../lib/stores';
+  import { activeTheme, type Theme } from '../../lib/settings/theme';
+  import { editorFont, registeredTags, imageFolderPath } from '../../lib/stores';
   import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
   const dispatch = createEventDispatcher();
