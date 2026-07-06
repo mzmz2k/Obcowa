@@ -657,6 +657,12 @@ async fn find_image_file(dir_path: String, file_name: String) -> Result<Option<S
     Ok(find_recursive(std::path::Path::new(&dir_path), &file_name))
 }
 
+// ファイルが存在するかどうかだけを判定する関数
+#[tauri::command]
+fn check_file_exists(path: String) -> bool {
+    std::path::Path::new(&path).exists()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -675,7 +681,8 @@ pub fn run() {
             open_folder,
             evaluate_smart_folder,
             search_files,
-            find_image_file // 新しく作った関数を登録
+            find_image_file, // 新しく作った関数を登録
+            check_file_exists // 💥 追加: 忘れずに登録
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
