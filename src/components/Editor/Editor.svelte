@@ -117,10 +117,10 @@
             
             {#if activeTab.path === '__SEARCH__'}
                 <div class="p-8 flex flex-col h-full text-gray-200">
-                    <h2 class="text-xl font-bold mb-4">ファイル検索</h2>
+                    <h2 class="text-xl font-bold mb-4" style="color: var(--text-color);">ファイル検索</h2>
                     <div class="flex gap-4 items-center mb-6">
-                        <input type="text" bind:value={searchQuery} on:keydown={(e) => e.key === 'Enter' && executeSearch()} class="flex-1 bg-gray-700 border border-gray-600 rounded p-2 text-sm outline-none" placeholder="検索キーワードを入力... (Enterで検索)">
-                        <label class="flex items-center text-sm cursor-pointer select-none">
+                        <input type="text" bind:value={searchQuery} on:keydown={(e) => e.key === 'Enter' && executeSearch()} class="flex-1 border border-gray-600 rounded p-2 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" placeholder="検索キーワードを入力... (Enterで検索)">
+                        <label class="flex items-center text-sm cursor-pointer select-none"style="color: var(--text-color);">
                             <input type="checkbox" bind:checked={includeLibrary} class="mr-2"> ライブラリを含める
                         </label>
                         <button on:click={executeSearch} disabled={isSearching} class="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 rounded text-sm font-bold transition">検索</button>
