@@ -3,7 +3,6 @@
   import { invoke } from '@tauri-apps/api/core';
   import { open as openDialog, confirm as tauriConfirm } from '@tauri-apps/plugin-dialog';
   import { openUrl } from '@tauri-apps/plugin-opener';
-  import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { getCurrentWindow } from '@tauri-apps/api/window'; 
   import Editor from '../components/Editor/Editor.svelte';
   import TreeNode from '../components/TreeNode.svelte';
@@ -13,6 +12,7 @@
   import WorkspaceManager from '../components/Modals/WorkspaceManager.svelte';
   import SidebarHeader from '../components/Sidebar/SidebarHeader.svelte';
   import SidebarTree from '../components/Sidebar/SidebarTree.svelte';
+  import SidebarFooter from '../components/Sidebar/SidebarFooter.svelte';
   import { activeTheme, initTheme, applyThemeToRoot } from '../lib/settings/theme';
   import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, imageFolderPath } from '../lib/stores';
   import { cloneNodeAsIndependent } from '../lib/library';
@@ -40,7 +40,7 @@
   }
 
   // --- メニューとモーダルの状態 ---
-  let isListMenuOpen = false, isCreateModalOpen = false, isManageModalOpen = false, isImportLibraryModalOpen = false;
+  let isCreateModalOpen = false, isManageModalOpen = false, isImportLibraryModalOpen = false;
   // 💥フォルダ追加メニューとスマートフォルダ関連
   let isAddFolderMenuOpen = false, isSmartFolderModalOpen = false;
   let editingSmartNode: any = null;
@@ -318,31 +318,6 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     }
   }
 
-  // --- リスト作成・管理関連 ---
-
-  function changeWorkspace(e: Event) {
-    const target = e.target as HTMLSelectElement;
-    const selectedIndex = parseInt(target.value, 10);
-    
-    // 現在のウィンドウは切り替えず、セレクトボックスの表示を元に戻す
-    target.value = currentIndex.toString();
-    if (selectedIndex === currentIndex) return;
-
-    // 別のワークスペースを「新しいウィンドウ」として開く
-    const label = `ws-${Date.now()}`;
-    const webview = new WebviewWindow(label, {
-      url: `/?ws=${selectedIndex}`,
-      title: workspaces[selectedIndex].name,
-      width: 1000,
-      height: 800
-    });
-
-    // 💥 万が一ウィンドウが開けなかった時にエラーメッセージを出す
-    webview.once('tauri://error', function (e) {
-      console.error('ウィンドウ生成エラー:', e);
-      alert('新しいウィンドウを開けませんでした。パーミッション設定を確認してください。');
-    });
-  }
 
 
   // --- リンク機能 ---
@@ -429,32 +404,15 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     {/if}
 
     <!-- UI下部 -->
-    <div class="p-2 border-t border-black/10 flex items-center gap-1 relative" style="background-color: var(--menu-bg);">
-      <!-- 💥 select にも背景色スタイルを指定 -->
-      <select class="w-32 text-xs rounded py-1 px-1 outline-none border border-black/20" style="background-color: var(--bg-color); color: var(--text-color);" value={currentIndex} on:change={changeWorkspace}>
-        {#each workspaces.map((w, i) => ({...w, originalIndex: i})).filter(w => w.category === 'Active') as ws}
-          <option value={ws.originalIndex}>{ws.name}</option>
-        {/each}
-      </select>
-      
-      <button on:click|stopPropagation={() => isListMenuOpen = !isListMenuOpen} class="flex items-center justify-center w-7 h-7 hover:opacity-70 rounded transition"><Menu size={16} /></button>
-
-      {#if isListMenuOpen}
-        <div class="absolute bottom-10 left-36 border border-black/20 rounded shadow-xl z-50 py-1 w-48 text-sm" style="background-color: var(--menu-bg); color: var(--text-color);">
-          <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isListMenuOpen = false; isCreateModalOpen = true; }}><SquarePen size={14} class="mr-2" /> リスト作成</button>
-          <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isListMenuOpen = false; editingListIndex = currentIndex; isManageModalOpen = true; }}><Settings size={14} class="mr-2" /> リスト管理</button>
-          <hr class="border-black/10 my-1">
-          <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isListMenuOpen = false; isImportLibraryModalOpen = true; }}><Library size={14} class="mr-2" /> ライブラリを追加</button>
-        </div>
-      {/if}
-      <div class="flex-1"></div>
-      <button 
-        on:click|stopPropagation={openSettings} 
-        class="flex items-center justify-center w-7 h-7 opacity-70 hover:opacity-100 transition relative z-10"
-      >
-        <Settings size={16} />
-      </button>
-    </div>
+   <SidebarFooter 
+      {workspaces}
+      {currentIndex}
+      bind:editingListIndex
+      bind:isCreateModalOpen
+      bind:isManageModalOpen
+      bind:isImportLibraryModalOpen
+      {openSettings}
+    />
   </div>
 
   <div class="w-1 bg-black/20 hover:bg-[var(--accent-color)] cursor-col-resize z-10 transition-colors" on:mousedown={startResize}></div>
