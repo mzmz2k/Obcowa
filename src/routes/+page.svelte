@@ -11,10 +11,11 @@
   import NewFileModal from '../components/Modals/NewFileModal.svelte';
   import SmartFolderModal from '../components/Modals/SmartFolderModal.svelte';
   import WorkspaceManager from '../components/Modals/WorkspaceManager.svelte';
+  import SidebarHeader from '../components/Sidebar/SidebarHeader.svelte';
   import { activeTheme, initTheme, applyThemeToRoot } from '../lib/settings/theme';
   import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, imageFolderPath } from '../lib/stores';
   import { cloneNodeAsIndependent } from '../lib/library';
-  import { RotateCw, ArrowUpDown, Search, FolderPlus, FilePlus, Pin, X, Menu, SquarePen, Settings, Library, Archive, Link } from 'lucide-svelte';
+  import { Pin, X, Menu, SquarePen, Settings, Library, Archive, Link } from 'lucide-svelte';
 
  
 
@@ -27,9 +28,8 @@
   let workspaces: any[] = [];
   let currentIndex = 0;
   $: $currentWorkspaceIndex = currentIndex;
-  let isInitialized = false; 
 
-  let isGlobalSortMenuOpen = false;
+  let isInitialized = false; 
 
   $: if (isInitialized && workspaces[currentIndex]) {
     getCurrentWindow().setTitle(workspaces[currentIndex].name).catch(() => {});
@@ -74,14 +74,6 @@
     });
   }
 
-  // 💥 追加: ワークスペース全体のソート設定を変更する関数
-  function changeGlobalSort(type: 'by' | 'order', value: string) {
-    if (workspaces[currentIndex]) {
-      if (type === 'by') workspaces[currentIndex].sort_by = value;
-      else workspaces[currentIndex].sort_order = value;
-      saveData();
-    }
-  }
 
   // --- コンテキストアクション ---
   function getNodePath(node: any) { return node.type === 'Folder' ? node.original_path : node.path; }
@@ -404,14 +396,6 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     });
   }
 
-  async function addFolder() {
-    const selectedPath = await openDialog({ directory: true, multiple: false });
-    if (typeof selectedPath === 'string') { workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, { type: "Folder", name: selectedPath.split(/[/\\]/).pop() || '新規フォルダ', original_path: selectedPath, children: [] }]; await saveData(); }
-  }
-  async function addFile() {
-    const selectedPath = await openDialog({ directory: false, multiple: false });
-    if (typeof selectedPath === 'string') { workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, { type: "File", name: selectedPath.split(/[/\\]/).pop() || '新規ファイル', path: selectedPath }]; await saveData(); }
-  }
 
   // --- リンク機能 ---
   let isLinkModalOpen = false, editingLinkId: string | null = null, linkTitle = '', linkUrl = '';
@@ -455,54 +439,29 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 
 </script>
 
-<svelte:window on:mousemove={doResize} on:mouseup={stopResize} on:click={() => { isListMenuOpen = false; isAddFolderMenuOpen = false; isGlobalSortMenuOpen = false; }} />
+<!-- 💥 変更: on:click の中から `isAddFolderMenuOpen = false; isGlobalSortMenuOpen = false;` を削除しました（子部品の中で処理するため） -->
+<svelte:window on:mousemove={doResize} on:mouseup={stopResize} on:click={() => { isListMenuOpen = false; }} />
+
 <main class="h-screen w-screen flex select-none transition-colors duration-200"
       style="background-color: var(--bg-color); color: var(--text-color);">
   
   <div class="flex flex-col border-r border-black/10" style="width: {sidebarWidth}px; background-color: var(--bg-color);">
 
-    <!-- 💥 左上のトップバー -->
-    <div class="p-3 border-b border-black/10 font-bold flex justify-between items-center">
-      <span class="truncate pr-2">{workspaces[currentIndex]?.name || 'リスト'}</span>
-      <div class="flex gap-2 shrink-0 relative">
-       <button on:click={handleRefresh} class="flex items-center justify-center w-6 h-6 hover:opacity-70 rounded transition" title="更新"><RotateCw size={14} /></button>
-
-        <div class="relative flex items-center">
-          <button on:click|stopPropagation={() => isGlobalSortMenuOpen = !isGlobalSortMenuOpen} class="flex items-center justify-center w-6 h-6 hover:opacity-70 rounded transition" title="並び替え"><ArrowUpDown size={14} /></button>
-          {#if isGlobalSortMenuOpen}
-            <div class="absolute top-8 left-0 border border-black/20 rounded shadow-xl z-50 py-1 w-32 text-sm font-normal" style="background-color: var(--bg-color); color: var(--text-color);">
-              <button class="block w-full text-left px-4 py-1.5 hover:bg-black/10 transition" on:click={() => changeGlobalSort('order', 'asc')}>
-                <span class="inline-block w-4">{workspaces[currentIndex]?.sort_order !== 'desc' ? '✓' : ''}</span>昇順
-              </button>
-              <button class="block w-full text-left px-4 py-1.5 hover:bg-black/10 transition" on:click={() => changeGlobalSort('order', 'desc')}>
-                <span class="inline-block w-4">{workspaces[currentIndex]?.sort_order === 'desc' ? '✓' : ''}</span>降順
-              </button>
-              <hr class="border-black/10 my-1">
-              <button class="block w-full text-left px-4 py-1.5 hover:bg-black/10 transition" on:click={() => changeGlobalSort('by', 'name')}>
-                <span class="inline-block w-4">{workspaces[currentIndex]?.sort_by === 'name' || !workspaces[currentIndex]?.sort_by ? '✓' : ''}</span>名前
-              </button>
-              <button class="block w-full text-left px-4 py-1.5 hover:bg-black/10 transition" on:click={() => changeGlobalSort('by', 'created')}>
-                <span class="inline-block w-4">{workspaces[currentIndex]?.sort_by === 'created' ? '✓' : ''}</span>作成日
-              </button>
-              <button class="block w-full text-left px-4 py-1.5 hover:bg-black/10 transition" on:click={() => changeGlobalSort('by', 'modified')}>
-                <span class="inline-block w-4">{workspaces[currentIndex]?.sort_by === 'modified' ? '✓' : ''}</span>更新日
-              </button>
-            </div>
-          {/if}
-        </div>
-        
-        <button on:click={openSearchTab} class="flex items-center justify-center w-6 h-6 hover:opacity-70 rounded transition" title="検索"><Search size={14} /></button>
-        
-        <button on:click|stopPropagation={() => isAddFolderMenuOpen = !isAddFolderMenuOpen} class="flex items-center justify-center w-6 h-6 hover:opacity-70 rounded transition"><FolderPlus size={14} /></button>
-        {#if isAddFolderMenuOpen}
-          <div class="absolute top-8 right-0 border border-black/20 rounded shadow-xl z-50 py-1 w-40 text-sm font-normal" style="background-color: var(--bg-color); color: var(--text-color);">
-            <button class="block w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isAddFolderMenuOpen = false; addFolder(); }}>普通のフォルダ</button>
-            <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isAddFolderMenuOpen = false; addFile(); }}><FilePlus size={14} class="mr-2" /> ファイルを追加</button>
-            <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isAddFolderMenuOpen = false; editingSmartNode=null; isSmartFolderModalOpen = true; }}><Search size={14} class="mr-2" /> 条件で抽出</button>
-          </div>
-        {/if}
-      </div>
-    </div>
+    <!-- 💥 変更: ここにあった長大なトップバーのHTMLの塊（約40行）をごっそり削って、以下のコンポーネント呼び出しだけにしてください -->
+    <SidebarHeader
+      bind:workspaces
+      currentIndex={currentIndex}
+      on:refresh={handleRefresh}
+      on:save={() => saveData(true)}
+      on:addNode={(e) => {
+        workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, e.detail];
+        saveData();
+      }}
+      on:openSmartFolder={() => {
+        editingSmartNode = null;
+        isSmartFolderModalOpen = true;
+      }}
+    />
     
     <div class="flex-1 p-2 overflow-auto">
       {#if workspaces[currentIndex]?.pinned && workspaces[currentIndex].pinned.length > 0}
