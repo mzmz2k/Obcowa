@@ -10,6 +10,7 @@
   import SettingsModal from '../components/Settings/SettingsModal.svelte';
   import NewFileModal from '../components/Modals/NewFileModal.svelte';
   import SmartFolderModal from '../components/Modals/SmartFolderModal.svelte';
+  import WorkspaceManager from '../components/Modals/WorkspaceManager.svelte';
   import { activeTheme, initTheme, applyThemeToRoot } from '../lib/settings/theme';
   import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, imageFolderPath } from '../lib/stores';
   import { cloneNodeAsIndependent } from '../lib/library';
@@ -43,8 +44,7 @@
   let isAddFolderMenuOpen = false, isSmartFolderModalOpen = false;
   let editingSmartNode: any = null;
 
-  let newListName = '', newListMode = 'Active', sourceLibraryId = 'none';
-  let editingListIndex = 0, selectedLibraryId = '';
+  let editingListIndex = 0;
 
     // --- タグ・新規作成用の状態変数 ---
   let isNewFileModalOpen = false;
@@ -379,53 +379,6 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   }
 
   // --- リスト作成・管理関連 ---
-  async function createNewWorkspace() {
-    if (!newListName) return;
-    
-    workspaces.push({ 
-      id: Date.now().toString(), 
-      name: newListName, 
-      category: 'Active', 
-      nodes: [], 
-      links: [], 
-      pinned: [], 
-      linked_libraries: [], 
-      is_flat: false,
-      editor_font: 'sans-serif' // 💥 追加
-    });
-    
-    currentIndex = workspaces.length - 1;
-    workspaces = [...workspaces]; 
-    await saveData(true);
-    
-    isCreateModalOpen = false; 
-    newListName = '';
-  }
-
-  // 💥 ライブラリを「参照（リンク）」として追加する
-  async function importLibrary() {
-    if (!selectedLibraryId) return;
-    const ws = workspaces[currentIndex];
-    if (!ws.linked_libraries) ws.linked_libraries = [];
-    
-    if (!ws.linked_libraries.includes(selectedLibraryId)) {
-      ws.linked_libraries.push(selectedLibraryId);
-      workspaces = [...workspaces]; await saveData(true);
-    }
-    isImportLibraryModalOpen = false;
-  }
-
-
-  async function deleteEditingList() {
-    // 💥 Tauriのネイティブダイアログを呼び出す
-    const isYes = await tauriConfirm("本当に削除しますか？", { title: "確認", kind: "warning" });
-    if (isYes) {
-      workspaces.splice(editingListIndex, 1);
-      if (currentIndex >= workspaces.length) currentIndex = Math.max(0, workspaces.length - 1);
-      workspaces = [...workspaces]; await saveData(true);
-      isManageModalOpen = false;
-    }
-  }
 
   function changeWorkspace(e: Event) {
     const target = e.target as HTMLSelectElement;
@@ -649,143 +602,16 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 
 <!-- 💥 各種モーダル -->
 
-<!-- 1. リスト作成 -->
-{#if isCreateModalOpen}
-  <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
-    <div class="p-6 rounded shadow-lg border border-black/20 w-96" style="background-color: var(--menu-bg); color: var(--text-color);">
-      <h2 class="text-lg font-bold mb-4">ワークスペースを作成</h2>
-      <input type="text" class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm outline-none mb-6" bind:value={newListName} placeholder="新しい名前" on:keydown={(e) => e.key === 'Enter' && createNewWorkspace()} />
-      
-      <div class="flex justify-end gap-2">
-        <button class="px-4 py-2 bg-black/10 hover:bg-black/20 rounded text-sm transition" on:click={() => isCreateModalOpen = false}>キャンセル</button>
-        <button class="px-4 py-2 bg-[var(--accent-color)] text-white hover:brightness-110 rounded text-sm shadow transition" on:click={createNewWorkspace}>作成</button>
-      </div>
-    </div>
-  </div>
-{/if}
+<WorkspaceManager
+  bind:workspaces
+  bind:currentIndex
+  bind:editingListIndex
+  bind:isCreateModalOpen
+  bind:isManageModalOpen
+  bind:isImportLibraryModalOpen
+  on:save={(e) => saveData(e.detail?.force || false)}
+/>
 
-<!-- 2. リスト管理 -->
-{#if isManageModalOpen}
-  <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
-    <div class="p-6 rounded shadow-lg border border-black/20 w-[500px]" style="background-color: var(--menu-bg); color: var(--text-color);">
-      <h2 class="text-lg font-bold mb-4">リスト管理</h2>
-      <div class="flex gap-2 mb-4">
-        <select class="flex-1 bg-black/10 border border-black/20 rounded p-2 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={editingListIndex}>
-          <optgroup label="ワークスペース">{#each workspaces.map((w, i) => ({...w, i})).filter(w => w.category === 'Active') as ws}<option value={ws.i}>{ws.name}</option>{/each}</optgroup>
-          <optgroup label="ライブラリ">{#each workspaces.map((w, i) => ({...w, i})).filter(w => w.category === 'Library') as ws}<option value={ws.i}>{ws.name}</option>{/each}</optgroup>
-        </select>
-        <button on:click={deleteEditingList} class="px-3 py-2 bg-red-900/50 hover:bg-red-900/80 text-red-100 rounded text-sm transition font-bold">削除</button>
-      </div>
-
-      {#if workspaces[editingListIndex]}
-        <div class="bg-black/5 p-4 rounded border border-black/10 mb-6 max-h-[50vh] overflow-y-auto">
-          <input type="text" class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm outline-none mb-4" bind:value={workspaces[editingListIndex].name} on:change={() => saveData(true)} />
-          
-          {#if workspaces[editingListIndex].category === 'Active'}
-            <div class="mb-4 p-3 bg-black/5 rounded border border-black/10">
-              <div class="text-xs opacity-70 mb-2">ファイルをクリックした時の動作</div>
-              <label class="flex items-center text-sm cursor-pointer mb-2">
-                <input type="radio" bind:group={workspaces[editingListIndex].open_in_new_tab} value={false} on:change={() => saveData(true)} class="mr-2 accent-[var(--accent-color)]">
-                今開いているタブを上書きする
-              </label>
-              <label class="flex items-center text-sm cursor-pointer">
-                <input type="radio" bind:group={workspaces[editingListIndex].open_in_new_tab} value={true} on:change={() => saveData(true)} class="mr-2 accent-[var(--accent-color)]">
-                新しいタブで開く
-              </label>
-            </div>
-          {/if}
-
-          {#if workspaces[editingListIndex].category === 'Library'}
-            <div class="mb-4 p-3 bg-black/5 rounded border border-black/10">
-              <label class="flex items-center text-sm cursor-pointer">
-                <input type="checkbox" bind:checked={workspaces[editingListIndex].is_flat} on:change={() => saveData(true)} class="mr-2 accent-[var(--accent-color)]">
-                このライブラリをフォルダにまとめず、直接中身を展開して表示する
-              </label>
-            </div>
-          {/if}
-
-          {#if workspaces[editingListIndex].category === 'Active' && workspaces[editingListIndex].linked_libraries?.length > 0}
-            <div class="mb-4 p-3 bg-black/5 rounded border border-black/10">
-              <div class="text-xs opacity-70 mb-2">リンク中のライブラリ</div>
-              {#each workspaces[editingListIndex].linked_libraries as libId}
-                {@const lib = workspaces.find(w => w.id === libId)}
-                {#if lib}
-                  <div class="flex items-center justify-between text-sm mb-1">
-                    <span>{lib.name}</span>
-                    <button class="text-xs text-red-400 hover:text-red-300" on:click={() => { workspaces[editingListIndex].linked_libraries = workspaces[editingListIndex].linked_libraries.filter(id => id !== libId); workspaces = [...workspaces]; saveData(); }}>解除</button>
-                  </div>
-                {/if}
-              {/each}
-            </div>
-          {/if}
-
-          <!-- リンク管理 -->
-          <div class="p-3 bg-black/5 rounded border border-black/10">
-            <div class="flex justify-between items-center mb-2">
-              <span class="text-xs opacity-70">🔗 リンク</span>
-              <button on:click={() => openLinkModal()} class="px-2 py-1 bg-black/20 hover:bg-black/30 rounded text-xs transition">＋ 追加</button>
-            </div>
-            <div class="space-y-2">
-              {#each workspaces[editingListIndex].links || [] as link}
-                <div class="flex items-center justify-between text-sm bg-black/10 p-2 rounded">
-                  <span class="truncate flex-1 pr-2">{link.title}</span>
-                  <div class="flex gap-3 shrink-0">
-                    <button class="text-xs text-[var(--accent-color)] hover:brightness-110" on:click={() => openLinkModal(link)}>編集</button>
-                    <button class="text-xs text-red-400 hover:text-red-300" on:click={() => deleteLink(link.id)}>削除</button>
-                  </div>
-                </div>
-              {:else}
-                <div class="text-xs opacity-50 text-center py-2">リンクはありません</div>
-              {/each}
-            </div>
-          </div>
-
-        </div>
-      {/if}
-      <div class="flex justify-end"><button class="px-4 py-2 bg-black/10 hover:bg-black/20 rounded text-sm transition" on:click={() => isManageModalOpen = false}>閉じる</button></div>
-    </div>
-  </div>
-{/if}
-
-<!-- 3. ライブラリ追加 -->
-{#if isImportLibraryModalOpen}
-  <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
-    <div class="p-6 rounded shadow-lg border border-black/20 w-96" style="background-color: var(--menu-bg); color: var(--text-color);">
-      <h2 class="text-lg font-bold mb-4">ライブラリを追加</h2>
-      <select class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm mb-4 outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={selectedLibraryId}>
-        <option value="" disabled selected>ライブラリを選択</option>
-        {#each workspaces.filter(w => w.category === 'Library') as lib}<option value={lib.id}>{lib.name}</option>{/each}
-      </select>
-      <div class="flex justify-end gap-2">
-        <button class="px-4 py-2 bg-black/10 hover:bg-black/20 rounded text-sm transition" on:click={() => isImportLibraryModalOpen = false}>キャンセル</button>
-        <button class="px-4 py-2 bg-[var(--accent-color)] text-white hover:brightness-110 rounded text-sm shadow transition" on:click={importLibrary}>追加</button>
-      </div>
-    </div>
-  </div>
-{/if}
-
-<!-- リンク・設定モーダル -->
-{#if linkContextMenu.show}
-  <div class="fixed inset-0 z-40" on:click={closeLinkMenu} on:contextmenu|preventDefault={closeLinkMenu}></div>
-  <div class="fixed border border-black/20 rounded shadow-xl z-50 py-1 w-32" style="left: {linkContextMenu.x}px; top: {linkContextMenu.y}px; background-color: var(--menu-bg); color: var(--text-color);">
-    <button class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition" on:click={() => { openLinkModal(linkContextMenu.link); closeLinkMenu(); }}>編集</button>
-    <button class="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-black/10 transition" on:click={() => deleteLink(linkContextMenu.link.id)}>削除</button>
-  </div>
-{/if}
-
-{#if isLinkModalOpen}
-  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-    <div class="p-6 rounded shadow-lg border border-black/20 w-96" style="background-color: var(--menu-bg); color: var(--text-color);">
-      <h2 class="text-lg font-bold mb-4">{editingLinkId ? 'リンクを編集' : 'リンクを追加'}</h2>
-      <input type="text" class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm mb-4 outline-none" bind:value={linkTitle} placeholder="表示テキスト" />
-      <input type="text" class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm mb-6 outline-none" bind:value={linkUrl} placeholder="URL" />
-      <div class="flex justify-end gap-2">
-        <button class="px-4 py-2 bg-black/10 hover:bg-black/20 rounded text-sm transition" on:click={() => isLinkModalOpen = false}>キャンセル</button>
-        <button class="px-4 py-2 bg-[var(--accent-color)] text-white hover:brightness-110 rounded text-sm shadow transition" on:click={saveLink}>保存</button>
-      </div>
-    </div>
-  </div>
-{/if}
 {#if isSettingsOpen}
   <SettingsModal 
     bind:workspaces={workspaces}
