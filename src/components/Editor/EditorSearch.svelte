@@ -60,7 +60,7 @@
             bind:value={searchQuery} 
             on:keydown={(e) => e.key === 'Enter' && executeSearch()} 
             class="flex-1 border rounded p-2 text-sm outline-none" 
-            style="background-color: var(--bg-color); color: var(--text-color); border-color: color-mix(in srgb, var(--text-color) 20%, transparent);" 
+            style="background-color: var(--menu-bg); color: var(--text-color); border-color: color-mix(in srgb, var(--text-color) 20%, transparent);" 
             placeholder="検索キーワードを入力... (Enterで検索)"
         >
         
