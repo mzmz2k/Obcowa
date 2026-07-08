@@ -66,14 +66,14 @@
   <!-- ピン留めエリア -->
   {#if workspaces[currentIndex]?.pinned && workspaces[currentIndex].pinned.length > 0}
     <div class="mb-2">
-      <div class="flex items-center text-xs font-bold text-gray-500 mb-1 pl-1"><Pin size={12} class="mr-1" /> ピン留め</div>
+      <div class="flex items-center text-xs font-bold opacity-60 mb-1 pl-1"><Pin size={12} class="mr-1" /> ピン留め</div>
       {#each workspaces[currentIndex].pinned as pin}
         <div class="flex items-center justify-between group">
           <div class="flex-1 overflow-hidden">
             <!-- 💥 修正: isReadonlyではなくownerIdを渡すように修正 -->
             <TreeNode node={getPinnedNode(pin)} ownerId={workspaces[currentIndex].id} isLibraryNode={false} />
           </div>
-          <button on:click={() => unpin(pin.path)} class="flex items-center justify-center text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 p-1">
+          <button on:click={() => unpin(pin.path)} class="flex items-center justify-center brightness-60 hover:text-red-400 opacity-0 group-hover:opacity-100 p-1">
             <X size={12} />
           </button>
         </div>

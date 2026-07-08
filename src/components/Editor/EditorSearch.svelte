@@ -59,8 +59,8 @@
             type="text" 
             bind:value={searchQuery} 
             on:keydown={(e) => e.key === 'Enter' && executeSearch()} 
-            class="flex-1 border border-black/20 rounded p-2 text-sm outline-none" 
-            style="background-color: var(--bg-color); color: var(--text-color);" 
+            class="flex-1 border rounded p-2 text-sm outline-none" 
+            style="background-color: var(--bg-color); color: var(--text-color); border-color: color-mix(in srgb, var(--text-color) 20%, transparent);" 
             placeholder="検索キーワードを入力... (Enterで検索)"
         >
         
@@ -89,8 +89,9 @@
                 <!-- svelte-ignore a11y-no-static-element-interactions -->
 
                 <!-- 💥 検索結果の行：ホバー時にテーマカラーを使う（hover:bg-[var(--active-highlight-bg)]） -->
-                <div 
-                    class="py-1.5 px-2 border-b border-black/10 cursor-pointer transition hover:bg-[var(--active-highlight-bg)]" 
+                 <div 
+                    class="py-1.5 px-2 border-b cursor-pointer transition hover:bg-[var(--active-highlight-bg)]" 
+                    style="border-color: color-mix(in srgb, var(--text-color) 10%, transparent);"
                     on:click={() => handleResultClick(res.path, res.name, false)} 
                     on:contextmenu|preventDefault={() => handleResultClick(res.path, res.name, true)}
                 >
