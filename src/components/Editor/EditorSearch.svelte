@@ -5,6 +5,7 @@
 
     let searchQuery = '';
     let includeLibrary = false;
+    let searchByFilename = false;
     let searchResults: any[] = [];
     let isSearching = false;
     let hasSearched = false;
@@ -18,6 +19,7 @@
             searchResults = await invoke('search_files', { 
                 workspaceIndex: $currentWorkspaceIndex, 
                 includeLibrary, 
+                searchByFilename,
                 query: searchQuery 
             }); 
         } 
@@ -66,6 +68,11 @@
         
         <label class="flex items-center text-sm cursor-pointer select-none" style="color: var(--text-color);">
             <input type="checkbox" bind:checked={includeLibrary} class="mr-2"> ライブラリを含める
+        </label>
+
+        <!-- 💥ファイル名検索のチェックボックス -->
+        <label class="flex items-center text-sm cursor-pointer select-none" style="color: var(--text-color);">
+            <input type="checkbox" bind:checked={searchByFilename} class="mr-2"> ファイル名のみ検索
         </label>
         
         <!-- 💥 検索ボタン：青固定ではなく、テーマのアクセントカラーを使う -->

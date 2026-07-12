@@ -89,6 +89,7 @@ async fn search_files(
     app: tauri::AppHandle,
     workspace_index: usize,
     include_library: bool,
+    search_by_filename: bool, 
     query: String,
 ) -> Result<Vec<SearchResultItem>, String> {
     if query.trim().is_empty() {
@@ -143,22 +144,33 @@ async fn search_files(
 
     // 全ファイルを走査
     for file in all_files {
-        for line in file.content.lines() {
-            if line.to_lowercase().contains(&query_lower) {
-                let trimmed = line.trim();
-                // 検索がヒットした行を抽出し、長すぎる場合は丸める（文字化け・パニック防止のため chars() を使用）
-                let snippet = if trimmed.chars().count() > 100 {
-                    format!("{}...", trimmed.chars().take(100).collect::<String>())
-                } else {
-                    trimmed.to_string()
-                };
-
+        if search_by_filename {
+            // 💥 追加: ファイル名のみを検索対象とする場合
+            if file.name.to_lowercase().contains(&query_lower) {
                 results.push(SearchResultItem {
                     path: file.path.clone(),
                     name: file.name.clone(),
-                    snippet,
+                    snippet: "(ファイル名に一致)".to_string(), // 中身のスニペットはないため固定メッセージ
                 });
-                break; // 1ファイルにつき1箇所の表示で十分なため次のファイルへ
+            }
+        } else {
+            // 💥 既存: 本文を検索対象とする場合
+            for line in file.content.lines() {
+                if line.to_lowercase().contains(&query_lower) {
+                    let trimmed = line.trim();
+                    let snippet = if trimmed.chars().count() > 100 {
+                        format!("{}...", trimmed.chars().take(100).collect::<String>())
+                    } else {
+                        trimmed.to_string()
+                    };
+
+                    results.push(SearchResultItem {
+                        path: file.path.clone(),
+                        name: file.name.clone(),
+                        snippet,
+                    });
+                    break; // 1ファイルにつき1箇所の表示で十分なため次のファイルへ
+                }
             }
         }
     }
