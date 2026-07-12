@@ -6,28 +6,65 @@
 
   import { extractTags, updateTagsInContent } from '../lib/utils/tagUtils';
 
+    // コンテキストアクションから新しい関数も受け取る
+  const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior, saveWorkspace, editSmartFolder, openNewFileModal, getGlobalSort, setNodeSort, getLibraries, addNodeToLibrary } = getContext('workspaceActions') as any;
+
   export let node: any;
   // isReadonly を削除し、親から引き継ぐ情報に変更
   export let ownerId: string;
   export let isLibraryNode = false;
   let isOpen = false;
 
-    // 目的のファイルが見つかった際に画面内へ自動スクロールさせるための要素参照
+  $: activeTab = $openTabs.find(t => t.id === $activeTabId);
+  $: isActive = activeTab && activeTab.path === node.path;
+
+    // 💥 右クリックメニューの状態
+  let showMenu = false;
+  let menuX = 0;
+  let menuY = 0;
+
+     // 💥対象ファイルの現在のタグを保持する変数
+  let currentFileTags: string[] = [];
+
+    // 目的のファイルが見つかった際に画面内へ自動スクロールさせるための要素参照と、処理済みの記録
   let nodeElement: HTMLDivElement;
+  let lastProcessedTimestamp = 0; 
+  let lastScrolledTimestamp = 0;
 
-  // コンテキストアクションから新しい関数も受け取る
-  const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior, saveWorkspace, editSmartFolder, openNewFileModal, getGlobalSort, setNodeSort, getLibraries, addNodeToLibrary } = getContext('workspaceActions') as any;
 
-   // 💥 追加: ツリー展開リクエストの監視
-  // 送られてきたパスがこのフォルダの配下にあれば、自動で展開する
-  $: if ($expandTreeRequest && node.type === 'Folder' && !node.smart_rules && !node.is_virtual_wrapper && node.original_path) {
-      const reqPath = $expandTreeRequest.path;
-      // 誤爆を防ぐため、パス区切り文字を含めて判定 (Windowsの \ と Mac/Linuxの / の両方に対応)
-      if (reqPath.startsWith(node.original_path + '/') || reqPath.startsWith(node.original_path + '\\')) {
-          if (!isOpen) {
+
+  // 💥 追加: スマートフォルダ用に、自分の中身(子や孫)に目的のファイルが含まれているか調べる関数
+  function containsPath(folderNode: any, targetPath: string): boolean {
+    if (!folderNode.children) return false;
+    for (const child of folderNode.children) {
+      if (child.type === 'File' && child.path === targetPath) return true;
+      if (child.type === 'Folder' && containsPath(child, targetPath)) return true;
+    }
+    return false;
+  }
+
+  // 💥 変更: ツリー展開リクエストの監視（バグ修正とスマートフォルダ対応）
+  $: if ($expandTreeRequest && node.type === 'Folder') {
+      const req = $expandTreeRequest;
+      
+      // 同じリクエストで何度も処理が暴走する（閉じられなくなる）のを防ぐ
+      if (lastProcessedTimestamp !== req.timestamp) {
+          let shouldOpen = false;
+
+          if (node.smart_rules || node.is_virtual_wrapper) {
+              // スマートフォルダなどは、すでに中に入っているファイル一覧から探す
+              shouldOpen = containsPath(node, req.path);
+          } else if (node.original_path) {
+              // 普通のフォルダは、今まで通りパスの前方一致で判定する
+              shouldOpen = req.path.startsWith(node.original_path + '/') || req.path.startsWith(node.original_path + '\\');
+          }
+
+          if (shouldOpen) {
               isOpen = true;
-              // フォルダの中身がまだ空っぽの場合は、バックエンドから読み込んで展開する
-              if (node.children && node.children.length === 0) {
+              lastProcessedTimestamp = req.timestamp; // 💥 一度開いたら記録をつける
+
+              // 普通のフォルダでまだ中身を読み込んでいない場合はバックエンドから読み込む
+              if (node.children && node.children.length === 0 && node.original_path && !node.smart_rules) {
                   invoke('read_directory', { path: node.original_path }).then(res => {
                       node.children = res as any[];
                   }).catch(e => console.error("フォルダ自動展開エラー:", e));
@@ -36,30 +73,17 @@
       }
   }
 
-  // 💥 追加: 目的のファイルノードに到達したら、少しだけ待ってからスクロールして画面内に見えるようにする（親切機能）
+  // 💥 変更: 目的のファイルノードに到達したらスクロール（何度もスクロールしないように修正）
   $: if ($expandTreeRequest && node.type === 'File' && node.path === $expandTreeRequest.path) {
-      if (nodeElement) {
-          // フォルダが次々と展開されるアニメーションと重ならないよう、少しだけ遅らせてスクロール
+      if (nodeElement && lastScrolledTimestamp !== $expandTreeRequest.timestamp) {
+          lastScrolledTimestamp = $expandTreeRequest.timestamp;
           setTimeout(() => {
               nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }, 150);
       }
   }
 
-  // 現在アクティブなタブの path と一致しているか判定
-  $: activeTab = $openTabs.find(t => t.id === $activeTabId);
-  $: isActive = activeTab && activeTab.path === node.path;
-
-  // 💥 右クリックメニューの状態
-  let showMenu = false;
-  let menuX = 0;
-  let menuY = 0;
-
-   // 💥 追加: 対象ファイルの現在のタグを保持する変数
-  let currentFileTags: string[] = [];
-
-
-    // 💥 追加: 現在のソート設定（個別設定があれば優先、なければ全体設定）を計算し、常にソートされた配列を作る
+  // 💥 追加: 現在のソート設定（個別設定があれば優先、なければ全体設定）を計算し、常にソートされた配列を作る
   $: globalSort = getGlobalSort();
   $: sortBy = node.sort_by || globalSort.by;
   $: sortOrder = node.sort_order || globalSort.order;
