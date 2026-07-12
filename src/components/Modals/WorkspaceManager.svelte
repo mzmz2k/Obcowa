@@ -2,6 +2,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { confirm as tauriConfirm } from '@tauri-apps/plugin-dialog';
+  import { openTabs, activeTabId } from '../../lib/stores';
 
   // 親から渡されるデータと表示フラグ（双方向バインディング）
   export let workspaces: any[] = [];
@@ -20,15 +21,19 @@
 
   async function createNewWorkspace() {
     if (!newListName) return;
-    workspaces.push({ 
+    workspaces = [...workspaces, { 
       id: Date.now().toString(), name: newListName, category: 'Active', 
       nodes: [], links: [], pinned: [], linked_libraries: [], is_flat: false,
       editor_font: 'sans-serif' 
-    });
+    }];
+
+    openTabs.set([]);
+    activeTabId.set(null);
+
     currentIndex = workspaces.length - 1;
     isCreateModalOpen = false; 
     newListName = '';
-    dispatch('save', { force: true }); // 親に保存を依頼
+    dispatch('save', { force: true });
   }
 
   async function importLibrary() {
@@ -46,6 +51,9 @@
     const isYes = await tauriConfirm("本当に削除しますか？", { title: "確認", kind: "warning" });
     if (isYes) {
       workspaces.splice(editingListIndex, 1);
+
+            // 削除したあともSvelteに画面更新を促す
+      workspaces = [...workspaces];
       if (currentIndex >= workspaces.length) currentIndex = Math.max(0, workspaces.length - 1);
       isManageModalOpen = false;
       dispatch('save', { force: true });
