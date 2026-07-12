@@ -21,6 +21,15 @@ export const registeredTags = writable<string[]>([]);
 // 画像を保存しているフォルダのパス
 export const imageFolderPath = writable<string>('');
 
+// 検索タブの状態を保持するためのストア
+export const searchState = writable({
+    query: '',
+    includeLibrary: false,
+    searchByFilename: false, // 先ほど追加したファイル名検索フラグ
+    results: [] as any[],
+    hasSearched: false
+});
+
 
 // 💥 検索用の特殊なタブを作成・表示する関数
 export function openSearchTab() {
