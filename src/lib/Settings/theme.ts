@@ -16,10 +16,10 @@ export interface Theme {
 export const defaultThemes: Theme[] = [
     {
         id: 'dark', name: 'ダーク', 
-        bgColor: '#1f2937', textColor: '#e5e7eb', 
-        scrollBg: '#111827', scrollThumb: '#4b5563', accentColor: '#3b82f6',
-        activeHighlightBg: '#1e3a8a', menuBg: '#111827',
-        selectionBg: '#4b5563'
+        bgColor: '#181d25', textColor: '#dbdde1', 
+        scrollBg: '#111827', scrollThumb: '#4b5563', accentColor: '#9144bb',
+        activeHighlightBg: '#3b185d', menuBg: '#201b23',
+        selectionBg: '#403c67'
     },
     {
         id: 'light', name: 'ライト', 
