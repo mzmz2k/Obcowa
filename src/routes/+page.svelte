@@ -233,7 +233,7 @@
         }];
       } 
       
-      // 💥 変更: 【一番最初】に開くべきワークスペースを決定する（チラつき防止）
+      // 【一番最初】に開くべきワークスペースを決定する（チラつき防止）
       const params = new URLSearchParams(window.location.search);
       const wsParam = params.get('ws');
       if (wsParam !== null) {
@@ -243,7 +243,7 @@
         if(firstActive !== -1) currentIndex = firstActive;
       }
 
-      // 💥 変更: ツリーの最新化を待たずに、保存されていた状態ですぐにタブを復元する
+      // ツリーの最新化を待たずに、保存されていた状態ですぐにタブを復元する
       const ws = workspaces[currentIndex];
       if (ws && ws.saved_tabs && ws.saved_tabs.length > 0) {
         const restored = [];
@@ -275,7 +275,7 @@
       })();
 
     } catch (e) {}
-  }); // ← 💥 これらを追加して onMount をきちんと閉じる！
+  }); 
 
 // 💥 タブの状態が変わったら自動でワークスペースに記録（初期化完了後のみ動くように修正）
 $: if (isInitialized && workspaces.length > 0 && workspaces[currentIndex]) {
@@ -293,7 +293,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   // 💥 複数ウィンドウでのファイル書き込み競合を防ぐため、保存直前に最新を読み込んでマージ
   async function saveData(forceOverwrite = false) {
     try {
-      // 💥 追加: 強制上書きの指示があれば、そのまま全保存する
+      // 強制上書きの指示があれば、そのまま全保存する
       if (forceOverwrite) {
         await invoke('save_workspaces', { workspaces });
         return;
@@ -301,7 +301,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 
       const latestWorkspaces: any[] = await invoke('load_workspaces');
       
-      // 💥 追加: もしリストの数自体が変わっていた場合（削除や追加された場合）は強制上書きに切り替える
+      // もしリストの数自体が変わっていた場合（削除や追加された場合）は強制上書きに切り替える
       if (latestWorkspaces.length !== workspaces.length) {
         await invoke('save_workspaces', { workspaces });
         return;
@@ -362,7 +362,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 
 </script>
 
-<!-- 💥 変更: on:click の中から `isAddFolderMenuOpen = false; isGlobalSortMenuOpen = false;` を削除しました（子部品の中で処理するため） -->
+<!-- on:click の中から `isAddFolderMenuOpen = false; isGlobalSortMenuOpen = false;` を削除しました（子部品の中で処理するため） -->
 <svelte:window on:mousemove={doResize} on:mouseup={stopResize} on:click={() => { isListMenuOpen = false; }} />
 
 <main class="h-screen w-screen flex select-none transition-colors duration-200"
