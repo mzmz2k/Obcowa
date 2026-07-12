@@ -1,7 +1,7 @@
 [package]
 name = "obcowa"
-version = "0.14.0"
-description = "Obsidianの巨大Vaultから、その時必要なノートだけを切り出して表示する作業コンテキストビューア"
+version = "0.15.0"
+description = "Obsidianを母艦として、プロジェクトごとにワークスペースを構成できるMarkdownエディタ"
 authors = ["you"]
 edition = "2021"
 
