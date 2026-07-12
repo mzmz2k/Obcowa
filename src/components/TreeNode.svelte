@@ -1,19 +1,50 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
-  import { openFileInCurrentTab, openFileInNewTab, activeTabId, openTabs, switchTab, registeredTags } from '../lib/stores'; 
+  import { openFileInCurrentTab, openFileInNewTab, activeTabId, openTabs, switchTab, registeredTags, expandTreeRequest } from '../lib/stores'; 
   import { getContext } from 'svelte';
   import { ChevronDown, ChevronRight, Library, FolderOpen, Folder, FileText, Tag, Pin, PinOff, Search, Pencil, ArrowUpDown, ExternalLink } from 'lucide-svelte';
 
   import { extractTags, updateTagsInContent } from '../lib/utils/tagUtils';
 
   export let node: any;
-  // 💥 変更: isReadonly を削除し、親から引き継ぐ情報に変更
+  // isReadonly を削除し、親から引き継ぐ情報に変更
   export let ownerId: string;
   export let isLibraryNode = false;
   let isOpen = false;
 
-  // 💥 追加: コンテキストアクションから新しい関数も受け取る
+    // 目的のファイルが見つかった際に画面内へ自動スクロールさせるための要素参照
+  let nodeElement: HTMLDivElement;
+
+  // コンテキストアクションから新しい関数も受け取る
   const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior, saveWorkspace, editSmartFolder, openNewFileModal, getGlobalSort, setNodeSort, getLibraries, addNodeToLibrary } = getContext('workspaceActions') as any;
+
+   // 💥 追加: ツリー展開リクエストの監視
+  // 送られてきたパスがこのフォルダの配下にあれば、自動で展開する
+  $: if ($expandTreeRequest && node.type === 'Folder' && !node.smart_rules && !node.is_virtual_wrapper && node.original_path) {
+      const reqPath = $expandTreeRequest.path;
+      // 誤爆を防ぐため、パス区切り文字を含めて判定 (Windowsの \ と Mac/Linuxの / の両方に対応)
+      if (reqPath.startsWith(node.original_path + '/') || reqPath.startsWith(node.original_path + '\\')) {
+          if (!isOpen) {
+              isOpen = true;
+              // フォルダの中身がまだ空っぽの場合は、バックエンドから読み込んで展開する
+              if (node.children && node.children.length === 0) {
+                  invoke('read_directory', { path: node.original_path }).then(res => {
+                      node.children = res as any[];
+                  }).catch(e => console.error("フォルダ自動展開エラー:", e));
+              }
+          }
+      }
+  }
+
+  // 💥 追加: 目的のファイルノードに到達したら、少しだけ待ってからスクロールして画面内に見えるようにする（親切機能）
+  $: if ($expandTreeRequest && node.type === 'File' && node.path === $expandTreeRequest.path) {
+      if (nodeElement) {
+          // フォルダが次々と展開されるアニメーションと重ならないよう、少しだけ遅らせてスクロール
+          setTimeout(() => {
+              nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 150);
+      }
+  }
 
   // 現在アクティブなタブの path と一致しているか判定
   $: activeTab = $openTabs.find(t => t.id === $activeTabId);
@@ -197,6 +228,7 @@
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <!-- 💥 isActive のときに背景色を青っぽくする -->
   <div 
+    bind:this={nodeElement}
     class="flex items-center p-1 rounded text-sm cursor-pointer select-none transition-colors 
            {isActive ? 'font-bold' : 'hover:opacity-70'}"
     style="{isActive ? 'background-color: var(--active-highlight-bg); color: var(--text-color);' : 'background-color: transparent; color: inherit;'}"

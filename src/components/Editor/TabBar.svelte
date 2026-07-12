@@ -1,6 +1,6 @@
 <!-- --- START OF src/components/Editor/TabBar.svelte --- -->
 <script lang="ts">
-  import { openTabs, activeTabId, openFileInNewTab, createNewTab, registeredTags } from '../../lib/stores';
+  import { openTabs, activeTabId, openFileInNewTab, createNewTab, registeredTags, expandTreeRequest } from '../../lib/stores';
   import { invoke } from '@tauri-apps/api/core';
   import { Search, Plus, X, Tag, ChevronLeft, ChevronRight } from 'lucide-svelte';
 
@@ -9,6 +9,14 @@
   export let handleTabClose: (id: string) => void;
 
   let tabMenu = { show: false, x: 0, y: 0, tabId: '', path: '', title: '', content: '', tags: [] as string[], openSubLeft: false };
+
+    // タブをダブルクリックした時の処理
+  function handleTabDoubleClick(path: string) {
+      // 検索タブなどの特殊なタブ以外なら、ツリー展開を要求する
+      if (path && path !== '__SEARCH__') {
+          expandTreeRequest.set({ path, timestamp: Date.now() });
+      }
+  }
 
   function handleTabContextMenu(e: MouseEvent, tab: any) {
       e.preventDefault();
@@ -84,6 +92,7 @@
           style="{ $activeTabId === tab.id ? 'background-color: var(--bg-color); color: var(--text-color); border-top-color: var(--accent-color); border-bottom-color: transparent;' : 'background-color: transparent; color: inherit;' }"
           on:click={() => handleTabClick(tab.id)}
           on:contextmenu={(e) => handleTabContextMenu(e, tab)}
+          on:dblclick={() => handleTabDoubleClick(tab.path)} 
       >
           {#if tab.path === '__SEARCH__'}
               <Search size={14} class="mr-1.5 opacity-70 shrink-0" />

@@ -30,6 +30,10 @@ export const searchState = writable({
     hasSearched: false
 });
 
+// 左メニュー（ツリー）のフォルダを自動展開するためのリクエスト保持ストア
+// （同じファイルを連続でダブルクリックしても反応するように、タイムスタンプを含めます）
+export const expandTreeRequest = writable<{ path: string; timestamp: number } | null>(null);
+
 
 // 💥 検索用の特殊なタブを作成・表示する関数
 export function openSearchTab() {

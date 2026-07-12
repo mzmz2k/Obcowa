@@ -10,7 +10,7 @@ export interface Theme {
     accentColor: string;
     activeHighlightBg: string;
     menuBg: string;
-    selectionBg: string; // 💥 追加: 文字選択時の背景色
+    selectionBg: string; //  文字選択時の背景色
 }
 
 export const defaultThemes: Theme[] = [
