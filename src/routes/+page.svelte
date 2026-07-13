@@ -14,6 +14,7 @@
   import SidebarTree from '../components/Sidebar/SidebarTree.svelte';
   import SidebarFooter from '../components/Sidebar/SidebarFooter.svelte';
   import { activeTheme, initTheme, applyThemeToRoot } from '../lib/settings/theme';
+  import { initStyles } from '../features/styleSettings/styleStore'; 
   import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, imageFolderPath } from '../lib/stores';
   import { cloneNodeAsIndependent } from '../lib/library';
   import { Pin, X, Menu, SquarePen, Settings, Library, Archive, Link } from 'lucide-svelte';
@@ -221,6 +222,7 @@
     } catch (e) {}
 
     initTheme();
+    initStyles(); 
 
     try {
       workspaces = await invoke('load_workspaces');

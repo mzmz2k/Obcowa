@@ -94,7 +94,7 @@
                 <EditorHeader {activeTab} {toggleEditMode} />
 
                 {#if activeTab.isEditing}
-                    <textarea bind:this={editArea} class="flex-1 w-full bg-transparent resize-none focus:outline-none text-sm p-6 overflow-y-auto" style="font-family: {$editorFont}; color: var(--text-color);" value={activeTab.content} on:input={handleInput}></textarea>
+                    <textarea bind:this={editArea} class="flex-1 w-full bg-transparent resize-none focus:outline-none p-6 overflow-y-auto" style="font-family: var(--editor-font, {$editorFont}); font-size: var(--editor-font-size, 14px); line-height: var(--editor-line-height, 1.6); color: var(--text-color);" value={activeTab.content} on:input={handleInput}></textarea>
                 {:else}
                     <!-- 💥 独立させたプレビュー画面を配置（スクロール位置を双方向に同期） -->
                     <EditorPreview {activeTab} bind:scrollContainer={previewScrollContainer} />

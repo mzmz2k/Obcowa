@@ -2,6 +2,8 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import ThemeSettings from './ThemeSettings.svelte';
+  import StyleSettings from './StyleSettings.svelte';
+  import { activeStyleSlot, customStyleSlots, defaultStyle, applyStyleToRoot } from '../../features/styleSettings/styleStore';
   import { activeTheme, type Theme } from '../../lib/settings/theme';
   import { editorFont, registeredTags, imageFolderPath } from '../../lib/stores';
   import { open as openDialog } from '@tauri-apps/plugin-dialog';
@@ -16,6 +18,10 @@
   let activeSettingsTab = 'general';
   
   let tempTheme: Theme = { ...$activeTheme };
+
+    // スタイルの編集用の一時データ
+  let tempStyle = JSON.parse(JSON.stringify($activeStyleSlot));
+  let tempCustomSlots = JSON.parse(JSON.stringify($customStyleSlots));
 
   let newTagInput = '';
   let selectedTagToRemove = '';
@@ -47,7 +53,6 @@
 
   // 設定の保存と適用
   function saveSettings() {
-    $editorFont = tempFont;
     
     // 画像フォルダパスの保存
     $imageFolderPath = tempImageFolder;
@@ -57,8 +62,19 @@
     $activeTheme = { ...tempTheme };
     localStorage.setItem('activeTheme', JSON.stringify($activeTheme));
 
+    // スタイルの保存と適用
+    $activeStyleSlot = tempStyle;
+    $customStyleSlots = tempCustomSlots;
+    localStorage.setItem('activeStyle', JSON.stringify(tempStyle));
+    localStorage.setItem('customStyleSlots', JSON.stringify(tempCustomSlots));
+    applyStyleToRoot(tempStyle);
+
     if (workspaces[currentIndex]) {
-      workspaces[currentIndex].editor_font = tempFont;
+      workspaces[currentIndex].editor_font = tempStyle.editorFont; // 💥 変更: tempStyleから取得するよう修正
+    }
+
+    if (workspaces[currentIndex]) {
+      workspaces[currentIndex].editor_font = tempStyle.editorFont; // 💥 変更: tempStyleから取得するよう修正
     }
 
     // 呼び出し元の +page.svelte に保存処理を依頼して閉じる
@@ -74,6 +90,8 @@
     <div class="w-1/4 bg-black/10 p-4 space-y-2 text-sm border-r border-black/10">
       <button class="w-full text-left p-2 rounded transition-colors {activeSettingsTab === 'general' ? 'bg-[var(--accent-color)] text-white font-bold' : 'hover:bg-black/10'}" on:click={() => activeSettingsTab = 'general'}>一般</button>
       <button class="w-full text-left p-2 rounded transition-colors {activeSettingsTab === 'theme' ? 'bg-[var(--accent-color)] text-white font-bold' : 'hover:bg-black/10'}" on:click={() => activeSettingsTab = 'theme'}>テーマ</button>
+       <!-- スタイルタブのボタン -->
+      <button class="w-full text-left p-2 rounded transition-colors {activeSettingsTab === 'style' ? 'bg-[var(--accent-color)] text-white font-bold' : 'hover:bg-black/10'}" on:click={() => activeSettingsTab = 'style'}>スタイル</button>
     </div>
 
     <!-- 右コンテンツ -->
@@ -81,15 +99,8 @@
       
       {#if activeSettingsTab === 'general'}
         <h2 class="text-lg font-bold mb-6">一般設定</h2>
-        
-        <div class="mb-6">
-          <div class="text-sm opacity-80 mb-2">エディタのフォント名</div>
-          <input type="text" class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm outline-none" bind:value={tempFont} placeholder="フォント名" />
-        </div>
-
-        <hr class="border-black/10 mb-6">
-
-        <!-- 💥 追加: 画像フォルダの設定エリア -->
+      
+        <!-- 画像フォルダの設定エリア -->
         <div class="mb-6">
           <div class="text-sm opacity-80 mb-2">添付ファイル（画像）の保存フォルダ</div>
           <div class="flex gap-2">
@@ -121,6 +132,10 @@
 
       {:else if activeSettingsTab === 'theme'}
         <ThemeSettings bind:tempTheme={tempTheme} />
+
+      <!-- スタイルタブのコンテンツ -->
+      {:else if activeSettingsTab === 'style'}
+        <StyleSettings bind:tempStyle={tempStyle} bind:tempCustomSlots={tempCustomSlots} {defaultStyle} />
       {/if}
 
       <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-black/10">
