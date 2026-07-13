@@ -117,3 +117,11 @@ html, body {
     font-style: var(--h6-style, normal) !important;
     font-weight: var(--h6-weight, bold) !important;
 }
+
+/* Obsidian互換のハイライト記法（== ==）のスタイル */
+.editor-preview .obsidian-highlight {
+    background-color: var(--selection-bg) !important;
+    color: inherit !important;     /* 文字色はそのまま維持する */
+    padding: 0.1em 0.3em;
+    border-radius: 0.25rem;
+}
