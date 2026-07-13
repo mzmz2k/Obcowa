@@ -56,3 +56,24 @@ html, body {
 .editor-preview a  {
         color: var(--accent-color) !important;
     }
+
+    /* コードブロックとインラインコードの背景をテーマに合わせて自動調整 */
+.editor-preview pre {
+        background-color: color-mix(in srgb, var(--text-color) 8%, var(--bg-color)) !important;
+        padding: 1rem !important;
+        border-radius: 0.5rem !important;
+        overflow-x: auto !important;
+    }
+
+.editor-preview code {
+        background-color: color-mix(in srgb, var(--text-color) 15%, transparent) !important;
+        padding: 0.2em 0.4em !important;
+        border-radius: 0.25rem !important;
+        font-size: 0.9em !important;
+    }
+
+/* pre（複数行コード）の中にあるcode要素は、背景が二重に濃くならないよう透明にする */
+.editor-preview pre code {
+        background-color: transparent !important;
+        padding: 0 !important;
+    }
