@@ -111,10 +111,10 @@
       <div class="text-xs mt-2 opacity-70">移動または削除された可能性があります</div>
   </div>
 {:else}
-  <div 
+ <div 
       class="flex-1 overflow-y-auto p-6" 
       bind:this={scrollContainer} 
-      style="font-family: {$editorFont};"
+      style="font-family: var(--editor-font, {$editorFont});"
   >
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->

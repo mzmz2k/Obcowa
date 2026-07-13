@@ -125,3 +125,20 @@ html, body {
     padding: 0.1em 0.3em;
     border-radius: 0.25rem;
 }
+
+/* プレビュー画面の本文サイズと行間を、設定値で強制上書きする */
+.editor-preview {
+    font-size: var(--editor-font-size, 14px) !important;
+    line-height: var(--editor-line-height, 1.6) !important;
+}
+
+/* .prose クラスが持つ強力なデフォルトサイズを無効化し、上の設定を引き継がせる */
+.editor-preview p,
+.editor-preview ul,
+.editor-preview ol,
+.editor-preview li,
+.editor-preview table,
+.editor-preview blockquote {
+    font-size: inherit !important;
+    line-height: inherit !important;
+}
