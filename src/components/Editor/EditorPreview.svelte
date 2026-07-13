@@ -12,7 +12,14 @@
   // 親(Editor.svelte)にスクロール位置を復元させるための変数をバインド(双方向通信)する
   export let scrollContainer: HTMLDivElement | undefined = undefined;
 
-  marked.use({ breaks: true });
+  // 生のHTMLタグをただの文字列（テキスト）としてエスケープする設定
+  const renderer = {
+      html(token: any) {
+          // < と > を無害な文字実体参照に変換して出力する
+          return token.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      }
+  };
+  marked.use({ breaks: true, renderer });
 
   let fileExists = true;
   let renderedHtml = '';
