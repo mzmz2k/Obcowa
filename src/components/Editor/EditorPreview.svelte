@@ -19,7 +19,33 @@
           return token.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
       }
   };
-  marked.use({ breaks: true, renderer });
+
+  //  ==ハイライト== を認識させるための拡張ルール
+  const highlightExtension = {
+      name: 'highlight',
+      level: 'inline',                                 // 行内（インライン）のルールとして定義
+      start(src: string) { return src.match(/==/)?.index; }, // どこに == があるか探す
+      tokenizer(src: string, tokens: any) {
+          const rule = /^==([\s\S]+?)==/;              // == で囲まれた部分を見つける正規表現
+          const match = rule.exec(src);
+          if (match) {
+              return {
+                  type: 'highlight',
+                  raw: match[0],
+                  text: match[1],
+                  // ハイライトの中にある太字(**)なども処理できるようにする
+                  tokens: this.lexer.inlineTokens(match[1]) 
+              };
+          }
+      },
+      renderer(token: any) {
+          // <mark> タグに変換して出力
+          return `<mark class="obsidian-highlight">${this.parser.parseInline(token.tokens)}</mark>`;
+      }
+  };
+
+  // 💥 変更: renderer と extensions を両方とも適用する
+  marked.use({ breaks: true, renderer, extensions: [highlightExtension] });
 
   let fileExists = true;
   let renderedHtml = '';
