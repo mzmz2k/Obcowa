@@ -2,11 +2,13 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { marked } from 'marked';
-  import { tick } from 'svelte';
+  import { tick, createEventDispatcher } from 'svelte';
   import { editorFont, imageFolderPath } from '../../lib/stores';
   import { generateImageHtml, loadImagesInDom } from '../../lib/editor/imageViewer';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { FileQuestion } from 'lucide-svelte';
+
+  const dispatch = createEventDispatcher();
 
   export let activeTab: any;
   // 親(Editor.svelte)にスクロール位置を復元させるための変数をバインド(双方向通信)する
@@ -72,6 +74,8 @@
           }
           await tick(); // 画面の描画更新を待つ
           loadImagesInDom(); // 画像を読み込む
+
+          dispatch('renderComplete'); // HTMLの描画が終わったことを親に知らせる
       }
   }
 
