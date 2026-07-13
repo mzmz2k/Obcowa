@@ -11,6 +11,13 @@
 
   const dispatch = createEventDispatcher();
 
+    // 生のHTMLタグをただの文字列（テキスト）としてエスケープし、巻き込み事故を防ぐ
+  const renderer = {
+      html(token: any) {
+          return token.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      }
+  };
+
   export let activeTab: any;
   // 親(Editor.svelte)にスクロール位置を復元させるための変数をバインド(双方向通信)する
   export let scrollContainer: HTMLDivElement | undefined = undefined;
@@ -40,8 +47,8 @@
       }
   };
 
- // renderer を外し、extensions (ハイライト) のみ適用する
-  marked.use({ breaks: true, extensions: [highlightExtension] });
+ // renderer と extensions の両方を適用する
+  marked.use({ breaks: true, renderer, extensions: [highlightExtension] });
 
   let fileExists = true;
   let renderedHtml = '';
@@ -59,19 +66,20 @@
           fileExists = true;
       }
 
-      if (fileExists) {
+    if (fileExists) {
           if (tab.path.endsWith('.txt')) {
               const safeText = tab.content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-              renderedHtml = safeText.replace(/\n/g, '<br>');
+              // txtファイルも念のため最後にDOMPurifyを通す
+              renderedHtml = DOMPurify.sanitize(safeText.replace(/\n/g, '<br>'));
           } else {
-              // marked でHTMLに変換した後、DOMPurify でサニタイズ（浄化）する
+              // 💥 二段構え: marked で文字にエスケープ変換した後、念のため DOMPurify で浄化する
               const rawHtml = marked(parseObsidianImages(removeFrontmatter(tab.content), tab.path));
               renderedHtml = DOMPurify.sanitize(rawHtml as string);
           }
-          await tick(); // 画面の描画更新を待つ
-          loadImagesInDom(); // 画像を読み込む
-
-          dispatch('renderComplete'); // HTMLの描画が終わったことを親に知らせる
+          await tick(); 
+          loadImagesInDom(); 
+          
+          dispatch('renderComplete'); 
       }
   }
 
