@@ -2,6 +2,7 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { marked } from 'marked';
+  import DOMPurify from 'dompurify';
   import { tick, createEventDispatcher } from 'svelte';
   import { editorFont, imageFolderPath } from '../../lib/stores';
   import { generateImageHtml, loadImagesInDom } from '../../lib/editor/imageViewer';
@@ -14,13 +15,6 @@
   // 親(Editor.svelte)にスクロール位置を復元させるための変数をバインド(双方向通信)する
   export let scrollContainer: HTMLDivElement | undefined = undefined;
 
-  // 生のHTMLタグをただの文字列（テキスト）としてエスケープする設定
-  const renderer = {
-      html(token: any) {
-          // < と > を無害な文字実体参照に変換して出力する
-          return token.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      }
-  };
 
   //  ==ハイライト== を認識させるための拡張ルール
   const highlightExtension = {
@@ -46,8 +40,8 @@
       }
   };
 
-  // 💥 変更: renderer と extensions を両方とも適用する
-  marked.use({ breaks: true, renderer, extensions: [highlightExtension] });
+ // renderer を外し、extensions (ハイライト) のみ適用する
+  marked.use({ breaks: true, extensions: [highlightExtension] });
 
   let fileExists = true;
   let renderedHtml = '';
@@ -70,7 +64,9 @@
               const safeText = tab.content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
               renderedHtml = safeText.replace(/\n/g, '<br>');
           } else {
-              renderedHtml = marked(parseObsidianImages(removeFrontmatter(tab.content), tab.path));
+              // marked でHTMLに変換した後、DOMPurify でサニタイズ（浄化）する
+              const rawHtml = marked(parseObsidianImages(removeFrontmatter(tab.content), tab.path));
+              renderedHtml = DOMPurify.sanitize(rawHtml as string);
           }
           await tick(); // 画面の描画更新を待つ
           loadImagesInDom(); // 画像を読み込む
