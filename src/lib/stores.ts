@@ -8,6 +8,7 @@ export interface TabData {
     isEditing: boolean;
     isDirty: boolean;
     lastModified?: number; // ファイルの最終更新日時
+    isConflict?: boolean; // 競合発生中で保留しているかどうかのフラグ
 }
 
 export const openTabs = writable<TabData[]>([]);

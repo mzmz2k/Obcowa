@@ -17,6 +17,7 @@
 
     // --- タブと保存の管理 ---
     let saveTimeout: ReturnType<typeof setTimeout>;
+    let isDialogShowing = false; //  ダイアログの連続表示を防止するためのフラグ
     let previewScrollContainer: HTMLDivElement | undefined;
     let editArea: HTMLTextAreaElement;
     let scrollRatio = 0;
@@ -34,30 +35,59 @@
 
    // 保存時に競合チェックを行い、エラーならダイアログを出す
     async function saveCurrentTab() {
+        if (isDialogShowing) return; // ダイアログ表示中は重複実行しない
         if (activeTab && activeTab.isDirty && activeTab.path && activeTab.path !== '__SEARCH__') {
             try {
-                // lastModifiedを渡し、force=false で保存を試みる
                 const newModified = await invoke('save_file_content', { 
-                    path: activeTab.path, 
-                    content: activeTab.content,
-                    lastModified: activeTab.lastModified || 0,
-                    force: false
+                    path: activeTab.path, content: activeTab.content, lastModified: activeTab.lastModified || 0, force: false 
                 });
                 openTabs.update(tabs => { 
                     const t = tabs.find(t => t.id === activeTab!.id); 
-                    if (t) { t.isDirty = false; t.lastModified = newModified as number; } 
+                    if (t) { t.isDirty = false; t.lastModified = newModified as number; t.isConflict = false; } 
                     return tabs; 
                 });
             } catch (e) {
                 if (e === "CONFLICT") {
-                    const yes = await tauriConfirm("このファイルは他のアプリ（Obsidian等）によって外部で変更されています。上書き保存してよろしいですか？\n（キャンセルすると保存されません）", { title: "競合の確認", kind: "warning" });
-                    if (yes) {
-                        // 強制上書き (force=true)
-                        const newModified = await invoke('save_file_content', { path: activeTab.path, content: activeTab.content, lastModified: activeTab.lastModified || 0, force: true });
-                        openTabs.update(tabs => { const t = tabs.find(t => t.id === activeTab!.id); if (t) { t.isDirty = false; t.lastModified = newModified as number; } return tabs; });
+                    isDialogShowing = true;
+                    // 第一段階: 上書きするかどうか
+                    const overwrite = await tauriConfirm(
+                        "このファイルは他のアプリによって外部で変更されています。\nこの編集内容で上書き保存しますか？", 
+                        { title: "ファイルの競合", kind: "warning" }
+                    );
+                    
+                    if (overwrite) {
+                        try {
+                            const newModified = await invoke('save_file_content', { path: activeTab.path, content: activeTab.content, lastModified: activeTab.lastModified || 0, force: true });
+                            openTabs.update(tabs => { const t = tabs.find(t => t.id === activeTab!.id); if (t) { t.isDirty = false; t.lastModified = newModified as number; t.isConflict = false; } return tabs; });
+                        } catch (err) {}
                     } else {
-                        // 保存をあきらめる（Dirty状態を維持するかはお好みで。今回はそのまま）
+                        // 第二段階: 再読み込みするかどうか
+                        const reload = await tauriConfirm(
+                            "この変更を破棄して最新の外部ファイルを読み込みますか？", 
+                            { title: "再読み込みの確認", kind: "info" }
+                        );
+
+                        if (reload) {
+                            try {
+                                const bytes: number[] = await invoke('read_file_content', { path: activeTab.path });
+                                let latestContent = "";
+                                try { latestContent = new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes)); } 
+                                catch (e) { latestContent = new TextDecoder('shift-jis').decode(new Uint8Array(bytes)); }
+                                
+                                const newModified = await invoke('get_file_modified', { path: activeTab.path });
+                                
+                                openTabs.update(tabs => { 
+                                    const t = tabs.find(t => t.id === activeTab!.id); 
+                                    if (t) { t.content = latestContent; t.isDirty = false; t.lastModified = newModified as number; t.isConflict = false; } 
+                                    return tabs; 
+                                });
+                            } catch (err) {}
+                        } else {
+                            // 保留: ユーザーが次に文字を入力するまで自動保存をストップする
+                            openTabs.update(tabs => { const t = tabs.find(t => t.id === activeTab!.id); if (t) { t.isConflict = true; } return tabs; });
+                        }
                     }
+                    isDialogShowing = false;
                 }
             }
         }
@@ -73,35 +103,29 @@
         switchTab(tabId);
     }
 
-   async function handleTabClose(tabId: string) {
+    async function handleTabClose(tabId: string) {
+        if (isDialogShowing) return;
         const tab = $openTabs.find(t => t.id === tabId);
         if (tab && tab.isDirty && tab.path && tab.path !== '__SEARCH__') {
             try { 
-                // まず通常通り (force: false) で保存を試みる
-                await invoke('save_file_content', { 
-                    path: tab.path, 
-                    content: tab.content, 
-                    lastModified: tab.lastModified || 0, 
-                    force: false 
-                }); 
+                await invoke('save_file_content', { path: tab.path, content: tab.content, lastModified: tab.lastModified || 0, force: false }); 
             } catch (e) {
                 if (e === "CONFLICT") {
-                    // 💥 競合した場合は警告を出す
-                    const yes = await tauriConfirm(
-                        "このファイルは他のアプリによって外部で変更されています。\nあなたの編集内容で上書き保存してタブを閉じますか？\n（キャンセルすると保存せず、タブも開いたままにします）", 
+                    isDialogShowing = true;
+                    const overwrite = await tauriConfirm(
+                        "このファイルは他のアプリによって外部で変更されています。\n現在の編集内容で上書き保存してタブを閉じますか？\n（キャンセルするとタブを閉じずに保留します）", 
                         { title: "競合の確認", kind: "warning" }
                     );
-                    if (yes) {
-                        // 「はい」を選んだら強制上書き
-                        try { await invoke('save_file_content', { path: tab.path, content: tab.content, lastModified: tab.lastModified || 0, force: true }); } catch (e) {}
+                    if (overwrite) {
+                        try { await invoke('save_file_content', { path: tab.path, content: tab.content, lastModified: tab.lastModified || 0, force: true }); } catch (err) {}
                     } else {
-                        // 💥 「キャンセル」を選んだらここで処理を中断し、タブを閉じない
-                        return;
+                        isDialogShowing = false;
+                        return; // 処理を中断（タブは閉じない）
                     }
+                    isDialogShowing = false;
                 }
             }
         }
-        // 競合がなかった場合、または上書きに同意した場合のみタブを閉じる
         closeTab(tabId);
     }
 
@@ -141,9 +165,24 @@
     function handleInput(event: Event) {
         const target = event.target as HTMLTextAreaElement;
         if (!activeTab) return;
-        openTabs.update(tabs => { const t = tabs.find(t => t.id === activeTab!.id); if (t) { t.content = target.value; t.isDirty = true; } return tabs; });
+        openTabs.update(tabs => { 
+            const t = tabs.find(t => t.id === activeTab!.id); 
+            if (t) { 
+                t.content = target.value; 
+                t.isDirty = true; 
+                // 💥 入力があったら保留フラグを解除する
+                t.isConflict = false; 
+            } 
+            return tabs; 
+        });
         clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(() => { saveCurrentTab(); }, 1500);
+        saveTimeout = setTimeout(() => { 
+            // 💥 現在のタブが保留(Conflict)状態でなければ保存を実行
+            const current = $openTabs.find(t => t.id === activeTab!.id);
+            if (!current?.isConflict) {
+                saveCurrentTab(); 
+            }
+        }, 1500);
     }
 </script>
 
