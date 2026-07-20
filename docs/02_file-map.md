@@ -3,7 +3,7 @@
 
 ## バックエンド (Rust)
 - `src-tauri/src/lib.rs` : 全てのTauriコマンド（ファイル検索、OS連携など）が書かれたメイン処理。（今後は少しずつ分割する）
-- `src-tauri/src/file_ops.rs` : ファイル保存。
+- `src-tauri/src/file_ops.rs` : ファイル保存、読み込み関係。
 - `src-tauri/tauri.conf.json` : Tauriの基本設定やパーミッション。
 
 
