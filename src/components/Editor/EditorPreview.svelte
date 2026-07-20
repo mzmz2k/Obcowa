@@ -11,12 +11,15 @@
 
   const dispatch = createEventDispatcher();
 
-    // 生のHTMLタグをただの文字列（テキスト）としてエスケープし、巻き込み事故を防ぐ
-  const renderer = {
-      html(token: any) {
-          return token.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // Markdownを解析する「直前」に、< だけを無害な文字にすり替える
+  const hooks = {
+      preprocess(src: string) {
+          // これにより、ライブラリがHTMLタグだと勘違いして解析を放棄するのを防ぎます
+          // >（引用記号）は置換しないため、Markdownの引用機能は壊れません
+          return src.replace(/</g, "&lt;");
       }
   };
+
 
   export let activeTab: any;
   // 親(Editor.svelte)にスクロール位置を復元させるための変数をバインド(双方向通信)する
@@ -47,8 +50,29 @@
       }
   };
 
- // renderer と extensions の両方を適用する
-  marked.use({ breaks: true, renderer, extensions: [highlightExtension] });
+   // Obsidian互換の画像記法（![[...]]）をMarkdownのルールとして認識させる
+  const obsidianImageExtension = {
+      name: 'obsidianImage',
+      level: 'inline',
+      start(src: string) { return src.match(/!\[\[/)?.index; },
+      tokenizer(src: string, tokens: any) {
+          const rule = /^!\[\[([\s\S]+?)\]\]/;
+          const match = rule.exec(src);
+          if (match) {
+              return {
+                  type: 'obsidianImage',
+                  raw: match[0],
+                  filename: match[1]
+              };
+          }
+      },
+      renderer(token: any) {
+          // コンポーネント内の現在のタブパスを使って画像タグを生成
+          return generateImageHtml(token.filename, activeTab?.path || '', $imageFolderPath);
+      }
+  };
+
+marked.use({ breaks: true, hooks, extensions: [highlightExtension, obsidianImageExtension] });
 
   let fileExists = true;
   let renderedHtml = '';
@@ -59,22 +83,24 @@
   }
 
   async function checkAndRender(tab: any) {
-      // 💥 存在確認: 新規作成タブや検索タブ以外なら、Rustに聞いてみる
       if (tab.path && tab.path !== '__SEARCH__') {
           fileExists = await invoke('check_file_exists', { path: tab.path });
       } else {
           fileExists = true;
       }
 
-    if (fileExists) {
+      if (fileExists) {
           if (tab.path.endsWith('.txt')) {
               const safeText = tab.content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-              // txtファイルも念のため最後にDOMPurifyを通す
               renderedHtml = DOMPurify.sanitize(safeText.replace(/\n/g, '<br>'));
           } else {
-              // 💥 二段構え: marked で文字にエスケープ変換した後、念のため DOMPurify で浄化する
-              const rawHtml = marked(parseObsidianImages(removeFrontmatter(tab.content), tab.path));
-              renderedHtml = DOMPurify.sanitize(rawHtml as string);
+              // parseObsidianImages の事前置換をやめる（markedが自動でタグを作ってくれるため）
+              const rawHtml = marked(removeFrontmatter(tab.content));
+              
+              // DOMPurifyに、自作画像ビューワーで使っている特別なデータ属性を「消さないで」とお願いする
+              renderedHtml = DOMPurify.sanitize(rawHtml as string, {
+                  ADD_ATTR: ['data-img-filename', 'data-primary-dir', 'data-fallback-dir', 'data-cache-key']
+              });
           }
           await tick(); 
           loadImagesInDom(); 
@@ -87,11 +113,6 @@
       return content.replace(/^---\n[\s\S]*?\n---\n/, '');
   }
 
-  function parseObsidianImages(content: string, tabPath: string) {
-      return content.replace(/!\[\[(.*?)\]\]/g, (match, filename) => {
-          return generateImageHtml(filename, tabPath, $imageFolderPath);
-      });
-  }
 
   async function handlePreviewClick(event: MouseEvent) {
       const target = event.target as HTMLElement;
