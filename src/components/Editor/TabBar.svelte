@@ -3,6 +3,7 @@
   import { openTabs, activeTabId, openFileInNewTab, createNewTab, registeredTags, expandTreeRequest } from '../../lib/stores';
   import { invoke } from '@tauri-apps/api/core';
   import { Search, Plus, X, Tag, ChevronLeft, ChevronRight } from 'lucide-svelte';
+  import { extractTags, updateTagsInContent } from '../../lib/utils/tagUtils';
 
   // 親(Editor.svelte)から関数をもらって実行する（親に依存しないための工夫）
   export let handleTabClick: (id: string) => void;
@@ -28,55 +29,44 @@
 
   function closeTabMenu() { tabMenu.show = false; }
 
-  function extractTags(content: string) {
-      const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-      const tags: string[] = [];
-      if (match) {
-          const lines = match[1].split(/\r?\n/);
-          let inTags = false;
-          for (const line of lines) {
-              if (line.startsWith('tags:') || line.startsWith('tag:')) {
-                  inTags = true;
-                  const inlineStr = line.substring(line.indexOf(':') + 1).trim();
-                  if (inlineStr) { tags.push(...inlineStr.replace(/[\[\]]/g, '').split(',').map(t => t.trim()).filter(t => t)); inTags = false; }
-                  continue;
-              }
-              if (inTags) {
-                  if (line.trim().startsWith('- ')) tags.push(line.trim().substring(2).trim());
-                  else if (line.trim() !== '' && !line.startsWith(' ')) inTags = false;
-              }
-          }
-      }
-      return [...new Set(tags)];
-  }
 
-  async function operateTagForTab(tag: string, isAdd: boolean) {
+   async function operateTagForTab(tag: string, isAdd: boolean) {
       if (!tabMenu.path) { closeTabMenu(); return; }
       const tab = $openTabs.find(t => t.id === tabMenu.tabId);
       if (!tab) { closeTabMenu(); return; }
-      let content = tab.content;
-      let tags = extractTags(content);
       
-      if (isAdd) { if (tags.includes(tag)) { closeTabMenu(); return; } tags.push(tag); } 
-      else { if (!tags.includes(tag)) { closeTabMenu(); return; } tags = tags.filter(t => t !== tag); }
+      let content = tab.content;
+      
+      // tagUtils.ts の関数を使って置換
+      const newContent = updateTagsInContent(content, tag, isAdd);
 
-      const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-      if (match) {
-          let fm = match[1]; let newFmLines: string[] = []; let inTagsBlock = false; let hasTags = false;
-          for (const line of fm.split(/\r?\n/)) {
-              if (line.startsWith('tags:') || line.startsWith('tag:')) { inTagsBlock = true; hasTags = true; if (tags.length > 0) { newFmLines.push(`tags:`); tags.forEach(t => newFmLines.push(`  - ${t}`)); } continue; }
-              if (inTagsBlock) { if (line.trim().startsWith('- ') || line.trim() === '') continue; else if (!line.startsWith(' ') && line.includes(':')) inTagsBlock = false; }
-              if (!inTagsBlock) newFmLines.push(line);
-          }
-          if (!hasTags && tags.length > 0) { newFmLines.push(`tags:`); tags.forEach(t => newFmLines.push(`  - ${t}`)); }
-          content = content.replace(/^---\r?\n[\s\S]*?\r?\n---/, `---\n${newFmLines.join('\n')}\n---`);
-      } else {
-          if (tags.length > 0) { let tagsYaml = `tags:\n` + tags.map(t => `  - ${t}`).join('\n'); content = `---\n${tagsYaml}\n---\n\n${content}`; }
+      if (content === newContent) {
+          closeTabMenu(); 
+          return; 
       }
+      content = newContent;
+
       try {
-          await invoke('save_file_content', { path: tabMenu.path, content,lastModified: tab.lastModified || 0, force: true });
-          openTabs.update(tabs => { const t = tabs.find(t => t.id === tabMenu.tabId); if (t) { t.content = content; t.isDirty = false; } return tabs; });
-      } catch(err) { alert("タグの保存に失敗しました"); }
+          // 競合防止用の引数（lastModified, force）を追加
+          const newModified = await invoke('save_file_content', { 
+              path: tabMenu.path, 
+              content, 
+              lastModified: tab.lastModified || 0, 
+              force: true 
+          });
+          
+          openTabs.update(tabs => { 
+              const t = tabs.find(t => t.id === tabMenu.tabId); 
+              if (t) { 
+                  t.content = content; 
+                  t.isDirty = false;
+                  t.lastModified = newModified as number; // 💥 追加: 日時も更新
+              } 
+              return tabs; 
+          });
+      } catch(err) { 
+          alert("タグの保存に失敗しました"); 
+      }
       closeTabMenu();
   }
 </script>
