@@ -5,7 +5,6 @@ mod file_ops;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
-use tauri::{AppHandle, Manager};
 
 // 💥 ピン留め用の構造体
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -100,7 +99,8 @@ async fn search_files(
     }
 
     // 最新のワークスペース情報を取得して対象フォルダを抽出
-    let workspaces = load_workspaces(app.clone())?;
+    let workspaces = crate::file_ops::load_workspaces(app.clone())?;
+    
     if workspace_index >= workspaces.len() {
         return Err("無効なワークスペースです".into());
     }
@@ -266,105 +266,6 @@ fn check_frontmatter(content: &str, tag: &str) -> bool {
     false
 }
 
-
-#[tauri::command]
-fn load_workspaces(app: AppHandle) -> Result<Vec<Workspace>, String> {
-    let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    let path = app_data_dir.join("workspaces.json");
-
-    if !path.exists() {
-        return Ok(Vec::new()); // なければ空のリストを返す
-    }
-
-    let json = fs::read_to_string(path).map_err(|e| e.to_string())?;
-    let workspaces: Vec<Workspace> = serde_json::from_str(&json).map_err(|e| e.to_string())?;
-    Ok(workspaces)
-}
-
-#[tauri::command]
-fn read_file_content(path: String) -> Result<Vec<u8>, String> {
-    fs::read(path).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-fn read_directory(path: String) -> Result<Vec<VirtualNode>, String> {
-    let mut nodes = Vec::new();
-    let entries = fs::read_dir(path).map_err(|e| e.to_string())?;
-
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
-
-        if path.is_dir() {
-            nodes.push(VirtualNode::Folder {
-                name,
-                original_path: Some(path.to_string_lossy().into_owned()),
-                children: Vec::new(), 
-                smart_rules: None, 
-                sort_by: None,    // 💥 追加
-                sort_order: None, // 💥 追加
-            });
-        } else if path.is_file() && (path.extension().and_then(|s| s.to_str()) == Some("md") || path.extension().and_then(|s| s.to_str()) == Some("txt")) {
-            
-            // 💥 追加: メタデータから時間を取得してミリ秒に変換
-            let metadata = entry.metadata().unwrap();
-            let modified = metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH).duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
-            let created = metadata.created().unwrap_or(metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH)).duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
-
-            nodes.push(VirtualNode::File {
-                name,
-                path: path.to_string_lossy().into_owned(),
-                created,  // 💥 追加
-                modified, // 💥 追加
-            });
-        }
-    }
-
-    // フォルダが上に、ファイルが下にくるようにソート
-    nodes.sort_by(|a, b| {
-        let is_dir_a = matches!(a, VirtualNode::Folder { .. });
-        let is_dir_b = matches!(b, VirtualNode::Folder { .. });
-        is_dir_b.cmp(&is_dir_a) // true (dir) が先
-    });
-
-    Ok(nodes)
-}
-
-
-#[tauri::command]
-fn create_new_file(dir_path: String, file_name: String, insert_tag: String) -> Result<(), String> {
-    let path = std::path::Path::new(&dir_path).join(&file_name);
-    if path.exists() {
-        return Err("同じ名前のファイルがすでに存在します".into());
-    }
-    
-    // 💥 変更: リスト形式（箇条書き）でフロントマターを作成する
-    let mut content = String::new();
-    if !insert_tag.trim().is_empty() {
-        content = format!("---\ntags:\n  - {}\n---\n\n", insert_tag.trim());
-    }
-
-    std::fs::write(path, content).map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-// 💥 追加：OSの標準機能を使って直接フォルダを開く
-#[tauri::command]
-fn open_folder(path: String) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("explorer").arg(&path).spawn().map_err(|e| e.to_string())?;
-    }
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open").arg(&path).spawn().map_err(|e| e.to_string())?;
-    }
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open").arg(&path).spawn().map_err(|e| e.to_string())?;
-    }
-    Ok(())
-}
 
 // 💥 追加: ファイルのメタ情報を扱う構造体
 #[derive(Debug, Clone)]
@@ -624,44 +525,6 @@ fn check_tag_match(content: &str, target_tag: &str, match_mode: &str, include_in
     false
 }
 
-//  サブフォルダの奥深くまで再帰的にファイルを探し出す関数
-#[tauri::command]
-async fn find_image_file(dir_path: String, file_name: String) -> Result<Option<String>, String> {
-    if dir_path.trim().is_empty() {
-        return Ok(None);
-    }
-    
-    // 再帰的に探すための内部関数
-    fn find_recursive(dir: &std::path::Path, target: &str) -> Option<String> {
-        if let Ok(entries) = fs::read_dir(dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_dir() {
-                    // フォルダならさらに奥へ潜る
-                    if let Some(found) = find_recursive(&path, target) {
-                        return Some(found);
-                    }
-                } else if path.is_file() {
-                    // ファイルなら名前を比較
-                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        if name == target {
-                            return Some(path.to_string_lossy().into_owned());
-                        }
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    Ok(find_recursive(std::path::Path::new(&dir_path), &file_name))
-}
-
-// ファイルが存在するかどうかだけを判定する関数
-#[tauri::command]
-fn check_file_exists(path: String) -> bool {
-    std::path::Path::new(&path).exists()
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -672,17 +535,18 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             extract_files_by_tag,
-            file_ops::save_workspaces,
-            load_workspaces,
-            read_file_content,
-            read_directory,
-            file_ops::save_file_content,
-            create_new_file,
-            open_folder,
             evaluate_smart_folder,
             search_files,
-            find_image_file, // 新しく作った関数を登録
-            check_file_exists // 💥 追加: 忘れずに登録
+
+            file_ops::save_workspaces,
+            file_ops::load_workspaces,
+            file_ops::read_file_content,
+            file_ops::read_directory,
+            file_ops::save_file_content,
+            file_ops::create_new_file,
+            file_ops::open_folder,
+            file_ops::find_image_file,
+            file_ops::check_file_exists 
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
