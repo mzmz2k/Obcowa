@@ -38,6 +38,20 @@ pub fn atomic_write(path: &std::path::Path, content: &[u8]) -> Result<(), String
 // ファイル・ディレクトリ操作系コマンド
 // ============================================
 
+// ファイルの最終更新日時(ミリ秒)を取得するコマンド
+#[tauri::command]
+pub fn get_file_modified(path: String) -> Result<u64, String> {
+    if let Ok(metadata) = fs::metadata(&path) {
+        let modified = metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        Ok(modified)
+    } else {
+        Ok(0)
+    }
+}
+
 #[tauri::command]
 pub fn save_workspaces(app: AppHandle, workspaces: Vec<Workspace>) -> Result<(), String> {
     let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
@@ -63,9 +77,39 @@ pub fn load_workspaces(app: AppHandle) -> Result<Vec<Workspace>, String> {
     Ok(workspaces)
 }
 
+// 保存時に日時をチェックし、問題なければ新しい日時を返すように修正
 #[tauri::command]
-pub fn save_file_content(path: String, content: String) -> Result<(), String> {
-    atomic_write(std::path::Path::new(&path), content.as_bytes())
+pub fn save_file_content(path: String, content: String, last_modified: u64, force: bool) -> Result<u64, String> {
+    let path_obj = std::path::Path::new(&path);
+    
+    // 競合チェック (強制保存でない場合のみ)
+    if !force && path_obj.exists() {
+        if let Ok(metadata) = fs::metadata(path_obj) {
+            let current_mod = metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64;
+                
+            // OSによるミリ秒の微細なブレを許容するため、2秒(2000ms)以上新しければ競合とみなす
+            if last_modified > 0 && current_mod > last_modified + 2000 {
+                return Err("CONFLICT".to_string());
+            }
+        }
+    }
+
+    // アトミック書き込みを実行
+    atomic_write(path_obj, content.as_bytes())?;
+    
+    // 書き込み完了後の新しい更新日時を取得して返す
+    if let Ok(metadata) = fs::metadata(path_obj) {
+        let new_mod = metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        Ok(new_mod)
+    } else {
+        Ok(last_modified) // 取れなかった場合の保険
+    }
 }
 
 #[tauri::command]

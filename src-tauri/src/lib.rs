@@ -540,6 +540,7 @@ pub fn run() {
 
             file_ops::save_workspaces,
             file_ops::load_workspaces,
+            file_ops::get_file_modified,
             file_ops::read_file_content,
             file_ops::read_directory,
             file_ops::save_file_content,

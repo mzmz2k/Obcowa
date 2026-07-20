@@ -259,7 +259,10 @@
               catch { content = new TextDecoder('shift-jis').decode(uint8Array); }
             } catch(e) {}
           }
-          restored.push({ id: tab.id, path: tab.path, title: tab.title, content, isEditing: tab.isEditing, isDirty: false });
+          restored.push({ 
+            id: tab.id, path: tab.path, title: tab.title, content, 
+            isEditing: tab.isEditing, isDirty: false, lastModified: 0 // 💥 lastModified を追加
+          });
         }
         openTabs.set(restored);
         activeTabId.set(ws.active_tab_id || restored[0].id);

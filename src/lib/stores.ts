@@ -7,6 +7,7 @@ export interface TabData {
     content: string;
     isEditing: boolean;
     isDirty: boolean;
+    lastModified?: number; // ファイルの最終更新日時
 }
 
 export const openTabs = writable<TabData[]>([]);
@@ -49,7 +50,8 @@ export function openSearchTab() {
             title: "検索",
             content: "",
             isEditing: false,
-            isDirty: false
+            isDirty: false,
+            lastModified: 0 
         }];
     });
     activeTabId.set(newId);
@@ -91,7 +93,8 @@ export function openFileInNewTab(filePath: string, title: string, initialContent
             title,
             content: initialContent,
             isEditing: false,
-            isDirty: false
+            isDirty: false,
+            lastModified: 0
         }];
     });
     activeTabId.set(newId);
@@ -107,7 +110,8 @@ export function createNewTab() {
             title: "無題のファイル", 
             content: "", 
             isEditing: true, 
-            isDirty: true 
+            isDirty: true,
+            lastModified: 0
         }];
     });
     activeTabId.set(newId);

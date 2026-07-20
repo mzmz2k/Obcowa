@@ -2,6 +2,7 @@
 <script lang="ts">
     import { openTabs, activeTabId, currentWorkspaceIndex, openFileInNewTab, switchTab, closeTab, editorFont } from '$lib/stores';
     import { invoke } from '@tauri-apps/api/core';
+    import { confirm as tauriConfirm } from '@tauri-apps/plugin-dialog'; 
     import { tick } from 'svelte';
     import { Inbox } from 'lucide-svelte';
     
@@ -20,12 +21,45 @@
     let editArea: HTMLTextAreaElement;
     let scrollRatio = 0;
 
+        // タブが開かれた時に、ファイルの最新日時を取得する
+    $: if (activeTab && activeTab.path && activeTab.path !== '__SEARCH__' && activeTab.lastModified === 0) {
+        invoke('get_file_modified', { path: activeTab.path }).then((modified) => {
+            openTabs.update(tabs => {
+                const t = tabs.find(t => t.id === activeTab!.id);
+                if (t) t.lastModified = modified as number;
+                return tabs;
+            });
+        }).catch(() => {});
+    }
+
+   // 保存時に競合チェックを行い、エラーならダイアログを出す
     async function saveCurrentTab() {
         if (activeTab && activeTab.isDirty && activeTab.path && activeTab.path !== '__SEARCH__') {
             try {
-                await invoke('save_file_content', { path: activeTab.path, content: activeTab.content });
-                openTabs.update(tabs => { const t = tabs.find(t => t.id === activeTab!.id); if (t) t.isDirty = false; return tabs; });
-            } catch (e) {}
+                // lastModifiedを渡し、force=false で保存を試みる
+                const newModified = await invoke('save_file_content', { 
+                    path: activeTab.path, 
+                    content: activeTab.content,
+                    lastModified: activeTab.lastModified || 0,
+                    force: false
+                });
+                openTabs.update(tabs => { 
+                    const t = tabs.find(t => t.id === activeTab!.id); 
+                    if (t) { t.isDirty = false; t.lastModified = newModified as number; } 
+                    return tabs; 
+                });
+            } catch (e) {
+                if (e === "CONFLICT") {
+                    const yes = await tauriConfirm("このファイルは他のアプリ（Obsidian等）によって外部で変更されています。上書き保存してよろしいですか？\n（キャンセルすると保存されません）", { title: "競合の確認", kind: "warning" });
+                    if (yes) {
+                        // 強制上書き (force=true)
+                        const newModified = await invoke('save_file_content', { path: activeTab.path, content: activeTab.content, lastModified: activeTab.lastModified || 0, force: true });
+                        openTabs.update(tabs => { const t = tabs.find(t => t.id === activeTab!.id); if (t) { t.isDirty = false; t.lastModified = newModified as number; } return tabs; });
+                    } else {
+                        // 保存をあきらめる（Dirty状態を維持するかはお好みで。今回はそのまま）
+                    }
+                }
+            }
         }
     }
 
@@ -39,11 +73,35 @@
         switchTab(tabId);
     }
 
-    async function handleTabClose(tabId: string) {
+   async function handleTabClose(tabId: string) {
         const tab = $openTabs.find(t => t.id === tabId);
         if (tab && tab.isDirty && tab.path && tab.path !== '__SEARCH__') {
-            try { await invoke('save_file_content', { path: tab.path, content: tab.content }); } catch (e) {}
+            try { 
+                // まず通常通り (force: false) で保存を試みる
+                await invoke('save_file_content', { 
+                    path: tab.path, 
+                    content: tab.content, 
+                    lastModified: tab.lastModified || 0, 
+                    force: false 
+                }); 
+            } catch (e) {
+                if (e === "CONFLICT") {
+                    // 💥 競合した場合は警告を出す
+                    const yes = await tauriConfirm(
+                        "このファイルは他のアプリによって外部で変更されています。\nあなたの編集内容で上書き保存してタブを閉じますか？\n（キャンセルすると保存せず、タブも開いたままにします）", 
+                        { title: "競合の確認", kind: "warning" }
+                    );
+                    if (yes) {
+                        // 「はい」を選んだら強制上書き
+                        try { await invoke('save_file_content', { path: tab.path, content: tab.content, lastModified: tab.lastModified || 0, force: true }); } catch (e) {}
+                    } else {
+                        // 💥 「キャンセル」を選んだらここで処理を中断し、タブを閉じない
+                        return;
+                    }
+                }
+            }
         }
+        // 競合がなかった場合、または上書きに同意した場合のみタブを閉じる
         closeTab(tabId);
     }
 
