@@ -74,7 +74,7 @@
           if (tags.length > 0) { let tagsYaml = `tags:\n` + tags.map(t => `  - ${t}`).join('\n'); content = `---\n${tagsYaml}\n---\n\n${content}`; }
       }
       try {
-          await invoke('save_file_content', { path: tabMenu.path, content });
+          await invoke('save_file_content', { path: tabMenu.path, content,lastModified: tab.lastModified || 0, force: true });
           openTabs.update(tabs => { const t = tabs.find(t => t.id === tabMenu.tabId); if (t) { t.content = content; t.isDirty = false; } return tabs; });
       } catch(err) { alert("タグの保存に失敗しました"); }
       closeTabMenu();
