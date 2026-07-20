@@ -1,6 +1,8 @@
-// --- START OF src/lib/imageViewer.ts ---
+// --- START OF src/lib/editor/imageViewer.ts ---
 import { invoke } from '@tauri-apps/api/core';
 
+// 💥 追加: メモリに保持する画像の最大数（これを超えると古いものから破棄される）
+const MAX_CACHE_SIZE = 50; 
 const imageBlobCache = new Map<string, string>();
 
 /**
@@ -11,22 +13,13 @@ export function generateImageHtml(filenameWithOpts: string, activeTabPath: strin
 
     const parts = filenameWithOpts.split('|');
     const rawFilename = parts[0].trim();
-    // フォルダ指定付き（sub/image.pngなど）で書かれていても、純粋なファイル名だけを抽出する
     const filename = rawFilename.split(/[/\\]/).pop() || rawFilename;
     const sizeAttr = parts.length > 1 ? ` width="${parts[1].trim()}"` : ' class="max-w-full h-auto"';
 
-    // 探索の起点となる元のフォルダ
     const parentDir = activeTabPath.replace(/\\/g, '/').replace(/\/[^\/]+$/, '');
-    
-    // キャッシュキー
     const cacheKey = imageFolderPath ? `${imageFolderPath}/${filename}` : `${parentDir}/${filename}`;
 
-    if (imageBlobCache.has(cacheKey)) {
-        return `<img src="${imageBlobCache.get(cacheKey)}" alt="${filename}"${sizeAttr} style="border-radius: 4px; display: inline-block; margin: 0.5rem 0;" />`;
-    }
-
-    // パスではなく、「探すべきファイル名」と「探すべきディレクトリ」を目印として埋め込む
-    return `<img data-img-filename="${filename}" data-primary-dir="${imageFolderPath}" data-fallback-dir="${parentDir}" data-cache-key="${cacheKey}" alt="${filename} (読込中...)"${sizeAttr} style="border-radius: 4px; display: inline-block; margin: 0.5rem 0; min-height: 40px; min-width: 40px; background-color: rgba(0,0,0,0.1);" />`;
+    return `<img data-img-filename="${filename}" data-primary-dir="${imageFolderPath}" data-fallback-dir="${parentDir}" data-cache-key="${cacheKey}" alt="${filename}"${sizeAttr} style="border-radius: 4px; display: inline-block; margin: 0.5rem 0; min-height: 40px; min-width: 40px; background-color: rgba(0,0,0,0.1);" />`;
 }
 
 /**
@@ -43,7 +36,12 @@ export async function loadImagesInDom() {
         if (!filename || !cacheKey) continue;
 
         if (imageBlobCache.has(cacheKey)) {
-            img.setAttribute('src', imageBlobCache.get(cacheKey)!);
+            // 💥 追加: 使われた画像を「最新」として扱うため、一度消して一番後ろに再登録する
+            const cachedUrl = imageBlobCache.get(cacheKey)!;
+            imageBlobCache.delete(cacheKey);
+            imageBlobCache.set(cacheKey, cachedUrl);
+
+            img.setAttribute('src', cachedUrl);
             img.removeAttribute('data-img-filename');
             continue;
         }
@@ -51,18 +49,15 @@ export async function loadImagesInDom() {
         try {
             let foundPath: string | null = null;
 
-            // 1. まず優先フォルダ（設定フォルダ）の奥深くまで探す
             if (primaryDir) {
                 foundPath = await invoke('find_image_file', { dirPath: primaryDir, fileName: filename });
             }
             
-            // 2. 見つからなければ、元のファイル階層の奥深くまで探す
             if (!foundPath && fallbackDir) {
                 foundPath = await invoke('find_image_file', { dirPath: fallbackDir, fileName: filename });
             }
 
             if (foundPath) {
-                // 発見した絶対パスを使って画像を読み込む
                 const bytes: number[] = await invoke('read_file_content', { path: foundPath });
                 setImageData(img, cacheKey, bytes);
             } else {
@@ -77,7 +72,20 @@ export async function loadImagesInDom() {
 
 // 読み込んだバイナリデータを画面に反映させる補助関数
 function setImageData(img: Element, cacheKey: string, bytes: number[]) {
-    // MIMEタイプの推測は仮置き（ブラウザは中身で判別してくれるためoctet-streamでも表示されます）
+    // 💥 変更: oldestKey が undefined ではないことをVSCodeに保証する書き方に変更
+    if (imageBlobCache.size >= MAX_CACHE_SIZE) {
+        const oldestKey = imageBlobCache.keys().next().value;
+        
+        // oldestKey がちゃんと文字列として取れた場合のみ削除処理を行う
+        if (oldestKey !== undefined) {
+            const oldestUrl = imageBlobCache.get(oldestKey);
+            if (oldestUrl) {
+                URL.revokeObjectURL(oldestUrl);
+            }
+            imageBlobCache.delete(oldestKey);
+        }
+    }
+
     const blob = new Blob([new Uint8Array(bytes)], { type: 'application/octet-stream' });
     const blobUrl = URL.createObjectURL(blob);
     
@@ -88,15 +96,4 @@ function setImageData(img: Element, cacheKey: string, bytes: number[]) {
     img.removeAttribute('data-fallback-dir');
     img.removeAttribute('data-cache-key');
 }
-
-export function resetImageCache(activeTabPath: string, imageFolderPath: string = '') {
-    const parentDir = activeTabPath.replace(/\\/g, '/').replace(/\/[^\/]+$/, '');
-    const imgDir = imageFolderPath ? imageFolderPath.replace(/\\/g, '/') : parentDir;
-
-    for (const [key, url] of imageBlobCache.entries()) {
-        if (key.startsWith(parentDir) || key.startsWith(imgDir)) {
-            URL.revokeObjectURL(url);
-            imageBlobCache.delete(key);
-        }
-    }
-}
+// --- END OF src/lib/editor/imageViewer.ts ---

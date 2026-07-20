@@ -10,7 +10,6 @@
     import TabBar from './TabBar.svelte';
     import EditorPreview from './EditorPreview.svelte';
     import EditorSearch from './EditorSearch.svelte';
-    import { resetImageCache } from '../../lib/editor/imageViewer';
     import { imageFolderPath } from '../../lib/stores';
 
     $: activeTab = $openTabs.find(t => t.id === $activeTabId);
@@ -34,7 +33,6 @@
         clearTimeout(saveTimeout);
         await saveCurrentTab();
         const nextTab = $openTabs.find(t => t.id === tabId);
-        if (nextTab && nextTab.path) resetImageCache(nextTab.path, $imageFolderPath);
 
         scrollRatio = 0; // 別のタブを開いた時に前回のスクロール位置を引き継がないようリセットする
 
