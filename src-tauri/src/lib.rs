@@ -263,6 +263,40 @@ fn check_frontmatter(content: &str, tag: &str) -> bool {
     false
 }
 
+// 安全にファイルを保存するアトミック書き込み関数
+fn atomic_write(path: &std::path::Path, content: &[u8]) -> Result<(), String> {
+    let dir = path.parent().unwrap_or_else(|| std::path::Path::new(""));
+    let file_name = path.file_name().unwrap_or_default().to_string_lossy();
+    
+    // 他の保存処理と被らないようにタイムスタンプ付きの一時ファイル名を生成
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_micros();
+    let tmp_path = dir.join(format!(".~tmp_{}_{}", timestamp, file_name));
+
+    // 1. 一時ファイルに書き込み
+    let mut file = std::fs::File::create(&tmp_path).map_err(|e| e.to_string())?;
+    if let Err(e) = std::io::Write::write_all(&mut file, content) {
+        let _ = std::fs::remove_file(&tmp_path);
+        return Err(e.to_string());
+    }
+    
+    // 2. OSのバッファを強制的にストレージへ書き込む（ここで強制終了しても元のファイルは壊れない）
+    if let Err(e) = file.sync_all() {
+        let _ = std::fs::remove_file(&tmp_path);
+        return Err(e.to_string());
+    }
+
+    // 3. 一時ファイルを本来のファイル名へリネーム（OSレベルで安全に上書きされる）
+    if let Err(e) = std::fs::rename(&tmp_path, path) {
+        let _ = std::fs::remove_file(&tmp_path);
+        return Err(e.to_string());
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 fn save_workspaces(app: AppHandle, workspaces: Vec<Workspace>) -> Result<(), String> {
     // OS標準のアプリデータ保存場所を取得
@@ -271,8 +305,9 @@ fn save_workspaces(app: AppHandle, workspaces: Vec<Workspace>) -> Result<(), Str
 
     let path = app_data_dir.join("workspaces.json");
     let json = serde_json::to_string(&workspaces).map_err(|e| e.to_string())?;
-    fs::write(path, json).map_err(|e| e.to_string())?;
-    Ok(())
+
+    // アトミック書き込みを使用
+    atomic_write(&path, json.as_bytes())
 }
 
 #[tauri::command]
@@ -340,7 +375,8 @@ fn read_directory(path: String) -> Result<Vec<VirtualNode>, String> {
 
 #[tauri::command]
 fn save_file_content(path: String, content: String) -> Result<(), String> {
-    std::fs::write(path, content).map_err(|e| e.to_string())
+    // アトミック書き込みを使用
+    atomic_write(std::path::Path::new(&path), content.as_bytes())
 }
 
 #[tauri::command]
@@ -698,4 +734,32 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+//testコード
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_atomic_write() {
+        // OSの一時ディレクトリを利用
+        let temp_dir = std::env::temp_dir();
+        let target_file = temp_dir.join("obcowa_test_file.md");
+
+        let content = b"Test Content! Hello Rust.";
+        
+        // 保存実行
+        let result = atomic_write(&target_file, content);
+        assert!(result.is_ok(), "アトミック書き込みに失敗しました");
+
+        // 実際に保存されているか確認
+        let saved_content = fs::read(&target_file).expect("ファイルが読み込めません");
+        assert_eq!(saved_content, content, "保存された内容が一致しません");
+
+        // テスト用ファイルのお掃除
+        let _ = fs::remove_file(&target_file);
+    }
 }
