@@ -183,7 +183,6 @@
     }
     content = newContent;
 
-    // 💥 削除: ここにあった match 等の巨大な文字列置換ロジック（約45行）をまるごと削除します
 
     // 保存処理
     try {
@@ -295,7 +294,8 @@
 
         <hr class="border-black/10 my-1">
 
-        <!-- 💥 追加: タグ挿入サブメニュー -->
+        <!-- タグ挿入サブメニュー -->
+        <div class="relative group/tagadd">
           <button class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition flex justify-between items-center">
             <span class="flex items-center"><Tag size={14} class="mr-2" /> タグを挿入</span>
             <ChevronRight size={14} />
@@ -309,6 +309,7 @@
               <div class="px-4 py-1.5 text-sm opacity-50">タグ未登録</div>
             {/each}
           </div>
+        </div>
         
 
         <!-- 💥 追加: タグ削除サブメニュー -->
