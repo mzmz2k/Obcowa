@@ -186,12 +186,20 @@
 
     // 保存処理
     try {
-      await invoke('save_file_content', { path: node.path, content });
+      // 引数に lastModified と force を追加
+      const newModified = await invoke('save_file_content', { 
+        path: node.path, 
+        content,
+        lastModified: 0, // ツリーからの直接操作なので0でOK
+        force: true      // ユーザーの明示的な操作なので強制上書き
+      });
+      
       openTabs.update(tabs => {
         const tab = tabs.find(t => t.path === node.path);
         if (tab) {
           tab.content = content;
           tab.isDirty = false;
+          tab.lastModified = newModified as number; // タブを開いていた場合は日時も更新
         }
         return tabs;
       });
