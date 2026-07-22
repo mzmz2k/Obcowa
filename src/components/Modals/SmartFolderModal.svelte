@@ -16,6 +16,7 @@
   let sfMatch = 'AND';
   let sfKeep = true;
   let sfConds: any[] = [];
+  let sfDropMode = 'shortcut';
 
   // 💥 モーダルが開かれた瞬間に、新規作成か編集かを判定して初期化する
 // 💥 変更: 直前の「開いていたか」の状態を記憶する変数を追加
@@ -30,6 +31,7 @@
         sfTargetWorkspace = editingSmartNode.smart_rules.target_workspace || false;
         sfMatch = editingSmartNode.smart_rules.match_type;
         sfKeep = editingSmartNode.smart_rules.keep_structure;
+        sfDropMode = editingSmartNode.drop_mode || 'shortcut'; 
         
         sfConds = JSON.parse(JSON.stringify(editingSmartNode.smart_rules.conditions));
         sfConds.forEach((c: any) => {
@@ -81,7 +83,7 @@
       });
       
       // 親に「抽出完了したから、このデータでツリーを更新して！」と投げる
-      dispatch('save', { name: sfName, rules, children });
+      dispatch('save', { name: sfName, rules, children, drop_mode: sfDropMode }); //
       isOpen = false;
     } catch (e) { 
       alert("抽出に失敗しました: " + e); 
@@ -157,6 +159,14 @@
       <label class="flex items-center text-sm cursor-pointer mb-6">
         <input type="checkbox" bind:checked={sfKeep} class="mr-2 accent-[var(--accent-color)]"> 抽出したものの元のフォルダ構成を維持する
       </label>
+            <!-- ドロップ時の動作設定 -->
+      <div class="mb-6">
+        <label class="block text-sm font-bold mb-2">ファイルを追加（ドロップ）したときの動作</label>
+        <select class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={sfDropMode}>
+          <option value="shortcut">ショートカットとして追加（元の場所にも残す）</option>
+          <option value="filter">非表示フィルタ仕様（元の場所から隠す）</option>
+        </select>
+      </div>
 
       <div class="flex justify-end gap-2">
         <button class="px-4 py-2 bg-black/10 hover:bg-black/20 rounded text-sm transition" on:click={() => isOpen = false}>キャンセル</button>

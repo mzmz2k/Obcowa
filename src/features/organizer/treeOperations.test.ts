@@ -2,27 +2,28 @@ import { describe, it, expect } from 'vitest';
 import { moveNode } from './treeOperations';
 
 describe('treeOperations - moveNode', () => {
-  it('ノードが指定フォルダへ正しく移動できること', () => {
-    const fileNode = { type: 'File', name: 'test.md' };
+  it('ショートカットモード: 元の場所を残して追加されること', () => {
+    const fileNode = { type: 'File', name: 'test.md', path: 'test.md' };
     const dropFolder = { type: 'Folder', name: 'Organizer', children: [] };
     const sourceFolder = { type: 'Folder', name: 'Source', children: [fileNode] };
     const tree = [sourceFolder, dropFolder];
 
-    const newTree = moveNode(tree, fileNode, dropFolder);
+    const newTree = moveNode(tree, fileNode, dropFolder, false); // isFilterMode = false
 
-    expect(newTree[0].children.length).toBe(0); // Sourceからは消える
-    expect(newTree[1].children.length).toBe(1); // Organizerに追加される
-    expect(newTree[1].children[0]).toBe(fileNode);
+    expect(newTree[0].children.length).toBe(1); // Sourceに残る
+    expect(newTree[1].children.length).toBe(1); // Organizerにも追加
+    expect(newTree[1].children[0].is_manual).toBe(true);
   });
 
-  it('循環参照になる移動（親を子に入れる）は無視されること', () => {
-    const childFolder = { type: 'Folder', name: 'Child', children: [] };
-    const parentFolder = { type: 'Folder', name: 'Parent', children: [childFolder] };
-    const tree = [parentFolder];
+  it('フィルタモード: 元の場所から消えて追加されること', () => {
+    const fileNode = { type: 'File', name: 'test.md', path: 'test.md' };
+    const dropFolder = { type: 'Folder', name: 'Organizer', children: [] };
+    const sourceFolder = { type: 'Folder', name: 'Source', children: [fileNode] };
+    const tree = [sourceFolder, dropFolder];
 
-    const newTree = moveNode(tree, parentFolder, childFolder);
-    
-    // 構造が変わっていないことを確認
-    expect(newTree).toEqual(tree);
+    const newTree = moveNode(tree, fileNode, dropFolder, true); // isFilterMode = true
+
+    expect(newTree[0].children.length).toBe(0); // Sourceから消える
+    expect(newTree[1].children.length).toBe(1); // Organizerに追加
   });
 });

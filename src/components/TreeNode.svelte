@@ -12,8 +12,7 @@
   import { draggingNode } from '../lib/stores'; 
   import { FolderSearch } from 'lucide-svelte';
 
-  //  moveWorkspaceNode を追加で受け取る
-  const { moveWorkspaceNode } = getContext('workspaceActions') as any;
+  const { moveWorkspaceNode, changeDropMode } = getContext('workspaceActions') as any;
 
   export let node: any;
   // isReadonly を削除し、親から引き継ぐ情報に変更
@@ -164,6 +163,7 @@
     showMenu = true;
     menuX = e.clientX;
     menuY = adjustedY;
+    e.stopPropagation(); // 背景の右クリックイベントと衝突させないため
   }
 
   // 💥 追加: ファイルの中身を取得（タブで開いていればタブの未保存データ、なければ実際のファイルから）
@@ -268,8 +268,7 @@
   }
 
   function handleDragOver(e: DragEvent) {
-    // 自分自身や、整理用フォルダ以外へのドロップは禁止
-    if (node.type === 'Folder' && node.is_organizer && $draggingNode && $draggingNode !== node) {
+    if (node.type === 'Folder' && (node.is_organizer || node.smart_rules) && $draggingNode && $draggingNode !== node) {
       e.preventDefault();
       if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
     }
@@ -278,9 +277,9 @@
   function handleDrop(e: DragEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (node.type === 'Folder' && node.is_organizer && $draggingNode && $draggingNode !== node) {
+    if (node.type === 'Folder' && (node.is_organizer || node.smart_rules) && $draggingNode && $draggingNode !== node) {
       moveWorkspaceNode($draggingNode, node);
-      $draggingNode = null; // ドロップ完了後にリセット
+      $draggingNode = null;
     }
   }
 
@@ -306,13 +305,15 @@
     on:dragstart={handleDragStart}
     on:dragover={handleDragOver}
     on:drop={handleDrop}
-    on:dragend={handleDragEnd}
+    on:dragend={() => $draggingNode = null}
   >
     <span class="mr-1.5 flex items-center justify-center w-4">
       {#if node.type === 'Folder'}
         <!-- 💥 変更: スマートフォルダのアイコンを FolderSearch に変更 -->
         {#if node.is_virtual_wrapper}
           <Library size={14} />
+          {:else if node.smart_rules}
+          <FolderSearch size={14} />
         {:else if node.smart_rules}
           <FolderSearch size={14} />
         {:else}
@@ -473,11 +474,32 @@
             <ExternalLink size={14} class="mr-2" /> エクスプローラーで開く
           </button>
         {/if}
+          <!-- 整理用フォルダの場合のドロップ動作設定メニュー -->
+      {#if node.is_organizer}
+        <div class="px-4 py-2 text-xs font-bold text-gray-400">ドロップ時の動作</div>
+        <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10 transition" on:click={() => { changeDropMode(node, 'shortcut'); closeMenu(); }}>
+          <span class="inline-block w-4">{node.drop_mode !== 'filter' ? '✓' : ''}</span>ショートカットとして追加
+        </button>
+        <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10 transition" on:click={() => { changeDropMode(node, 'filter'); closeMenu(); }}>
+          <span class="inline-block w-4">{node.drop_mode === 'filter' ? '✓' : ''}</span>元の場所から隠す（フィルタ）
+        </button>
+        <hr class="border-black/10 my-1">
+      {/if}
+
       {/if}
 
       <!-- 💥 仮想のガワ以外なら表示 -->
       {#if !node.is_virtual_wrapper}
-
+     <!-- 💥 整理用フォルダ専用の削除ボタン -->
+      {#if node.is_organizer}
+        <button 
+          class="flex items-center w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-black/10 transition"
+          on:click={() => { removeNode(node, ownerId); closeMenu(); }}
+        >
+          整理用フォルダを削除
+        </button>
+        <hr class="border-black/10 my-1">
+      {/if}
         <!-- 💥 追加: ライブラリに登録 (現在のワークスペースのノードのみ表示) -->
         {#if !isLibraryNode}
           <div class="relative group/library">
