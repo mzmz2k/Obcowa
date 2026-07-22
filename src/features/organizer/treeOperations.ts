@@ -46,3 +46,36 @@ export function moveNode(nodes: any[], dragNode: any, dropFolder: any, isFilterM
   // ドロップ先へ追加
   return addNodeToFolder(newNodes, dropFolder, clonedNode);
 }
+
+// ノードを特定のノードの前後に追加（兄弟として）
+export function insertNodeAdjacent(nodes: any[], targetNode: any, nodeToAdd: any, position: 'before' | 'after'): any[] {
+  let result: any[] = [];
+  for (const n of nodes) {
+    if (n === targetNode) {
+      if (position === 'before') result.push(nodeToAdd);
+      result.push(n);
+      if (position === 'after') result.push(nodeToAdd);
+    } else {
+      if (n.children) {
+        result.push({ ...n, children: insertNodeAdjacent(n.children, targetNode, nodeToAdd, position) });
+      } else {
+        result.push(n);
+      }
+    }
+  }
+  return result;
+}
+
+// ツリーの中から特定のノードの親フォルダを探す
+export function findParentFolder(nodes: any[], targetNode: any): any {
+  for (const n of nodes) {
+    if (n.children && n.children.includes(targetNode)) {
+      return n;
+    }
+    if (n.children) {
+      const found = findParentFolder(n.children, targetNode);
+      if (found) return found;
+    }
+  }
+  return null;
+}

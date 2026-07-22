@@ -88,12 +88,16 @@
       }
   }
 
-  // 💥 追加: 現在のソート設定（個別設定があれば優先、なければ全体設定）を計算し、常にソートされた配列を作る
+  // 現在のソート設定（個別設定があれば優先、なければ全体設定）を計算し、常にソートされた配列を作る
   $: globalSort = getGlobalSort();
-  $: sortBy = node.sort_by || globalSort.by;
-  $: sortOrder = node.sort_order || globalSort.order;
+  
+  // 何も指定されていない時のデフォルトを 'manual' にする
+  $: sortBy = node.sort_by || globalSort.by || 'manual';
+  $: sortOrder = node.sort_order || globalSort.order || 'asc';
 
   $: sortedChildren = [...(node.children || [])].sort((a, b) => {
+    if (sortBy === 'manual') return 0; // 手動ソートの場合は配列の順番をそのまま使う
+
     const isDirA = a.type === 'Folder';
     const isDirB = b.type === 'Folder';
     if (isDirA !== isDirB) return isDirA ? -1 : 1;
@@ -257,7 +261,17 @@
     }
   }
 
-    // ドラッグ＆ドロップ用のハンドラ
+  // ドラッグ＆ドロップイベント
+
+  let dropPosition: 'before' | 'inside' | 'after' | null = null;
+  let dragHover = false;
+
+  function isDescendant(parent: any, target: any): boolean {
+    if (!parent.children) return false;
+    if (parent.children.includes(target)) return true;
+    return parent.children.some((c: any) => isDescendant(c, target));
+  }
+
   function handleDragStart(e: DragEvent) {
     e.stopPropagation();
     $draggingNode = node;
@@ -268,24 +282,43 @@
   }
 
   function handleDragOver(e: DragEvent) {
-    if (node.type === 'Folder' && (node.is_organizer || node.smart_rules) && $draggingNode && $draggingNode !== node) {
-      e.preventDefault();
-      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    if (!$draggingNode || $draggingNode === node || isDescendant($draggingNode, node)) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+
+    // マウス位置からドロップ位置（上・中・下）を計算
+    const rect = nodeElement.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    
+    if (y < rect.height * 0.25) {
+      dropPosition = 'before';
+    } else if (y > rect.height * 0.75) {
+      dropPosition = 'after';
+    } else {
+      if (node.type === 'Folder') dropPosition = 'inside';
+      else dropPosition = y < rect.height * 0.5 ? 'before' : 'after'; // ファイルには中に入れられない
     }
+    dragHover = true;
+  }
+
+  function handleDragLeave() {
+    dragHover = false;
+    dropPosition = null;
   }
 
   function handleDrop(e: DragEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (node.type === 'Folder' && (node.is_organizer || node.smart_rules) && $draggingNode && $draggingNode !== node) {
-      moveWorkspaceNode($draggingNode, node);
-      $draggingNode = null;
-    }
+    dragHover = false;
+    if (!$draggingNode || !dropPosition || $draggingNode === node) return;
+    
+    moveWorkspaceNode($draggingNode, node, dropPosition);
+    $draggingNode = null;
+    dropPosition = null;
   }
 
-  function handleDragEnd() {
-    $draggingNode = null;
-  }
 </script>
 
 <svelte:window on:click={closeMenu} />
@@ -296,14 +329,18 @@
   <!-- 💥 isActive のときに背景色を青っぽくする -->
   <div 
     bind:this={nodeElement}
-    class="flex items-center p-1 rounded text-sm cursor-pointer select-none transition-colors 
-           {isActive ? 'font-bold' : 'hover:opacity-70'}"
-    style="{isActive ? 'background-color: var(--active-highlight-bg); color: var(--text-color);' : 'background-color: transparent; color: inherit;'}"
+      class="flex items-center p-1 rounded text-sm cursor-pointer select-none transition-colors 
+           {isActive ? 'font-bold' : 'hover:opacity-70'}
+           {dragHover && dropPosition === 'inside' ? 'ring-2 ring-[var(--accent-color)] bg-black/10' : ''}"
+    style="{isActive ? 'background-color: var(--active-highlight-bg); color: var(--text-color);' : 'background-color: transparent; color: inherit;'}
+           {dragHover && dropPosition === 'before' ? 'border-t-2 border-[var(--accent-color)]' : ''}
+           {dragHover && dropPosition === 'after' ? 'border-b-2 border-[var(--accent-color)]' : ''}"
+    draggable={!node.is_virtual_wrapper} 
     on:click={handleClick}
     on:contextmenu={handleContextMenu}
-    draggable={!node.is_virtual_wrapper} 
     on:dragstart={handleDragStart}
     on:dragover={handleDragOver}
+    on:dragleave={handleDragLeave}
     on:drop={handleDrop}
     on:dragend={() => $draggingNode = null}
   >
@@ -444,6 +481,9 @@
           </button>
           
           <div class="absolute left-full top-0 hidden group-hover/sort:block border border-black/20 rounded shadow-xl py-1 w-36 -ml-1" style="background-color: var(--menu-bg);">
+            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10" on:click={() => { setNodeSort(node, 'manual', sortOrder); closeMenu(); }}>
+              <span class="inline-block w-4">{sortBy === 'manual' ? '✓' : ''}</span>手動
+            </button>
             <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10" on:click={() => { setNodeSort(node, sortBy, 'asc'); closeMenu(); }}>
               <span class="inline-block w-4">{sortOrder !== 'desc' ? '✓' : ''}</span>昇順
             </button>

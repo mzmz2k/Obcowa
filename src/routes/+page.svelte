@@ -18,7 +18,7 @@
   import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, imageFolderPath } from '../lib/stores';
   import { cloneNodeAsIndependent } from '../lib/library';
   import { Pin, X, Menu, SquarePen, Settings, Library, Archive, Link } from 'lucide-svelte';
-  import { moveNode } from '../features/organizer/treeOperations';
+  import { moveNode, insertNodeAdjacent, findParentFolder, removeNodeFromTree, addNodeToFolder } from '../features/organizer/treeOperations';
 
  
 
@@ -141,13 +141,21 @@
       alert(`ライブラリ「${targetLib.name}」に登録しました`);
     },
         // 💥 追加: ノードの移動（ドロップ）処理
-    moveWorkspaceNode: (dragNode: any, dropFolder: any) => {
-      const mode = dropFolder.drop_mode || 'shortcut';
-      const isFilterMode = mode === 'filter';
+   moveWorkspaceNode: (dragNode: any, targetNode: any, position: 'before' | 'after' | 'inside') => {
       const ws = workspaces[currentIndex];
       
-      // 非表示フィルタ仕様の場合、ワークスペースの非表示リストに追加する
-      if (isFilterMode) {
+      // ドロップ先の親フォルダを取得（insideならtargetNode自身）
+      const dropFolder = position === 'inside' ? targetNode : findParentFolder(ws.nodes, targetNode);
+      const mode = dropFolder?.drop_mode || 'shortcut';
+      const isFilterMode = mode === 'filter';
+      
+      // 移動元から消すかどうかの判定
+      let shouldRemoveFromSource = true;
+      if (dropFolder?.is_organizer && mode === 'shortcut') {
+        shouldRemoveFromSource = false; // ショートカット仕様の整理用フォルダに入れる場合は元から消さない
+      }
+
+      if (shouldRemoveFromSource && isFilterMode) {
         const targetPath = dragNode.type === 'Folder' ? dragNode.original_path : dragNode.path;
         if (targetPath) {
           if (!ws.hidden_paths) ws.hidden_paths = [];
@@ -155,7 +163,27 @@
         }
       }
 
-      ws.nodes = moveNode(ws.nodes, dragNode, dropFolder, isFilterMode);
+      // クローンを作成
+      const clonedNode = JSON.parse(JSON.stringify(dragNode));
+      clonedNode.is_manual = true;
+
+      // 新しい配列を構築
+      let newNodes = ws.nodes;
+      if (shouldRemoveFromSource) {
+        newNodes = removeNodeFromTree(newNodes, dragNode);
+      }
+      if (position === 'inside') {
+        newNodes = addNodeToFolder(newNodes, targetNode, clonedNode);
+      } else {
+        newNodes = insertNodeAdjacent(newNodes, targetNode, clonedNode, position);
+      }
+
+      ws.nodes = newNodes;
+      
+      // ユーザーが手動で並び替えたので、ソート設定を自動で「手動」に切り替える
+      if (!dropFolder) ws.sort_by = 'manual';
+      else dropFolder.sort_by = 'manual';
+
       workspaces = [...workspaces];
       saveData(true);
     },
@@ -416,7 +444,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 </script>
 
 <!-- on:click の中から `isAddFolderMenuOpen = false; isGlobalSortMenuOpen = false;` を削除しました（子部品の中で処理するため） -->
-<svelte:window on:mousemove={doResize} on:mouseup={stopResize} on:click={() => { isListMenuOpen = false; }} />
+<svelte:window on:mousemove={doResize} on:mouseup={stopResize} on:click={() => { closeSidebarMenu(); }} />
 
 <main class="h-screen w-screen flex select-none transition-colors duration-200"
       style="background-color: var(--bg-color); color: var(--text-color);">
