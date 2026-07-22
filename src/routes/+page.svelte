@@ -18,6 +18,7 @@
   import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, imageFolderPath } from '../lib/stores';
   import { cloneNodeAsIndependent } from '../lib/library';
   import { Pin, X, Menu, SquarePen, Settings, Library, Archive, Link } from 'lucide-svelte';
+  import { moveNode } from '../features/organizer/treeOperations';
 
  
 
@@ -138,6 +139,28 @@
       workspaces = [...workspaces];
       await saveData(true);
       alert(`ライブラリ「${targetLib.name}」に登録しました`);
+    },
+
+       // 整理用フォルダの作成ロジック
+    createOrganizerFolder: (name: string) => {
+      const newNode = {
+        type: 'Folder',
+        name,
+        original_path: null,
+        children: [],
+        is_organizer: true
+      };
+      workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, newNode];
+      workspaces = [...workspaces];
+      saveData(true);
+    },
+    // ツリー内のノード移動
+    moveWorkspaceNode: (dragNode: any, dropFolder: any) => {
+      // 整理用フォルダ以外にはドロップさせない
+      if (dropFolder.type !== 'Folder' || !dropFolder.is_organizer) return;
+      workspaces[currentIndex].nodes = moveNode(workspaces[currentIndex].nodes, dragNode, dropFolder);
+      workspaces = [...workspaces];
+      saveData(true);
     }
 
   });

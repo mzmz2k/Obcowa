@@ -210,11 +210,14 @@ pub enum VirtualNode {
         children: Vec<VirtualNode>,
         #[serde(default)]
         smart_rules: Option<SmartRules>,
-        // 💥 追加: 個別フォルダごとのソート設定
+        // 個別フォルダごとのソート設定
         #[serde(default)]
         sort_by: Option<String>,
         #[serde(default)]
         sort_order: Option<String>,
+        // 整理用フォルダかどうかのフラグ
+        #[serde(default)]
+        is_organizer: bool,
     },
     File {
         name: String,
@@ -351,8 +354,9 @@ fn build_tree_from_paths(files: Vec<FileMeta>, base_dir: &str) -> Vec<VirtualNod
                     original_path: Some(path_clone), 
                     children: convert(val), 
                     smart_rules: None,
-                    sort_by: None,    // 💥 追加
-                    sort_order: None  // 💥 追加
+                    sort_by: None,    
+                    sort_order: None,  
+                    is_organizer: false, 
                 }); 
             }
         }

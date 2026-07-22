@@ -36,6 +36,8 @@ export const searchState = writable({
 // （同じファイルを連続でダブルクリックしても反応するように、タイムスタンプを含めます）
 export const expandTreeRequest = writable<{ path: string; timestamp: number } | null>(null);
 
+// ドラッグ中のノードを保持するストア
+export const draggingNode = writable<any | null>(null);
 
 // 💥 検索用の特殊なタブを作成・表示する関数
 export function openSearchTab() {
