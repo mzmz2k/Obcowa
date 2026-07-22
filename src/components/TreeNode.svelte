@@ -490,16 +490,7 @@
 
       <!-- 💥 仮想のガワ以外なら表示 -->
       {#if !node.is_virtual_wrapper}
-     <!-- 💥 整理用フォルダ専用の削除ボタン -->
-      {#if node.is_organizer}
-        <button 
-          class="flex items-center w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-black/10 transition"
-          on:click={() => { removeNode(node, ownerId); closeMenu(); }}
-        >
-          整理用フォルダを削除
-        </button>
-        <hr class="border-black/10 my-1">
-      {/if}
+
         <!-- 💥 追加: ライブラリに登録 (現在のワークスペースのノードのみ表示) -->
         {#if !isLibraryNode}
           <div class="relative group/library">
