@@ -135,8 +135,6 @@ pub fn read_directory(path: String) -> Result<Vec<VirtualNode>, String> {
                 sort_by: None,    
                 sort_order: None, 
                 is_organizer: false,
-                drop_mode: None,
-                is_manual: None,
             });
         } else if path.is_file() && (path.extension().and_then(|s| s.to_str()) == Some("md") || path.extension().and_then(|s| s.to_str()) == Some("txt")) {
             let metadata = entry.metadata().unwrap();
@@ -148,7 +146,6 @@ pub fn read_directory(path: String) -> Result<Vec<VirtualNode>, String> {
                 path: path.to_string_lossy().into_owned(),
                 created,  
                 modified, 
-                is_manual: None,
             });
         }
     }

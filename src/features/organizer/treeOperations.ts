@@ -1,5 +1,8 @@
-// ワークスペースのツリー構造内でノードを移動させる純粋関数
+/**
+ * ワークスペースのツリー構造内でノードを移動させる純粋関数
+ */
 
+// 指定したノードをツリーから削除して新しいツリーを返す
 export function removeNodeFromTree(nodes: any[], targetNode: any): any[] {
   return nodes.filter(n => n !== targetNode).map(n => {
     if (n.children) {
@@ -9,6 +12,7 @@ export function removeNodeFromTree(nodes: any[], targetNode: any): any[] {
   });
 }
 
+// 指定したフォルダのchildrenにノードを追加して新しいツリーを返す
 export function addNodeToFolder(nodes: any[], targetFolder: any, nodeToAdd: any): any[] {
   return nodes.map(n => {
     if (n === targetFolder) {
@@ -21,11 +25,12 @@ export function addNodeToFolder(nodes: any[], targetFolder: any, nodeToAdd: any)
   });
 }
 
-export function moveNode(nodes: any[], dragNode: any, dropFolder: any, isFilterMode: boolean): any[] {
+// 移動元から削除し、移動先へ追加する
+export function moveNode(nodes: any[], dragNode: any, dropFolder: any): any[] {
   if (!dragNode || !dropFolder) return nodes;
   if (dragNode === dropFolder) return nodes;
 
-  // 循環参照の防止
+  // 循環参照の防止（ドロップ先がドラッグしているノードの子孫である場合は移動不可）
   const isDescendant = (folder: any, target: any): boolean => {
     if (!folder.children) return false;
     if (folder.children.includes(target)) return true;
@@ -33,16 +38,6 @@ export function moveNode(nodes: any[], dragNode: any, dropFolder: any, isFilterM
   };
   if (isDescendant(dragNode, dropFolder)) return nodes;
 
-  // 移動対象のクローンを作成し、手動追加フラグを立てる
-  const clonedNode = JSON.parse(JSON.stringify(dragNode));
-  clonedNode.is_manual = true;
-
-  let newNodes = nodes;
-  // フィルタ仕様（元の場所から消す）の場合のみ、元のツリーから削除する
-  if (isFilterMode) {
-    newNodes = removeNodeFromTree(newNodes, dragNode);
-  }
-
-  // ドロップ先へ追加
-  return addNodeToFolder(newNodes, dropFolder, clonedNode);
+  const withoutDragNode = removeNodeFromTree(nodes, dragNode);
+  return addNodeToFolder(withoutDragNode, dropFolder, dragNode);
 }

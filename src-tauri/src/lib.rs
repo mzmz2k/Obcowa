@@ -54,8 +54,6 @@ pub struct Workspace {
     pub sort_by: String,
     #[serde(default = "default_sort_order")]
     pub sort_order: String,
-    #[serde(default)]
-    pub hidden_paths: Vec<String>, // 非表示フィルタによって消したファイルの記録
 }
 
 // 💥 追加: タブ情報用の構造体
@@ -217,12 +215,9 @@ pub enum VirtualNode {
         sort_by: Option<String>,
         #[serde(default)]
         sort_order: Option<String>,
-         #[serde(default)]
-        is_organizer: bool, // 整理用フォルダ判定
+        // 整理用フォルダかどうかのフラグ
         #[serde(default)]
-        drop_mode: Option<String>, // "shortcut" | "filter"
-        #[serde(default)]
-        is_manual: Option<bool>, // 手動追加されたノードかの判定
+        is_organizer: bool,
     },
     File {
         name: String,
@@ -232,8 +227,6 @@ pub enum VirtualNode {
         created: u64,
         #[serde(default)]
         modified: u64,
-        #[serde(default)]
-        is_manual: Option<bool>,
     },
 }
 
@@ -352,7 +345,7 @@ fn build_tree_from_paths(files: Vec<FileMeta>, base_dir: &str) -> Vec<VirtualNod
         for val in vals {
             if val.is_file { 
                 // 💥 変更: created と modified を渡す
-                nodes.push(VirtualNode::File { name: val.name, path: val.path, created: val.created, modified: val.modified, is_manual: None }); 
+                nodes.push(VirtualNode::File { name: val.name, path: val.path, created: val.created, modified: val.modified }); 
             } else { 
                 let name_clone = val.name.clone();
                 let path_clone = val.path.clone();
@@ -364,8 +357,6 @@ fn build_tree_from_paths(files: Vec<FileMeta>, base_dir: &str) -> Vec<VirtualNod
                     sort_by: None,    
                     sort_order: None,  
                     is_organizer: false, 
-                    drop_mode: None,
-                    is_manual: None,
                 }); 
             }
         }
@@ -463,7 +454,7 @@ async fn evaluate_smart_folder(
         Ok(filtered_files.into_iter().map(|f| {
             let c_ms = f.created.duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
             let m_ms = f.modified.duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
-            VirtualNode::File { name: f.name, path: f.path, created: c_ms, modified: m_ms, is_manual: None }
+            VirtualNode::File { name: f.name, path: f.path, created: c_ms, modified: m_ms }
         }).collect()) 
     }
 }

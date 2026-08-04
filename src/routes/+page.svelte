@@ -140,32 +140,28 @@
       await saveData(true);
       alert(`ライブラリ「${targetLib.name}」に登録しました`);
     },
-        // 💥 追加: ノードの移動（ドロップ）処理
-    moveWorkspaceNode: (dragNode: any, dropFolder: any) => {
-      const mode = dropFolder.drop_mode || 'shortcut';
-      const isFilterMode = mode === 'filter';
-      const ws = workspaces[currentIndex];
-      
-      // 非表示フィルタ仕様の場合、ワークスペースの非表示リストに追加する
-      if (isFilterMode) {
-        const targetPath = dragNode.type === 'Folder' ? dragNode.original_path : dragNode.path;
-        if (targetPath) {
-          if (!ws.hidden_paths) ws.hidden_paths = [];
-          if (!ws.hidden_paths.includes(targetPath)) ws.hidden_paths.push(targetPath);
-        }
-      }
 
-      ws.nodes = moveNode(ws.nodes, dragNode, dropFolder, isFilterMode);
+       // 整理用フォルダの作成ロジック
+    createOrganizerFolder: (name: string) => {
+      const newNode = {
+        type: 'Folder',
+        name,
+        original_path: null,
+        children: [],
+        is_organizer: true
+      };
+      workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, newNode];
       workspaces = [...workspaces];
       saveData(true);
     },
-    // 💥 追加: ドロップモードの変更
-    changeDropMode: (folderNode: any, mode: string) => {
-      folderNode.drop_mode = mode;
+    // ツリー内のノード移動
+    moveWorkspaceNode: (dragNode: any, dropFolder: any) => {
+      // 整理用フォルダ以外にはドロップさせない
+      if (dropFolder.type !== 'Folder' || !dropFolder.is_organizer) return;
+      workspaces[currentIndex].nodes = moveNode(workspaces[currentIndex].nodes, dragNode, dropFolder);
       workspaces = [...workspaces];
       saveData(true);
     }
-
 
   });
 
@@ -187,14 +183,7 @@
             rules: node.smart_rules, 
             workspaceNodes: workspaces[wsIndex].nodes 
           }).then(children => {
-            // 💥 追加: 抽出結果に、手動でドロップ追加されたノードをマージして消えないようにする
-            const manualNodes = (node.children || []).filter((c: any) => c.is_manual);
-            const newChildren = children as any[];
-            for (const mNode of manualNodes) {
-              const exists = newChildren.some(c => (c.path && c.path === mNode.path) || (c.original_path && c.original_path === mNode.original_path));
-              if (!exists) newChildren.push(mNode);
-            }
-            node.children = newChildren;
+            node.children = children as any[];
             workspaces = [...workspaces]; 
           }).catch(() => {});
         } else {
@@ -216,14 +205,6 @@
                   fresh.children = [];
                 }
               }
-            }
-            //  OSから読んだ最新ファイルリストから、非表示フィルタに入れられたものを除外
-            const hiddenPaths = workspaces[wsIndex].hidden_paths || [];
-            if (hiddenPaths.length > 0) {
-              freshChildren = freshChildren.filter(c => {
-                const p = c.type === 'Folder' ? c.original_path : c.path;
-                return p ? !hiddenPaths.includes(p) : true;
-              });
             }
             // 💥 変更: wsIndex を引き継ぐ
             node.children = await refreshTree(freshChildren, wsIndex);
@@ -406,12 +387,6 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   $: if (typeof document !== 'undefined' && $activeTheme) {
     applyThemeToRoot($activeTheme);
   }
-    // ツリー背景の右クリックメニュー
-  let sidebarMenu = { show: false, x: 0, y: 0 };
-  function handleSidebarContextMenu(e: MouseEvent) {
-    sidebarMenu = { show: true, x: e.clientX, y: e.clientY };
-  }
-  function closeSidebarMenu() { sidebarMenu.show = false; }
 
 </script>
 
@@ -438,10 +413,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
       }}
     />
     
-    <!-- 右クリック判定のためにdivでラップ -->
-    <div class="flex-1 overflow-y-auto" on:contextmenu|preventDefault={handleSidebarContextMenu} role="presentation">
-      <SidebarTree bind:workspaces {currentIndex} {unpin} />
-    </div>
+    <SidebarTree bind:workspaces {currentIndex} {unpin} />
 
     <!-- リンク固定エリア -->
     {#if workspaces[currentIndex]}
@@ -489,31 +461,6 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   bind:isImportLibraryModalOpen
   on:save={(e) => saveData(e.detail?.force || false)}
 />
-<!-- ツリー画面右クリックメニュー -->
-<!-- 💥 ツリー画面右クリックメニュー -->
-{#if sidebarMenu.show}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <!-- メニューの外側をクリックしたときに閉じるための透明な背景 -->
-  <div class="fixed inset-0 z-40" on:click={closeSidebarMenu}></div>
-
-  <!-- メニュー本体 (stopPropagation でクリックが背景に貫通するのを防ぐ) -->
-  <div class="fixed border border-black/20 rounded shadow-xl z-50 py-1 w-48"
-       style="left: {sidebarMenu.x}px; top: {sidebarMenu.y}px; background-color: var(--menu-bg); color: var(--text-color);"
-       on:click|stopPropagation>
-    <button class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition"
-            on:click={() => { 
-              const name = prompt("整理用フォルダの名前を入力してください");
-              if (name) {
-                workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, { type: 'Folder', name, original_path: null, children: [], is_organizer: true, drop_mode: 'shortcut' }];
-                workspaces = [...workspaces]; saveData(true);
-              }
-              closeSidebarMenu();
-            }}>
-      ＋ 整理用フォルダを作成
-    </button>
-  </div>
-{/if}
 
 {#if isSettingsOpen}
   <SettingsModal 
@@ -539,15 +486,13 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   editingSmartNode={editingSmartNode}
   workspaceNodes={workspaces[currentIndex]?.nodes || []}
   on:save={(e) => {
-
-    const { name, rules, children, drop_mode } = e.detail; 
+    const { name, rules, children } = e.detail;
     if (editingSmartNode) {
       editingSmartNode.name = name;
       editingSmartNode.smart_rules = rules;
       editingSmartNode.children = children;
-      editingSmartNode.drop_mode = drop_mode; 
     } else {
-      const newNode = { type: "Folder", name, original_path: rules.target_dir || "__workspace__", children, smart_rules: rules, drop_mode }; 
+      const newNode = { type: "Folder", name, original_path: rules.target_dir || "__workspace__", children, smart_rules: rules };
       workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, newNode];
     }
     workspaces = [...workspaces];
