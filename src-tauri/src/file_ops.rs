@@ -134,7 +134,6 @@ pub fn read_directory(path: String) -> Result<Vec<VirtualNode>, String> {
                 smart_rules: None, 
                 sort_by: None,    
                 sort_order: None, 
-                is_organizer: false,
             });
         } else if path.is_file() && (path.extension().and_then(|s| s.to_str()) == Some("md") || path.extension().and_then(|s| s.to_str()) == Some("txt")) {
             let metadata = entry.metadata().unwrap();

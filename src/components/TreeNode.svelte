@@ -9,12 +9,6 @@
     // コンテキストアクションから新しい関数も受け取る
   const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior, saveWorkspace, editSmartFolder, openNewFileModal, getGlobalSort, setNodeSort, getLibraries, addNodeToLibrary } = getContext('workspaceActions') as any;
 
-  import { draggingNode } from '../lib/stores'; 
-  import { FolderSearch } from 'lucide-svelte';
-
-  //  moveWorkspaceNode を追加で受け取る
-  const { moveWorkspaceNode } = getContext('workspaceActions') as any;
-
   export let node: any;
   // isReadonly を削除し、親から引き継ぐ情報に変更
   export let ownerId: string;
@@ -256,37 +250,6 @@
       console.error("エクスプローラー起動失敗:", e);
     }
   }
-
-    // ドラッグ＆ドロップ用のハンドラ
-  function handleDragStart(e: DragEvent) {
-    e.stopPropagation();
-    $draggingNode = node;
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', node.name);
-    }
-  }
-
-  function handleDragOver(e: DragEvent) {
-    // 自分自身や、整理用フォルダ以外へのドロップは禁止
-    if (node.type === 'Folder' && node.is_organizer && $draggingNode && $draggingNode !== node) {
-      e.preventDefault();
-      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-    }
-  }
-
-  function handleDrop(e: DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (node.type === 'Folder' && node.is_organizer && $draggingNode && $draggingNode !== node) {
-      moveWorkspaceNode($draggingNode, node);
-      $draggingNode = null; // ドロップ完了後にリセット
-    }
-  }
-
-  function handleDragEnd() {
-    $draggingNode = null;
-  }
 </script>
 
 <svelte:window on:click={closeMenu} />
@@ -302,19 +265,11 @@
     style="{isActive ? 'background-color: var(--active-highlight-bg); color: var(--text-color);' : 'background-color: transparent; color: inherit;'}"
     on:click={handleClick}
     on:contextmenu={handleContextMenu}
-    draggable={!node.is_virtual_wrapper} 
-    on:dragstart={handleDragStart}
-    on:dragover={handleDragOver}
-    on:drop={handleDrop}
-    on:dragend={handleDragEnd}
   >
     <span class="mr-1.5 flex items-center justify-center w-4">
       {#if node.type === 'Folder'}
-        <!-- 💥 変更: スマートフォルダのアイコンを FolderSearch に変更 -->
         {#if node.is_virtual_wrapper}
           <Library size={14} />
-        {:else if node.smart_rules}
-          <FolderSearch size={14} />
         {:else}
           {#if isOpen}<FolderOpen size={14} />{:else}<Folder size={14} />{/if}
         {/if}
