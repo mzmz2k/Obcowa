@@ -85,9 +85,6 @@
             <span class="inline-block w-4">{workspaces[currentIndex]?.sort_order === 'desc' ? '✓' : ''}</span>降順
           </button>
           <hr class="border-black/10 my-1">
-           <button class="block w-full text-left px-4 py-1.5 hover:opacity-70 transition" on:click={() => changeGlobalSort('by', 'manual')}>
-            <span class="inline-block w-4">{workspaces[currentIndex]?.sort_by === 'manual' || !workspaces[currentIndex]?.sort_by ? '✓' : ''}</span>手動 (D&Dで並び替え)
-          </button>
           <button class="block w-full text-left px-4 py-1.5 hover:opacity-70 transition" on:click={() => changeGlobalSort('by', 'name')}>
             <span class="inline-block w-4">{workspaces[currentIndex]?.sort_by === 'name' || !workspaces[currentIndex]?.sort_by ? '✓' : ''}</span>名前
           </button>
