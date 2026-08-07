@@ -1,6 +1,6 @@
 [package]
 name = "obcowa"
-version = "0.16.0"
+version = "0.17.0"
 description = "Obsidianを母艦として、プロジェクトごとにワークスペースを構成できるMarkdownエディタ"
 authors = ["you"]
 edition = "2021"
