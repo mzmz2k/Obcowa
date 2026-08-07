@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 // --- 1. 設定 ---
-const IGNORE_DIRS = new Set(['node_modules', 'target', '.git', '.svelte-kit', 'build', 'dist', 'docs']);
+const IGNORE_DIRS = new Set(['node_modules', 'target', '.git', '.svelte-kit', 'build', 'dist', 'docs','icons']);
 const TARGET_EXTS = new Set(['.js', '.ts', '.svelte', '.rs']);
 const OUTPUT_FILE = path.join(process.cwd(), 'docs', '02_file-map.md');
 
