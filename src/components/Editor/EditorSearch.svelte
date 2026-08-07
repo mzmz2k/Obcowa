@@ -1,4 +1,4 @@
-//検索機能と結果表示
+<!-- 検索機能と結果表示 -->
 
 <script lang="ts">
     import { invoke } from '@tauri-apps/api/core';

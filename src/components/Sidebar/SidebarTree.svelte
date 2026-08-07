@@ -1,4 +1,4 @@
-//サイドバーのツリー表示とピン留め
+<!-- サイドバーのツリー表示とピン留め -->
 
 <script lang="ts">
   import TreeNode from '../TreeNode.svelte';

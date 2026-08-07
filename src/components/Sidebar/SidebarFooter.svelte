@@ -1,4 +1,4 @@
-//サイドバー下部のリスト切り替え・設定ボタン
+<!-- サイドバー下部のリスト切り替え・設定ボタン -->
 
 <script lang="ts">
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow';

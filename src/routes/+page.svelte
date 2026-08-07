@@ -1,4 +1,4 @@
-// アプリのメイン画面（ガワ）。全体のデータとモーダル状態を管理。
+<!-- アプリのメイン画面（ガワ）。全体のデータとモーダル状態を管理。 -->
 
 <script lang="ts">
   import { onMount, setContext } from 'svelte';
