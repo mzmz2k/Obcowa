@@ -1,4 +1,4 @@
-//エディタ画面を統括する親部品
+<!-- エディタ画面を統括する親部品 -->
 
 <!-- --- START OF src/components/Editor.svelte --- -->
 <script lang="ts">
@@ -34,65 +34,79 @@
             });
         }).catch(() => {});
     }
+   // 💥 連続保存による非同期のズレを防ぐためのロック用変数
+   let savePromise: Promise<void> | null = null;
 
    // 保存時に競合チェックを行い、エラーならダイアログを出す
     async function saveCurrentTab() {
-        if (isDialogShowing) return; // ダイアログ表示中は重複実行しない
-        if (activeTab && activeTab.isDirty && activeTab.path && activeTab.path !== '__SEARCH__') {
-            try {
-                const newModified = await invoke('save_file_content', { 
-                    path: activeTab.path, content: activeTab.content, lastModified: activeTab.lastModified || 0, force: false 
-                });
-                openTabs.update(tabs => { 
-                    const t = tabs.find(t => t.id === activeTab!.id); 
-                    if (t) { t.isDirty = false; t.lastModified = newModified as number; t.isConflict = false; } 
-                    return tabs; 
-                });
-            } catch (e) {
-                if (e === "CONFLICT") {
-                    isDialogShowing = true;
-                    // 第一段階: 上書きするかどうか
-                    const overwrite = await tauriConfirm(
-                        "このファイルは他のアプリによって外部で変更されています。\nこの編集内容で上書き保存しますか？", 
-                        { title: "ファイルの競合", kind: "warning" }
-                    );
-                    
-                    if (overwrite) {
-                        try {
-                            const newModified = await invoke('save_file_content', { path: activeTab.path, content: activeTab.content, lastModified: activeTab.lastModified || 0, force: true });
-                            openTabs.update(tabs => { const t = tabs.find(t => t.id === activeTab!.id); if (t) { t.isDirty = false; t.lastModified = newModified as number; t.isConflict = false; } return tabs; });
-                        } catch (err) {}
-                    } else {
-                        // 第二段階: 再読み込みするかどうか
-                        const reload = await tauriConfirm(
-                            "この変更を破棄して最新の外部ファイルを読み込みますか？", 
-                            { title: "再読み込みの確認", kind: "info" }
-                        );
+        if (isDialogShowing) return; 
+        
+        // 💥 別の保存処理が実行中の場合は完了を待つ（レースコンディション防止）
+        if (savePromise) {
+            await savePromise;
+        }
 
-                        if (reload) {
+        savePromise = (async () => {
+            // 💥 非同期待ちの間にタブが切り替わっている可能性があるため、Storeから最新の情報を取得する
+            const currentId = $activeTabId;
+            const targetTab = $openTabs.find(t => t.id === currentId);
+
+            if (targetTab && targetTab.isDirty && targetTab.path && targetTab.path !== '__SEARCH__') {
+                try {
+                    const newModified = await invoke('save_file_content', { 
+                        path: targetTab.path, content: targetTab.content, lastModified: targetTab.lastModified || 0, force: false 
+                    });
+                    openTabs.update(tabs => { 
+                        const t = tabs.find(t => t.id === targetTab.id); 
+                        if (t) { t.isDirty = false; t.lastModified = newModified as number; t.isConflict = false; } 
+                        return tabs; 
+                    });
+                } catch (e) {
+                    if (e === "CONFLICT") {
+                        isDialogShowing = true;
+                        const overwrite = await tauriConfirm(
+                            "このファイルは他のアプリによって外部で変更されています。\nこの編集内容で上書き保存しますか？", 
+                            { title: "ファイルの競合", kind: "warning" }
+                        );
+                        
+                        if (overwrite) {
                             try {
-                                const bytes: number[] = await invoke('read_file_content', { path: activeTab.path });
-                                let latestContent = "";
-                                try { latestContent = new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes)); } 
-                                catch (e) { latestContent = new TextDecoder('shift-jis').decode(new Uint8Array(bytes)); }
-                                
-                                const newModified = await invoke('get_file_modified', { path: activeTab.path });
-                                
-                                openTabs.update(tabs => { 
-                                    const t = tabs.find(t => t.id === activeTab!.id); 
-                                    if (t) { t.content = latestContent; t.isDirty = false; t.lastModified = newModified as number; t.isConflict = false; } 
-                                    return tabs; 
-                                });
+                                const newModified = await invoke('save_file_content', { path: targetTab.path, content: targetTab.content, lastModified: targetTab.lastModified || 0, force: true });
+                                openTabs.update(tabs => { const t = tabs.find(t => t.id === targetTab.id); if (t) { t.isDirty = false; t.lastModified = newModified as number; t.isConflict = false; } return tabs; });
                             } catch (err) {}
                         } else {
-                            // 保留: ユーザーが次に文字を入力するまで自動保存をストップする
-                            openTabs.update(tabs => { const t = tabs.find(t => t.id === activeTab!.id); if (t) { t.isConflict = true; } return tabs; });
+                            const reload = await tauriConfirm(
+                                "この変更を破棄して最新の外部ファイルを読み込みますか？", 
+                                { title: "再読み込みの確認", kind: "info" }
+                            );
+
+                            if (reload) {
+                                try {
+                                    const bytes: number[] = await invoke('read_file_content', { path: targetTab.path });
+                                    let latestContent = "";
+                                    try { latestContent = new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes)); } 
+                                    catch (e) { latestContent = new TextDecoder('shift-jis').decode(new Uint8Array(bytes)); }
+                                    
+                                    const newModified = await invoke('get_file_modified', { path: targetTab.path });
+                                    
+                                    openTabs.update(tabs => { 
+                                        const t = tabs.find(t => t.id === targetTab.id); 
+                                        if (t) { t.content = latestContent; t.isDirty = false; t.lastModified = newModified as number; t.isConflict = false; } 
+                                        return tabs; 
+                                    });
+                                } catch (err) {}
+                            } else {
+                                openTabs.update(tabs => { const t = tabs.find(t => t.id === targetTab.id); if (t) { t.isConflict = true; } return tabs; });
+                            }
                         }
+                        isDialogShowing = false;
                     }
-                    isDialogShowing = false;
                 }
             }
-        }
+        })();
+
+        await savePromise;
+        savePromise = null;
     }
 
     async function handleTabClick(tabId: string) {
@@ -107,6 +121,10 @@
 
     async function handleTabClose(tabId: string) {
         if (isDialogShowing) return;
+        
+        // 他の保存が走っていれば待つ
+        if (savePromise) await savePromise; 
+
         const tab = $openTabs.find(t => t.id === tabId);
         if (tab && tab.isDirty && tab.path && tab.path !== '__SEARCH__') {
             try { 
