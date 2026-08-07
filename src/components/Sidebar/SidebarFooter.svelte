@@ -1,3 +1,5 @@
+//サイドバー下部のリスト切り替え・設定ボタン
+
 <script lang="ts">
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { Menu, SquarePen, Settings, Library } from 'lucide-svelte';

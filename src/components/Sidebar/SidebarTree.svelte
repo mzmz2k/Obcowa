@@ -1,3 +1,5 @@
+//サイドバーのツリー表示とピン留め
+
 <script lang="ts">
   import TreeNode from '../TreeNode.svelte';
   import { Pin, X } from 'lucide-svelte';

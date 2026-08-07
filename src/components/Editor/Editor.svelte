@@ -1,3 +1,5 @@
+//エディタ画面を統括する親部品
+
 <!-- --- START OF src/components/Editor.svelte --- -->
 <script lang="ts">
     import { openTabs, activeTabId, currentWorkspaceIndex, openFileInNewTab, switchTab, closeTab, editorFont } from '$lib/stores';

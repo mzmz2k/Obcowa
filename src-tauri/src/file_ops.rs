@@ -1,3 +1,5 @@
+//ファイル保存、読み込み関係。
+
 use std::fs;
 use std::io::Write;
 use tauri::{AppHandle, Manager};

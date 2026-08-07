@@ -1,3 +1,5 @@
+//全てのTauriコマンド（ファイル検索、OS連携など）が書かれたメイン処理。（今後は少しずつ分割する）
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
 // モジュールを登録

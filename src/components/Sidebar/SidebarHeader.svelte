@@ -1,3 +1,4 @@
+//サイドバー上部の新規追加ボタン等
 <!-- --- START OF src/components/Sidebar/SidebarHeader.svelte --- -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';

@@ -1,3 +1,5 @@
+//Svelte Store（タブの状態、ワークスペース一覧などをグローバル管理）
+
 import { writable, get } from 'svelte/store';
 
 export interface TabData {
