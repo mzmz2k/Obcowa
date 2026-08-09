@@ -29,6 +29,31 @@
 
   function closeTabMenu() { tabMenu.show = false; }
 
+    // タブをクリックした時に最新のファイル内容を読み込む処理
+  async function onTabClick(tab: any) {
+      // 未保存状態ではなく、かつ検索タブなどの特殊なタブではない場合のみ最新化
+      if (!tab.isDirty && tab.path && tab.path !== '__SEARCH__') {
+          try {
+              const bytes: number[] = await invoke('read_file_content', { path: tab.path });
+              const uint8Array = new Uint8Array(bytes);
+              let content = "";
+              try { content = new TextDecoder('utf-8', { fatal: true }).decode(uint8Array); } 
+              catch { content = new TextDecoder('shift-jis').decode(uint8Array); }
+
+              openTabs.update(tabs => {
+                  const target = tabs.find(t => t.id === tab.id);
+                  if (target) target.content = content;
+                  return tabs;
+              });
+          } catch (err) {
+              console.error("最新ファイルの読み込みに失敗しました", err);
+              alert(`「${tab.title}」の最新データの取得に失敗しました。ファイルが移動または削除された可能性があります。`);
+          }
+      }
+      
+      // 親から渡された本来のタブ切り替え処理を実行
+      handleTabClick(tab.id);
+  }
 
    async function operateTagForTab(tag: string, isAdd: boolean) {
       if (!tabMenu.path) { closeTabMenu(); return; }
@@ -80,7 +105,7 @@
           class="flex items-center px-2 py-1 text-xs max-w-[120px] cursor-pointer border-r border-black/10 border-b transition-colors
                  { $activeTabId === tab.id ? 'border-t-2' : 'border-t-2 border-t-transparent hover:opacity-70' }"
           style="{ $activeTabId === tab.id ? 'background-color: var(--bg-color); color: var(--text-color); border-top-color: var(--accent-color); border-bottom-color: transparent;' : 'background-color: transparent; color: inherit;' }"
-          on:click={() => handleTabClick(tab.id)}
+          on:click={() => onTabClick(tab)}
           on:contextmenu={(e) => handleTabContextMenu(e, tab)}
           on:dblclick={() => handleTabDoubleClick(tab.path)} 
       >
