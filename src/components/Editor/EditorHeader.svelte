@@ -9,16 +9,19 @@
   let copied = false;
   let copyTimeout: ReturnType<typeof setTimeout>;
 
-  async function copyPath(e: MouseEvent) {
+  async function copyContent(e: MouseEvent) {
     e.preventDefault(); 
-    if (!activeTab || !activeTab.path) return;
+    // content が存在しない場合は処理しない
+    if (!activeTab || typeof activeTab.content !== 'string') return;
     try {
-      await navigator.clipboard.writeText(activeTab.path);
+      // path の代わりに content（全文）をクリップボードにコピー
+      await navigator.clipboard.writeText(activeTab.content);
       copied = true;
       clearTimeout(copyTimeout);
       copyTimeout = setTimeout(() => { copied = false; }, 2000);
     } catch (err) {
       console.error('コピーに失敗しました', err);
+      alert('クリップボードへのコピーに失敗しました'); // ルールに則り警告を出す
     }
   }
 
@@ -70,15 +73,14 @@
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <div 
       class="pointer-events-auto px-3 py-1 rounded-full transition-all duration-300 opacity-0  hover:!opacity-100 hover:bg-[var(--bg-color)] hover:bg-opacity-10 truncate text-xs cursor-pointer select-none" 
-      title="右クリックでパスをコピー"
-      on:contextmenu={copyPath}
+      title="右クリックで全文をコピー"
+      on:contextmenu={copyContent}
     >
       {#if copied}
-        <span class="opacity-100">パスをコピーしました</span>
+        <span class="opacity-100">全文をコピーしました</span>
       {:else}
         {activeTab.path}
       {/if}
-
     </div>
   </div>
 
