@@ -1,3 +1,4 @@
+// テーマ設定のプリセット、起動時テーマ復元処理、テーマ適用
 import { writable } from 'svelte/store';
 
 export interface Theme {
