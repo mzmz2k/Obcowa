@@ -8,6 +8,9 @@
   import { editorFont, registeredTags, imageFolderPath } from '../../lib/stores';
   import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
+  import { showLauncherOnStartup } from '../../lib/stores';
+  import { invoke } from '@tauri-apps/api/core';
+
   const dispatch = createEventDispatcher();
 
   export let workspaces: any[];
@@ -74,12 +77,23 @@
     }
 
     if (workspaces[currentIndex]) {
-      workspaces[currentIndex].editor_font = tempStyle.editorFont; // 💥 変更: tempStyleから取得するよう修正
+      workspaces[currentIndex].editor_font = tempStyle.editorFont; // tempStyleから取得するよう修正
     }
 
     // 呼び出し元の +page.svelte に保存処理を依頼して閉じる
     dispatch('save');
   }
+
+  // ランチャー画面の設定
+function toggleLauncherSetting() {
+    const newValue = !$showLauncherOnStartup;
+    showLauncherOnStartup.set(newValue);
+    localStorage.setItem('showLauncherOnStartup', newValue.toString());
+}
+
+async function openLauncherWindow() {
+    await invoke('open_launcher');
+}
 
 </script>
 
@@ -112,6 +126,30 @@
           </div>
           <div class="text-xs opacity-50 mt-1">※Obsidian側で添付ファイルを特定のフォルダにまとめている場合は、ここを指定してください</div>
         </div>
+
+        <!-- ランチャーの設定エリア -->
+        <div class="mb-6">
+    <h3 class="text-lg font-bold mb-3 border-b border-gray-600 pb-1">起動設定</h3>
+    <div class="flex items-center justify-between bg-[var(--menu-bg)] p-3 rounded">
+        <div>
+            <div class="font-medium">ワークスペース一覧 (ランチャー)</div>
+            <label class="flex items-center space-x-2 mt-2 cursor-pointer">
+                <input 
+                    type="checkbox" 
+                    checked={$showLauncherOnStartup} 
+                    on:change={toggleLauncherSetting} 
+                />
+                <span class="text-sm opacity-80">起動時にこの画面を開いて選択する</span>
+            </label>
+        </div>
+        <button 
+            on:click={openLauncherWindow} 
+            class="bg-[var(--accent-color)] text-white px-4 py-2 rounded text-sm hover:opacity-80 transition-opacity"
+        >
+            一覧を開く
+        </button>
+    </div>
+</div>
 
         <hr class="border-black/10 mb-6">
 
