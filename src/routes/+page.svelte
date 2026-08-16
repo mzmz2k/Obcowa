@@ -20,6 +20,9 @@
   import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, imageFolderPath } from '../lib/stores';
   import { cloneNodeAsIndependent } from '../lib/library';
   import { Pin, X, Menu, SquarePen, Settings, Library, Archive, Link } from 'lucide-svelte';
+  import { invoke } from '@tauri-apps/api/core';
+  import { listen } from '@tauri-apps/api/event';
+  import { showLauncherOnStartup, currentWorkspaceIndex } from '../lib/stores';
 
  
 
@@ -218,10 +221,30 @@
       const savedTags = localStorage.getItem('registeredTags');
       if (savedTags) registeredTags.set(JSON.parse(savedTags));
       
-      // 💥 追加: ローカルストレージから画像フォルダパスを復元する
+      // ローカルストレージから画像フォルダパスを復元する
       const savedImageFolder = localStorage.getItem('imageFolderPath');
       if (savedImageFolder) imageFolderPath.set(savedImageFolder);
     } catch (e) {}
+
+    // ランチャー設定と状態の読み込み
+    const launcherSetting = localStorage.getItem('showLauncherOnStartup') === 'true';
+    showLauncherOnStartup.set(launcherSetting);
+    
+    // URLに ?ws= があるか（＝ランチャーから選択されてリロードされた後かどうか）
+    const hasWsParam = window.location.search.includes('ws=');
+
+    if (launcherSetting && !hasWsParam) {
+        // 設定ONで、かつまだ選ばれていない初回起動時はランチャーを開く
+        await invoke('open_launcher');
+        
+        // ランチャーからの選択を待ち、選ばれたらリロードする
+        await listen('workspace-selected', (event: any) => {
+            window.location.href = `/?ws=${event.payload.index}`;
+        });
+        
+        // メイン画面は隠したまま、ここで処理を終了（裏で無駄なファイル読み込みをさせないため）
+        return;
+    }
 
     initTheme();
     initStyles(); 
@@ -233,7 +256,7 @@
           id: Date.now().toString(), name: '作業中', category: 'Active', nodes: [], links: [], 
           pinned: [], linked_libraries: [], is_flat: false, open_in_new_tab: false, 
           saved_tabs: [], active_tab_id: null,
-          editor_font: 'sans-serif' // 💥 追加
+          editor_font: 'sans-serif' 
         }];
       } 
       
@@ -263,17 +286,19 @@
           }
           restored.push({ 
             id: tab.id, path: tab.path, title: tab.title, content, 
-            isEditing: tab.isEditing, isDirty: false, lastModified: 0 // 💥 lastModified を追加
+            isEditing: tab.isEditing, isDirty: false, lastModified: 0 
           });
         }
         openTabs.set(restored);
         activeTabId.set(ws.active_tab_id || restored[0].id);
       }
       
-      // 💥 変更: この時点で画面をユーザーに見せる
+      // この時点で画面をユーザーに見せる
       isInitialized = true; 
 
-     // 💥 変更: i (インデックス) を渡す
+      // 初期化が終わったこのタイミングでメイン画面をパッと表示する
+      await invoke('show_main_window');
+
       (async () => {
         for (let i = 0; i < workspaces.length; i++) {
           workspaces[i].nodes = await refreshTree(workspaces[i].nodes, i);
@@ -282,7 +307,7 @@
       })();
 
     } catch (e) {}
-  }); 
+  });
 
 // 💥 タブの状態が変わったら自動でワークスペースに記録（初期化完了後のみ動くように修正）
 $: if (isInitialized && workspaces.length > 0 && workspaces[currentIndex]) {

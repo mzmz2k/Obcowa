@@ -40,6 +40,9 @@ A03_Obcowa/
 │   │   │   └── SidebarTree.svelte
 │   │   └── TreeNode.svelte
 │   ├── features
+│   │   ├── launcher
+│   │   │   ├── +page.svelte
+│   │   │   └── LauncherWindow.svelte
 │   │   └── styleSettings
 │   │       ├── styleStore.test.ts
 │   │       └── styleStore.ts
@@ -162,6 +165,8 @@ A03_Obcowa/
   └── import ../../lib/settings/theme
   └── import ../../lib/stores
   └── import @tauri-apps/plugin-dialog
+  └── import ../../lib/stores
+  └── import @tauri-apps/api/core
 
 📄 `src/components/Settings/StyleSettings.svelte`
   └── import ../../features/styleSettings/styleStore
@@ -196,6 +201,15 @@ A03_Obcowa/
   └── import svelte
   └── import lucide-svelte
   └── import ../lib/utils/tagUtils
+
+📄 `src/features/launcher/+page.svelte`
+  └── import ../../features/launcher/LauncherWindow.svelte
+
+📄 `src/features/launcher/LauncherWindow.svelte`
+  └── import svelte
+  └── import @tauri-apps/api/core
+  └── import @tauri-apps/api/event
+  └── import @tauri-apps/api/window
 
 📄 `src/features/styleSettings/styleStore.test.ts`
   └── import vitest
@@ -251,6 +265,9 @@ A03_Obcowa/
   └── import ../lib/stores
   └── import ../lib/library
   └── import lucide-svelte
+  └── import @tauri-apps/api/core
+  └── import @tauri-apps/api/event
+  └── import ../lib/stores
 
 📄 `src-tauri/src/file_ops.rs`
   └── use/mod std::fs
@@ -264,6 +281,7 @@ A03_Obcowa/
   └── use/mod file_ops
   └── use/mod serde::{Deserialize, Serialize}
   └── use/mod std::fs
+  └── use/mod tauri::Manager
   └── use/mod std::collections::HashMap
 
 📄 `svelte.config.js`
@@ -307,6 +325,10 @@ A03_Obcowa/
 ### src/components/
 `src/components/TreeNode.svelte` : （説明未記載）
 
+### src/features/launcher/
+`src/features/launcher/+page.svelte` : 責務: ランチャーウィンドウ用のルーティングエントリポイント
+`src/features/launcher/LauncherWindow.svelte` : 責務: 独立した小ウィンドウでワークスペースの一覧を表示し、選択結果をメイン画面に送信する
+
 ### src/features/styleSettings/
 `src/features/styleSettings/styleStore.test.ts` : （説明未記載）
 `src/features/styleSettings/styleStore.ts` : （説明未記載）
@@ -322,7 +344,7 @@ A03_Obcowa/
 
 ### src/lib/settings/
 `src/lib/settings/theme.test.ts` : （説明未記載）
-`src/lib/settings/theme.ts` : （説明未記載）
+`src/lib/settings/theme.ts` : テーマ設定のプリセット、起動時テーマ復元処理、テーマ適用
 
 ### src/lib/utils/
 `src/lib/utils/tagUtils.test.ts` : （説明未記載）

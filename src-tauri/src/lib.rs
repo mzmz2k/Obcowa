@@ -7,8 +7,9 @@ mod file_ops;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
+use tauri::Manager;
 
-// 💥 ピン留め用の構造体
+// ピン留め用の構造体
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PinnedItem {
     pub item_type: String,
@@ -58,7 +59,7 @@ pub struct Workspace {
     pub sort_order: String,
 }
 
-// 💥 追加: タブ情報用の構造体
+// タブ情報用の構造体
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SavedTab {
     pub id: String,
@@ -68,7 +69,7 @@ pub struct SavedTab {
     pub is_editing: bool,
 }
 
-// 💥 追加: スマートフォルダのルール構造体
+// スマートフォルダのルール構造体
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SmartRules {
     pub target_dir: String,
@@ -79,7 +80,7 @@ pub struct SmartRules {
     pub keep_structure: bool,
 }
 
-// 💥 追加: 検索結果用の構造体
+// 検索結果用の構造体
 #[derive(Debug, Serialize, Clone)]
 pub struct SearchResultItem {
     pub path: String,
@@ -87,7 +88,7 @@ pub struct SearchResultItem {
     pub snippet: String,
 }
 
-// 💥 追加: バックエンドでの高速な検索処理
+// バックエンドでの高速な検索処理
 #[tauri::command]
 async fn search_files(
     app: tauri::AppHandle,
@@ -150,7 +151,7 @@ async fn search_files(
     // 全ファイルを走査
     for file in all_files {
         if search_by_filename {
-            // 💥 追加: ファイル名のみを検索対象とする場合
+            // ファイル名のみを検索対象とする場合
             if file.name.to_lowercase().contains(&query_lower) {
                 results.push(SearchResultItem {
                     path: file.path.clone(),
@@ -212,7 +213,7 @@ pub enum VirtualNode {
         children: Vec<VirtualNode>,
         #[serde(default)]
         smart_rules: Option<SmartRules>,
-        // 💥 追加: 個別フォルダごとのソート設定
+        // 個別フォルダごとのソート設定
         #[serde(default)]
         sort_by: Option<String>,
         #[serde(default)]
@@ -221,7 +222,7 @@ pub enum VirtualNode {
     File {
         name: String,
         path: String,
-        // 💥 追加: ファイルのメタデータ（UNIXタイムスタンプ）
+        // ファイルのメタデータ（UNIXタイムスタンプ）
         #[serde(default)]
         created: u64,
         #[serde(default)]
@@ -269,7 +270,7 @@ fn check_frontmatter(content: &str, tag: &str) -> bool {
 }
 
 
-// 💥 追加: ファイルのメタ情報を扱う構造体
+// ファイルのメタ情報を扱う構造体
 #[derive(Debug, Clone)]
 struct FileMeta {
     path: String,
@@ -279,7 +280,7 @@ struct FileMeta {
     content: String,
 }
 
-// 💥 追加: フォルダを再帰的に走査して FileMeta を集める関数
+// フォルダを再帰的に走査して FileMeta を集める関数
 fn collect_files(dir: &std::path::Path, metas: &mut Vec<FileMeta>) {
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
@@ -306,10 +307,10 @@ fn collect_files(dir: &std::path::Path, metas: &mut Vec<FileMeta>) {
     }
 }
 
-// 💥 追加: パスのリストからツリー構造を復元する関数
+// パスのリストからツリー構造を復元する関数
 fn build_tree_from_paths(files: Vec<FileMeta>, base_dir: &str) -> Vec<VirtualNode> {
     use std::collections::HashMap;
-    // 💥 追加: created と modified を追加
+    // created と modified を追加
     struct TempNode { is_file: bool, name: String, path: String, created: u64, modified: u64, children: HashMap<String, TempNode> }
 
     let mut root = TempNode { is_file: false, name: "".into(), path: base_dir.into(), created: 0, modified: 0, children: HashMap::new() };
@@ -321,7 +322,7 @@ fn build_tree_from_paths(files: Vec<FileMeta>, base_dir: &str) -> Vec<VirtualNod
             let mut current = &mut root;
             let mut current_path = base_path.to_path_buf();
 
-            // 💥 追加: 日付をミリ秒(u64)に変換
+            // 日付をミリ秒(u64)に変換
             let c_ms = file.created.duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
             let m_ms = file.modified.duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
 
@@ -363,7 +364,7 @@ fn build_tree_from_paths(files: Vec<FileMeta>, base_dir: &str) -> Vec<VirtualNod
     convert(root)
 }
 
-// 💥 追加: スマートフォルダの条件評価コマンド
+// スマートフォルダの条件評価コマンド
 #[tauri::command]
 async fn evaluate_smart_folder(
     rules: SmartRules, 
@@ -401,7 +402,7 @@ async fn evaluate_smart_folder(
         }
     }
 
-    // 💥 追加: 指定フォルダとワークスペースの範囲が被っていた場合、ファイルの重複を排除する
+    // 指定フォルダとワークスペースの範囲が被っていた場合、ファイルの重複を排除する
     all_files.sort_by(|a, b| a.path.cmp(&b.path));
     all_files.dedup_by(|a, b| a.path == b.path);
 
@@ -457,7 +458,7 @@ async fn evaluate_smart_folder(
     }
 }
 
-// 💥 追加: 単体のファイルパスからデータを構築する関数
+// 単体のファイルパスからデータを構築する関数
 fn get_file_meta_from_path(path: &std::path::Path) -> Option<FileMeta> {
     if path.is_file() {
         if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
@@ -478,7 +479,7 @@ fn get_file_meta_from_path(path: &std::path::Path) -> Option<FileMeta> {
     None
 }
 
-// 💥 追加: タグを正確に抽出し、指定された条件で比較する関数
+// タグを正確に抽出し、指定された条件で比較する関数
 fn check_tag_match(content: &str, target_tag: &str, match_mode: &str, include_inline: bool) -> bool {
     let target = target_tag.trim();
     if target.is_empty() {
@@ -540,6 +541,12 @@ pub fn run() {
             evaluate_smart_folder,
             search_files,
 
+            open_launcher,      
+            show_main_window,   
+            hide_main_window,   
+            open_launcher,      
+            show_main_window,  
+
             file_ops::save_workspaces,
             file_ops::load_workspaces,
             file_ops::get_file_modified,
@@ -555,3 +562,37 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
+// ランチャーウィンドウを開くコマンド
+#[tauri::command]
+async fn open_launcher(app: tauri::AppHandle) -> Result<(), String> {
+    // 既に開いていれば前面に出すだけ
+    if let Some(window) = app.get_webview_window("launcher") {
+        let _ = window.show();
+        let _ = window.set_focus();
+        return Ok(());
+    }
+
+    // 新しいウィンドウを作成
+    tauri::WebviewWindowBuilder::new(
+        &app,
+        "launcher",
+        tauri::WebviewUrl::App("/launcher".into()),
+    )
+    .title("ワークスペース一覧")
+    .inner_size(400.0, 500.0)
+    .resizable(false)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+// メインウィンドウを表示するコマンド
+#[tauri::command]
+async fn show_main_window(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+    Ok(())
+}

@@ -132,3 +132,6 @@ export function closeTab(idToClose: string) {
         return filtered;
     });
 }
+
+//  ランチャー（ワークスペース一覧）を起動時に開くかどうかの設定
+export const showLauncherOnStartup = writable<boolean>(false);
