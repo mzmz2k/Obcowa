@@ -17,14 +17,14 @@
   import SidebarFooter from '../components/Sidebar/SidebarFooter.svelte';
   import { activeTheme, initTheme, applyThemeToRoot } from '../lib/settings/theme';
   import { initStyles } from '../features/styleSettings/styleStore'; 
-  import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, imageFolderPath } from '../lib/stores';
+  import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, showLauncherOnStartup, imageFolderPath } from '../lib/stores';
   import { cloneNodeAsIndependent } from '../lib/library';
   import { Pin, X, Menu, SquarePen, Settings, Library, Archive, Link } from 'lucide-svelte';
-  import { invoke } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
-  import { showLauncherOnStartup, currentWorkspaceIndex } from '../lib/stores';
+  import LauncherWindow from '../features/launcher/LauncherWindow.svelte';
 
- 
+
+  let isLauncherWindow = false;
 
   let sidebarWidth = 260;
   let isResizing = false;
@@ -217,6 +217,13 @@
     await saveData();
   }
   onMount(async () => {
+
+    // このウィンドウがランチャー用として開かれたかどうかの判定
+    if (window.location.search.includes('launcher=true')) {
+        isLauncherWindow = true;
+        return; // これ以降のメイン画面用の初期化処理をすべてキャンセル
+    }
+
     try {
       const savedTags = localStorage.getItem('registeredTags');
       if (savedTags) registeredTags.set(JSON.parse(savedTags));
@@ -397,6 +404,13 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 <!-- on:click の中から `isAddFolderMenuOpen = false; isGlobalSortMenuOpen = false;` を削除しました（子部品の中で処理するため） -->
 <svelte:window on:mousemove={doResize} on:mouseup={stopResize} on:click={() => { isListMenuOpen = false; }} />
 
+{#if isLauncherWindow}
+    <!-- ランチャーとして開かれた場合は、これだけを表示 -->
+    <LauncherWindow />
+{:else}
+    <!-- メイン画面として開かれた場合は、既存のUIを表示 -->
+
+
 <main class="h-screen w-screen flex select-none transition-colors duration-200"
       style="background-color: var(--bg-color); color: var(--text-color);">
   
@@ -503,3 +517,5 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     saveData();
   }}
 />
+
+{/if}

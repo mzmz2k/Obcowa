@@ -543,9 +543,6 @@ pub fn run() {
 
             open_launcher,      
             show_main_window,   
-            hide_main_window,   
-            open_launcher,      
-            show_main_window,  
 
             file_ops::save_workspaces,
             file_ops::load_workspaces,
@@ -576,7 +573,7 @@ async fn open_launcher(app: tauri::AppHandle) -> Result<(), String> {
     tauri::WebviewWindowBuilder::new(
         &app,
         "launcher",
-        tauri::WebviewUrl::App("/launcher".into()),
+        tauri::WebviewUrl::App("/?launcher=true".into()),
     )
     .title("ワークスペース一覧")
     .inner_size(400.0, 500.0)

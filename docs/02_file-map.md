@@ -265,9 +265,8 @@ A03_Obcowa/
   └── import ../lib/stores
   └── import ../lib/library
   └── import lucide-svelte
-  └── import @tauri-apps/api/core
   └── import @tauri-apps/api/event
-  └── import ../lib/stores
+  └── import ../features/launcher/LauncherWindow.svelte
 
 📄 `src-tauri/src/file_ops.rs`
   └── use/mod std::fs
