@@ -84,11 +84,16 @@
   // marked のレンダラーカスタマイズ
   let taskCounter = 0;
 
+  // marked レンダラーの this 型定義
+  interface MarkedRendererThis {
+      parser?: {
+          parse(tokens: unknown[]): string;
+      };
+  }
 
   // marked のレンダラーカスタマイズ
   const customRenderer = {
-
-     code(codeOrToken: any, infostring?: string, escaped?: boolean) {
+      code(codeOrToken: any, infostring?: string, escaped?: boolean) {
           let codeStr = '';
           let lang = '';
           let isEscaped = false;
@@ -112,9 +117,7 @@
               </div>
           `;
       },
-
-
-      listitem(itemOrText: any, taskArg?: boolean, checkedArg?: boolean) {
+      listitem(this: MarkedRendererThis, itemOrText: any, taskArg?: boolean, checkedArg?: boolean) {
           let text = '';
           let isTask = false;
           let isChecked = false;
@@ -148,7 +151,6 @@
           }
           return `<li>${text}</li>\n`;
       }
-
   };
 
   marked.use({ 

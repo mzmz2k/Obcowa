@@ -144,21 +144,30 @@ html, body {
 }
 
 /* --- START OF preview extensions CSS --- */
-/* 1. タスク箇条書きのドット（点マーク）削除とレイアウト調整 */
-.editor-preview ul:has(li.task-list-item) {
+
+/* 1. タスク箇条書きのドット削除とインデント（字下げ）調整 */
+.editor-preview ul:has(li.task-list-item),
+.editor-preview ol:has(li.task-list-item) {
   list-style-type: none !important;
-  padding-left: 0.25rem !important;
+  padding-left: 1.25rem !important; /* ネスト用のインデント幅 */
 }
 
 .editor-preview li.task-list-item {
   list-style-type: none !important;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   margin-top: 0.25rem;
   margin-bottom: 0.25rem;
-  padding: 2px 6px;
-  border-radius: 4px;
+  line-height: 1.6;
+}
+
+/* チェックボックスとテキストの配置 */
+.editor-preview li.task-list-item > input.task-checkbox {
+  margin-right: 0.4rem;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.editor-preview li.task-list-item > .task-content {
+  vertical-align: middle;
 }
 
 /* 2. コードブロックのコピペボタン */
