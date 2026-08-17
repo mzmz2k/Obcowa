@@ -33,7 +33,7 @@ A03_Obcowa/
 │   │   │   ├── SettingsModal.svelte
 │   │   │   ├── StyleSettings.svelte
 │   │   │   ├── ThemeSettings.svelte
-│   │   │   └── ThemeSettings.test.ts
+│   │   │   └── ThemeSettings.tst.ts
 │   │   ├── Sidebar
 │   │   │   ├── SidebarFooter.svelte
 │   │   │   ├── SidebarHeader.svelte
@@ -58,7 +58,7 @@ A03_Obcowa/
 │   │   ├── library.test.ts
 │   │   ├── library.ts
 │   │   ├── settings
-│   │   │   ├── theme.test.ts
+│   │   │   ├── theme.tet.ts
 │   │   │   └── theme.ts
 │   │   ├── stores.ts
 │   │   ├── utils
@@ -185,7 +185,7 @@ A03_Obcowa/
   └── import ../../lib/settings/theme
   └── import svelte/store
 
-📄 `src/components/Settings/ThemeSettings.test.ts`
+📄 `src/components/Settings/ThemeSettings.tst.ts`
   └── import vitest
   └── import @testing-library/svelte
   └── import ./ThemeSettings.svelte
@@ -251,7 +251,7 @@ A03_Obcowa/
   └── import vitest
   └── import ./library
 
-📄 `src/lib/settings/theme.test.ts`
+📄 `src/lib/settings/theme.tet.ts`
   └── import vitest
   └── import svelte/store
   └── import ./theme
@@ -342,7 +342,7 @@ A03_Obcowa/
 `src/components/Settings/SettingsModal.svelte` : --- START OF src/components/SettingsModal.svelte ---
 `src/components/Settings/StyleSettings.svelte` : --- START OF src/components/StyleSettings.svelte ---
 `src/components/Settings/ThemeSettings.svelte` : （説明未記載）
-`src/components/Settings/ThemeSettings.test.ts` : （説明未記載）
+`src/components/Settings/ThemeSettings.tst.ts` : （説明未記載）
 
 ### src/components/Sidebar/
 `src/components/Sidebar/SidebarFooter.svelte` : サイドバー下部のリスト切り替え・設定ボタン
@@ -375,7 +375,7 @@ A03_Obcowa/
 `src/lib/stores.ts` : Svelte Store（タブの状態、ワークスペース一覧などをグローバル管理）
 
 ### src/lib/settings/
-`src/lib/settings/theme.test.ts` : （説明未記載）
+`src/lib/settings/theme.tet.ts` : （説明未記載）
 `src/lib/settings/theme.ts` : テーマ設定のプリセット、起動時テーマ復元処理、テーマ適用
 
 ### src/lib/utils/
