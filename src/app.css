@@ -143,11 +143,22 @@ html, body {
     line-height: inherit !important;
 }
 
-/* 1. チェック済みタスク行のハイライト */
-.editor-preview li.task-list-item:has(input:checked) {
-  background-color: var(--active-highlight-bg);
-  border-radius: 4px;
+/* --- START OF preview extensions CSS --- */
+/* 1. タスク箇条書きのドット（点マーク）削除とレイアウト調整 */
+.editor-preview ul:has(li.task-list-item) {
+  list-style-type: none !important;
+  padding-left: 0.25rem !important;
+}
+
+.editor-preview li.task-list-item {
+  list-style-type: none !important;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
   padding: 2px 6px;
+  border-radius: 4px;
 }
 
 /* 2. コードブロックのコピペボタン */
@@ -159,29 +170,33 @@ html, body {
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  line-height: 1rem;
-  border-radius: 0.25rem;
-  background-color: color-mix(in srgb, var(--menu-bg) 80%, var(--text-color) 20%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border-radius: 0.375rem;
+  background-color: color-mix(in srgb, var(--menu-bg) 85%, var(--text-color) 15%);
   color: var(--text-color);
-  border: 1px solid color-mix(in srgb, var(--text-color) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
   cursor: pointer;
-  opacity: 0.6;
-  transition: opacity 0.2s ease, background-color 0.2s ease;
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
   user-select: none;
 }
 
 .editor-preview .code-block-wrapper:hover .code-copy-btn {
-  opacity: 1;
+  opacity: 0.7;
 }
 
 .editor-preview .code-copy-btn:hover {
+  opacity: 1 !important;
   background-color: var(--active-highlight-bg);
   color: var(--accent-color);
 }
 
-/* 3. 見出しの折りたたみ表示 */
+/* 3. 見出しの折りたたみ表示（Obsidian風の控えめなChevronアイコン） */
 .editor-preview h1,
 .editor-preview h2,
 .editor-preview h3,
@@ -191,26 +206,44 @@ html, body {
   cursor: pointer;
   user-select: none;
   position: relative;
+  padding-left: 1.25rem;
 }
 
+/* 控えめな矢印（折りたたみ展開時: 下向き） */
 .editor-preview h1::before,
 .editor-preview h2::before,
 .editor-preview h3::before,
 .editor-preview h4::before,
 .editor-preview h5::before,
 .editor-preview h6::before {
-  content: '▼';
-  display: inline-block;
-  font-size: 0.7em;
-  margin-right: 0.4em;
-  opacity: 0.5;
-  transition: transform 0.2s ease;
+  content: '';
+  position: absolute;
+  left: 0.2rem;
+  top: 0.75em;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 1.5px solid var(--text-color);
+  border-bottom: 1.5px solid var(--text-color);
+  transform: translateY(-50%) rotate(45deg);
+  opacity: 0.3;
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
+.editor-preview h1:hover::before,
+.editor-preview h2:hover::before,
+.editor-preview h3:hover::before,
+.editor-preview h4:hover::before,
+.editor-preview h5:hover::before,
+.editor-preview h6:hover::before {
+  opacity: 0.8;
+}
+
+/* 折りたたまれている状態（右向き） */
 .editor-preview .is-collapsed::before {
-  transform: rotate(-90deg);
+  transform: translateY(-65%) rotate(-45deg);
 }
 
 .editor-preview .collapsed-child {
   display: none !important;
 }
+/* --- END OF preview extensions CSS --- */

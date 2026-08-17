@@ -8,7 +8,13 @@
   import { generateImageHtml, loadImagesInDom } from '../../lib/editor/imageViewer';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { FileQuestion } from 'lucide-svelte';
-  import { toggleTaskMarkdown, copyCodeBlock, toggleHeadingCollapse } from '../../features/previewExtensions/previewExtensions';
+  import { 
+      toggleTaskMarkdown, 
+      copyCodeBlock, 
+      toggleHeadingCollapse,
+      COPY_ICON_SVG,
+      CHECK_ICON_SVG 
+  } from '../../features/previewExtensions/previewExtensions';
 
 
   const dispatch = createEventDispatcher();
@@ -81,12 +87,12 @@
 
   // marked のレンダラーカスタマイズ
   const customRenderer = {
-      code(codeOrToken: any, infostring?: string, escaped?: boolean) {
+
+     code(codeOrToken: any, infostring?: string, escaped?: boolean) {
           let codeStr = '';
           let lang = '';
           let isEscaped = false;
 
-          // markedのバージョン差異（トークンオブジェクト形式 / 文字列形式）を吸収
           if (typeof codeOrToken === 'object' && codeOrToken !== null) {
               codeStr = codeOrToken.text || '';
               lang = codeOrToken.lang || '';
@@ -101,11 +107,12 @@
           const escapedCode = isEscaped ? codeStr : codeStr.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
           return `
               <div class="code-block-wrapper">
-                  <button type="button" class="code-copy-btn">コピー</button>
+                  <button type="button" class="code-copy-btn" title="コードをコピー">${COPY_ICON_SVG}</button>
                   <pre><code class="language-${matchedLang}">${escapedCode}</code></pre>
               </div>
           `;
       },
+
       listitem(itemOrText: any, taskArg?: boolean, checkedArg?: boolean) {
           let text = '';
           let isTask = false;
@@ -211,10 +218,9 @@
           event.preventDefault();
           const success = await copyCodeBlock(copyBtn);
           if (success) {
-              const originalText = copyBtn.textContent;
-              copyBtn.textContent = 'コピー完了!';
+              copyBtn.innerHTML = CHECK_ICON_SVG;
               setTimeout(() => {
-                  copyBtn.textContent = originalText;
+                  copyBtn.innerHTML = COPY_ICON_SVG;
               }, 1500);
           }
           return;
