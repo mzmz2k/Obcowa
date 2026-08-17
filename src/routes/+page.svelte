@@ -15,13 +15,14 @@
   import SidebarHeader from '../components/Sidebar/SidebarHeader.svelte';
   import SidebarTree from '../components/Sidebar/SidebarTree.svelte';
   import SidebarFooter from '../components/Sidebar/SidebarFooter.svelte';
+  import SidebarLinks from '../components/Sidebar/SidebarLinks.svelte';
   import { activeTheme, initTheme, applyThemeToRoot } from '../lib/settings/theme';
   import { initStyles } from '../features/styleSettings/styleStore'; 
   import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, showLauncherOnStartup, imageFolderPath } from '../lib/stores';
   import { cloneNodeAsIndependent } from '../lib/library';
-  import { Pin, X, Menu, SquarePen, Settings, Library, Archive, Link } from 'lucide-svelte';
   import { listen } from '@tauri-apps/api/event';
   import LauncherWindow from '../features/launcher/LauncherWindow.svelte';
+  import { refreshTree } from '../lib/workspace/treeUtils';
 
 
   let isLauncherWindow = false;
@@ -152,64 +153,15 @@
     workspaces = [...workspaces]; saveData(true);
   }
 
-
-
-  // --- フォルダ更新関連 ---
-  async function refreshTree(nodes: any[], wsIndex: number): Promise<any[]> {
-    const updatedNodes = [];
-    for (let node of nodes) {
-      if (node.type === 'Folder' && node.original_path) {
-        if (node.smart_rules) {
-          // 💥 変更: workspaceIndex を消し、workspaceNodes を渡す
-          invoke('evaluate_smart_folder', { 
-            rules: node.smart_rules, 
-            workspaceNodes: workspaces[wsIndex].nodes 
-          }).then(children => {
-            node.children = children as any[];
-            workspaces = [...workspaces]; 
-          }).catch(() => {});
-        } else {
-          try {
-            let freshChildren: any[] = await invoke('read_directory', { path: node.original_path });
-            const oldFolders = new Map();
-            if (node.children) {
-              for (const c of node.children) {
-                if (c.type === 'Folder') oldFolders.set(c.original_path, c);
-              }
-            }
-            for (let fresh of freshChildren) {
-              if (fresh.type === 'Folder') {
-                if (oldFolders.has(fresh.original_path)) {
-                  const old = oldFolders.get(fresh.original_path);
-                  fresh.name = old.name;
-                  fresh.children = old.children || [];
-                } else {
-                  fresh.children = [];
-                }
-              }
-            }
-            // 💥 変更: wsIndex を引き継ぐ
-            node.children = await refreshTree(freshChildren, wsIndex);
-          } catch (e) {}
-        }
-      }
-      updatedNodes.push(node);
-    }
-    return updatedNodes;
-  }
-
-
     async function handleRefresh() {
     if (!workspaces[currentIndex]) return;
-    // 💥 変更: currentIndex を渡す
-    workspaces[currentIndex].nodes = await refreshTree(workspaces[currentIndex].nodes, currentIndex);
+workspaces[currentIndex].nodes = await refreshTree(workspaces[currentIndex].nodes, workspaces[currentIndex].nodes);
     const linkedLibs = workspaces[currentIndex].linked_libraries;
     if (linkedLibs && linkedLibs.length > 0) {
       for (const libId of linkedLibs) {
         const libIndex = workspaces.findIndex(w => w.id === libId);
         if (libIndex !== -1) {
-          // 💥 変更: libIndex を渡す
-          workspaces[libIndex].nodes = await refreshTree(workspaces[libIndex].nodes, libIndex);
+           workspaces[libIndex].nodes = await refreshTree(workspaces[libIndex].nodes, workspaces[libIndex].nodes);
         }
       }
     }
@@ -308,7 +260,7 @@
 
       (async () => {
         for (let i = 0; i < workspaces.length; i++) {
-          workspaces[i].nodes = await refreshTree(workspaces[i].nodes, i);
+          workspaces[i].nodes = await refreshTree(workspaces[i].nodes, workspaces[i].nodes);
         }
         workspaces = [...workspaces];
       })();
@@ -359,28 +311,11 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 
 
 
-  // --- リンク機能 ---
-  let isLinkModalOpen = false, editingLinkId: string | null = null, linkTitle = '', linkUrl = '';
-  let linkContextMenu = { show: false, x: 0, y: 0, link: null as any };
-  function openLinkModal(linkToEdit?: any) {
-    if (linkToEdit) { editingLinkId = linkToEdit.id; linkTitle = linkToEdit.title; linkUrl = linkToEdit.url; } else { editingLinkId = null; linkTitle = ''; linkUrl = ''; }
-    isLinkModalOpen = true;
+  async function deleteLink(id: string) {
+    workspaces[currentIndex].links = (workspaces[currentIndex].links || []).filter((l: any) => l.id !== id);
+    workspaces = [...workspaces];
+    await saveData();
   }
-  async function saveLink() {
-    if (!linkTitle || !linkUrl) return;
-    if (!linkUrl.startsWith('http')) linkUrl = 'https://' + linkUrl;
-    // 💥 修正: リスト管理画面で操作するため currentIndex を editingListIndex に変更
-    const ws = workspaces[editingListIndex];
-    if (!ws.links) ws.links = [];
-    if (editingLinkId) {
-      const idx = ws.links.findIndex((l:any) => l.id === editingLinkId);
-      if (idx !== -1) ws.links[idx] = { id: editingLinkId, title: linkTitle, url: linkUrl };
-    } else { ws.links.push({ id: Date.now().toString(), title: linkTitle, url: linkUrl }); }
-    workspaces = [...workspaces]; await saveData(); isLinkModalOpen = false;
-  }
-  async function deleteLink(id: string) { workspaces[editingListIndex].links = workspaces[editingListIndex].links.filter((l:any) => l.id !== id); workspaces = [...workspaces]; await saveData(); closeLinkMenu(); }
-  function handleLinkContextMenu(e: MouseEvent, link: any) { e.preventDefault(); linkContextMenu = { show: true, x: e.clientX, y: e.clientY, link }; }
-  function closeLinkMenu() { linkContextMenu.show = false; }
 
     // 設定とテーマ
   let isSettingsOpen = false; 
@@ -435,18 +370,10 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 
     <!-- リンク固定エリア -->
     {#if workspaces[currentIndex]}
-      <div class="border-t border-gray-700 flex flex-col shrink-0">
-        <!-- <div class="flex justify-between items-center p-2 text-xs font-bold text-gray-400">
-          <span>🔗 リンク</span> 
-        </div>-->
-        <div class="p-2 overflow-y-auto space-y-1 max-h-[150px]">
-          {#each workspaces[currentIndex].links || [] as link}
-            <!-- svelte-ignore a11y-click-events-have-key-events -->
-            <!-- svelte-ignore a11y-no-static-element-interactions -->
-            <div class="text-sm text-blue-400 hover:text-blue-300 hover:underline cursor-pointer truncate pl-1" on:click={() => openUrl(link.url)} on:contextmenu={(e) => handleLinkContextMenu(e, link)}>{link.title}</div>
-          {/each}
-        </div>
-      </div>
+      <SidebarLinks 
+        links={workspaces[currentIndex].links || []} 
+        onLinkDelete={deleteLink} 
+      />
     {/if}
 
     <!-- UI下部 -->

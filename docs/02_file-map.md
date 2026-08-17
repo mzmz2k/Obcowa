@@ -37,6 +37,7 @@ A03_Obcowa/
 │   │   ├── Sidebar
 │   │   │   ├── SidebarFooter.svelte
 │   │   │   ├── SidebarHeader.svelte
+│   │   │   ├── SidebarLinks.svelte
 │   │   │   └── SidebarTree.svelte
 │   │   └── TreeNode.svelte
 │   ├── features
@@ -56,9 +57,12 @@ A03_Obcowa/
 │   │   │   ├── theme.test.ts
 │   │   │   └── theme.ts
 │   │   ├── stores.ts
-│   │   └── utils
-│   │       ├── tagUtils.test.ts
-│   │       └── tagUtils.ts
+│   │   ├── utils
+│   │   │   ├── tagUtils.test.ts
+│   │   │   └── tagUtils.ts
+│   │   └── workspace
+│   │       ├── treeUtils.test.ts
+│   │       └── treeUtils.ts
 │   └── routes
 │       ├── +layout.svelte
 │       ├── +layout.ts
@@ -191,6 +195,9 @@ A03_Obcowa/
   └── import lucide-svelte
   └── import ../../lib/stores
 
+📄 `src/components/Sidebar/SidebarLinks.svelte`
+  └── import @tauri-apps/plugin-opener
+
 📄 `src/components/Sidebar/SidebarTree.svelte`
   └── import ../TreeNode.svelte
   └── import lucide-svelte
@@ -245,6 +252,12 @@ A03_Obcowa/
   └── import vitest
   └── import ./tagUtils
 
+📄 `src/lib/workspace/treeUtils.test.ts`
+  └── import vitest
+
+📄 `src/lib/workspace/treeUtils.ts`
+  └── import @tauri-apps/api/core
+
 📄 `src/routes/+page.svelte`
   └── import svelte
   └── import @tauri-apps/api/core
@@ -260,13 +273,14 @@ A03_Obcowa/
   └── import ../components/Sidebar/SidebarHeader.svelte
   └── import ../components/Sidebar/SidebarTree.svelte
   └── import ../components/Sidebar/SidebarFooter.svelte
+  └── import ../components/Sidebar/SidebarLinks.svelte
   └── import ../lib/settings/theme
   └── import ../features/styleSettings/styleStore
   └── import ../lib/stores
   └── import ../lib/library
-  └── import lucide-svelte
   └── import @tauri-apps/api/event
   └── import ../features/launcher/LauncherWindow.svelte
+  └── import ../lib/workspace/treeUtils
 
 📄 `src-tauri/src/file_ops.rs`
   └── use/mod std::fs
@@ -319,6 +333,7 @@ A03_Obcowa/
 ### src/components/Sidebar/
 `src/components/Sidebar/SidebarFooter.svelte` : サイドバー下部のリスト切り替え・設定ボタン
 `src/components/Sidebar/SidebarHeader.svelte` : サイドバー上部の新規追加ボタン等
+`src/components/Sidebar/SidebarLinks.svelte` : 責務: サイドバー内の外部リンク一覧の表示・コンテキストメニューおよび開く処理の管理
 `src/components/Sidebar/SidebarTree.svelte` : サイドバーのツリー表示とピン留め
 
 ### src/components/
@@ -348,6 +363,10 @@ A03_Obcowa/
 ### src/lib/utils/
 `src/lib/utils/tagUtils.test.ts` : （説明未記載）
 `src/lib/utils/tagUtils.ts` : タグの文字列処理など（純粋関数）
+
+### src/lib/workspace/
+`src/lib/workspace/treeUtils.test.ts` : 責務: treeUtils関数の単体テスト
+`src/lib/workspace/treeUtils.ts` : 責務: ワークスペースのノードツリー最新化およびスマートフォルダ評価を行う関数群
 
 ### src/routes/
 `src/routes/+layout.svelte` : （説明未記載）
