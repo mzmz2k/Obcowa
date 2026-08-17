@@ -78,6 +78,7 @@
   // marked のレンダラーカスタマイズ
   let taskCounter = 0;
 
+
   // marked のレンダラーカスタマイズ
   const customRenderer = {
       code(codeOrToken: any, infostring?: string, escaped?: boolean) {
@@ -105,12 +106,32 @@
               </div>
           `;
       },
-      listitem(text: string, task: boolean, checked: boolean) {
-          if (task) {
+      listitem(itemOrText: any, taskArg?: boolean, checkedArg?: boolean) {
+          let text = '';
+          let isTask = false;
+          let isChecked = false;
+
+          // markedのバージョン差異（トークンオブジェクト形式 / 文字列形式）を吸収
+          if (typeof itemOrText === 'object' && itemOrText !== null) {
+              isTask = !!itemOrText.task;
+              isChecked = !!itemOrText.checked;
+              
+              if (itemOrText.tokens && this.parser) {
+                  text = this.parser.parseInline(itemOrText.tokens);
+              } else {
+                  text = itemOrText.text || '';
+              }
+          } else {
+              text = String(itemOrText || '');
+              isTask = !!taskArg;
+              isChecked = !!checkedArg;
+          }
+
+          if (isTask) {
               const currentIndex = taskCounter++;
-              // markedが標準で挿入するcheckboxを自前で置き換える
-              const cleanText = text.replace(/^<input[^>]*>\s*/, '');
-              const checkedAttr = checked ? 'checked' : '';
+              // 標準の<input>タグや [ ] マークを除去してクリーンな表示にする
+              const cleanText = text.replace(/^<input[^>]*>\s*/, '').replace(/^\[[ xX]\]\s*/, '');
+              const checkedAttr = isChecked ? 'checked' : '';
               return `<li class="task-list-item"><input type="checkbox" class="task-checkbox" data-task-index="${currentIndex}" ${checkedAttr} /> ${cleanText}</li>\n`;
           }
           return `<li>${text}</li>\n`;
