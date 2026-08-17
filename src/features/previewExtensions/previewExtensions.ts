@@ -24,21 +24,16 @@ export function toggleTaskMarkdown(content: string, targetIndex: number): string
       return line;
     }
 
-    // タスクリスト項目の判定 (- [ ] / - [x] / * [ ] / + [ ] 等)
-    const taskRegex = /^(\s*[-*+]\s*\[)([ xX])(\].*)$/;
-    const match = line.match(taskRegex);
-
-    if (match) {
+    // 行内でタスクブラケット [ ] または [x] を検出してインデックス単位で置換
+    return line.replace(/\[([ xX])\]/g, (match, p1) => {
       if (currentIndex === targetIndex) {
-        const currentCheck = match[2];
-        const newCheck = currentCheck === ' ' ? 'x' : ' ';
         currentIndex++;
-        return `${match[1]}${newCheck}${match[3]}`;
+        const newChar = p1 === ' ' ? 'x' : ' ';
+        return `[${newChar}]`;
       }
       currentIndex++;
-    }
-
-    return line;
+      return match;
+    });
   });
 
   return updatedLines.join('\n');

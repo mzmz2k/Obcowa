@@ -119,11 +119,9 @@
           let isTask = false;
           let isChecked = false;
 
-          // markedのバージョン差異（トークンオブジェクト形式 / 文字列形式）を吸収
           if (typeof itemOrText === 'object' && itemOrText !== null) {
               isTask = !!itemOrText.task;
               isChecked = !!itemOrText.checked;
-              
               if (itemOrText.tokens && this.parser) {
                   try {
                       text = this.parser.parse(itemOrText.tokens);
@@ -140,15 +138,13 @@
           }
 
           if (isTask) {
-              const currentIndex = taskCounter++;
-              // 先頭・末尾の<p>タグや<input>タグ、[ ]マークを除去してクリーンな表示にする
               const cleanText = text
                   .replace(/^<p>/, '')
                   .replace(/<\/p>\n?$/, '')
                   .replace(/^<input[^>]*>\s*/, '')
                   .replace(/^\[[ xX]\]\s*/, '');
               const checkedAttr = isChecked ? 'checked' : '';
-              return `<li class="task-list-item"><input type="checkbox" class="task-checkbox" data-task-index="${currentIndex}" ${checkedAttr} /> ${cleanText}</li>\n`;
+              return `<li class="task-list-item"><input type="checkbox" class="task-checkbox" ${checkedAttr} /><span class="task-content">${cleanText}</span></li>\n`;
           }
           return `<li>${text}</li>\n`;
       }
@@ -165,9 +161,18 @@
   let fileExists = true;
   let renderedHtml = '';
 
-  // タブの情報が変わるたびに実行される
+    // タブの情報が変わるたびに実行される
   $: if (activeTab) {
       checkAndRender(activeTab);
+  }
+
+  // DOM上に生成されたすべてのチェックボックスへ上から順に0, 1, 2...とインデックスを付与する
+  function assignTaskIndexes() {
+      if (!scrollContainer) return;
+      const checkboxes = scrollContainer.querySelectorAll<HTMLInputElement>('.task-checkbox');
+      checkboxes.forEach((cb, index) => {
+          cb.setAttribute('data-task-index', index.toString());
+      });
   }
 
   async function checkAndRender(tab: any) {
@@ -182,10 +187,8 @@
               const safeText = tab.content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
               renderedHtml = DOMPurify.sanitize(safeText.replace(/\n/g, '<br>'));
           } else {
-              taskCounter = 0; // 描画直前にタスクカウンターをリセット
               const rawHtml = marked(removeFrontmatter(tab.content));
               
-              // DOMPurifyに、自作画像ビューワーやタスクチェック、コピーボタン用の属性を許可する
               renderedHtml = DOMPurify.sanitize(rawHtml as string, {
                   ADD_TAGS: ['button', 'input'],
                   ADD_ATTR: [
@@ -196,6 +199,7 @@
           }
           await tick(); 
           loadImagesInDom(); 
+          assignTaskIndexes(); // ★ 追加: DOM構築完了後に確実にインデックスを割り当てる
           
           dispatch('renderComplete'); 
       }

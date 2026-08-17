@@ -365,7 +365,7 @@ A03_Obcowa/
 `src/features/launcher/LauncherWindow.svelte` : 責務: 独立した小ウィンドウでワークスペースの一覧を表示し、選択結果をメイン画面に送信する
 
 ### src/features/previewExtensions/
-`src/features/previewExtensions/previewExtensions.test.ts` : previewExtensions の計算ロジックに関する単体テスト
+`src/features/previewExtensions/previewExtensions.test.ts` : 前後のコード明確化: src/features/previewExtensions/previewExtensions.test.ts
 `src/features/previewExtensions/previewExtensions.ts` : プレビュー表示拡張機能（タスク切り替え、コードコピー、見出し折りたたみ）のロジックとDOM操作
 
 ### src/features/styleSettings/
