@@ -94,10 +94,20 @@ pub fn save_file_content(path: String, content: String, last_modified: u64, forc
                 
             // OSによるミリ秒の微細なブレを許容するため、2秒(2000ms)以上新しければ競合とみなす
             if last_modified > 0 && current_mod > last_modified + 2000 {
-                return Err("CONFLICT".to_string());
-            }
-        }
-    }
+               
+                // タイムスタンプに差異がある場合、ディスク上の内容と比較する
+                if let Ok(existing_bytes) = fs::read(path_obj) {
+                   // 内容が異なっている場合のみ競合エラーとする（同じ内容なら通知なしで上書きOK）
+                   if existing_bytes != content.as_bytes() {
+                       return Err("CONFLICT".to_string());
+                   }
+               } else {
+                   return Err("CONFLICT".to_string());
+               }
+           }
+         }
+     }
+            
 
     // アトミック書き込みを実行
     atomic_write(path_obj, content.as_bytes())?;
@@ -248,3 +258,27 @@ mod tests {
         let _ = fs::remove_file(&target_file);
     }
 }
+
+    #[test]
+    fn test_save_file_content_conflict_check() {
+        let temp_dir = std::env::temp_dir();
+        let target_file = temp_dir.join("obcowa_conflict_test.md");
+        let path_str = target_file.to_string_lossy().to_string();
+
+        // 初期ファイル作成
+        let initial_content = "Hello World";
+        let initial_mod = save_file_content(path_str.clone(), initial_content.to_string(), 0, true).unwrap();
+
+        // 古いタイムスタンプ（過去の時間）を指定して保存を試みる
+        let past_timestamp = initial_mod.saturating_sub(5000);
+
+        // 1. タイムスタンプは異なるが、中身が同じ場合は成功（CONFLICTにならない）することを確認
+        let result_same = save_file_content(path_str.clone(), initial_content.to_string(), past_timestamp, false);
+        assert!(result_same.is_ok(), "同じ内容であればタイムスタンプが古くても保存に成功するべきです");
+
+        // 2. タイムスタンプが異なり、中身も異なる場合は CONFLICT エラーになることを確認
+        let result_different = save_file_content(path_str.clone(), "Hello Modified".to_string(), past_timestamp, false);
+        assert_eq!(result_different, Err("CONFLICT".to_string()), "異なる内容の場合は競合エラーが発生するべきです");
+
+        let _ = fs::remove_file(&target_file);
+    }
