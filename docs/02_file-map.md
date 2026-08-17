@@ -49,8 +49,12 @@ A03_Obcowa/
 │   │       └── styleStore.ts
 │   ├── lib
 │   │   ├── editor
+│   │   │   ├── editorSave.test.ts
+│   │   │   ├── editorSave.ts
 │   │   │   ├── imageViewer.test.ts
-│   │   │   └── imageViewer.ts
+│   │   │   ├── imageViewer.ts
+│   │   │   ├── scrollSync.test.ts
+│   │   │   └── scrollSync.ts
 │   │   ├── library.test.ts
 │   │   ├── library.ts
 │   │   ├── settings
@@ -120,6 +124,8 @@ A03_Obcowa/
   └── import ./EditorPreview.svelte
   └── import ./EditorSearch.svelte
   └── import ../../lib/stores
+  └── import ../../lib/editor/editorSave
+  └── import ../../lib/editor/scrollSync
 
 📄 `src/components/Editor/EditorHeader.svelte`
   └── import @tauri-apps/api/core
@@ -226,12 +232,20 @@ A03_Obcowa/
   └── import svelte/store
   └── import ../../lib/stores
 
+📄 `src/lib/editor/editorSave.test.ts`
+  └── import vitest
+  └── import ./editorSave
+
 📄 `src/lib/editor/imageViewer.test.ts`
   └── import vitest
   └── import ./imageViewer
 
 📄 `src/lib/editor/imageViewer.ts`
   └── import @tauri-apps/api/core
+
+📄 `src/lib/editor/scrollSync.test.ts`
+  └── import vitest
+  └── import ./scrollSync
 
 📄 `src/lib/library.test.ts`
   └── import vitest
@@ -348,8 +362,12 @@ A03_Obcowa/
 `src/features/styleSettings/styleStore.ts` : （説明未記載）
 
 ### src/lib/editor/
+`src/lib/editor/editorSave.test.ts` : editorSave関数の単体テスト
+`src/lib/editor/editorSave.ts` : エディタの保存処理、競合ダイアログハンドリングの純粋・抽象化ロジック
 `src/lib/editor/imageViewer.test.ts` : --- START OF src/lib/imageViewer.test.ts ---
 `src/lib/editor/imageViewer.ts` : --- START OF src/lib/editor/imageViewer.ts ---
+`src/lib/editor/scrollSync.test.ts` : scrollSync関数の単体テスト
+`src/lib/editor/scrollSync.ts` : 編集エリアとプレビューエリア間のスクロール位置比率の計算を行う純粋関数
 
 ### src/lib/
 `src/lib/library.test.ts` : --- START OF src/lib/library.test.ts ---

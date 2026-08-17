@@ -8,12 +8,14 @@
     import { tick } from 'svelte';
     import { Inbox } from 'lucide-svelte';
     
-    // 💥 独立させた子部品たちをインポート
+    // 独立させた子部品たちをインポート
     import EditorHeader from './EditorHeader.svelte';
     import TabBar from './TabBar.svelte';
     import EditorPreview from './EditorPreview.svelte';
     import EditorSearch from './EditorSearch.svelte';
     import { imageFolderPath } from '../../lib/stores';
+    import { saveTabWithConflictCheck, type SaveDependencies } from '../../lib/editor/editorSave';
+    import { calculateScrollRatio, calculateScrollTopFromRatio } from '../../lib/editor/scrollSync';
 
     $: activeTab = $openTabs.find(t => t.id === $activeTabId);
 
@@ -23,6 +25,14 @@
     let previewScrollContainer: HTMLDivElement | undefined;
     let editArea: HTMLTextAreaElement;
     let scrollRatio = 0;
+
+    const saveDeps: SaveDependencies = {
+        saveFileContent: (path, content, lastModified, force) => invoke('save_file_content', { path, content, lastModified, force }),
+        getModified: (path) => invoke('get_file_modified', { path }),
+        readFileContentBytes: (path) => invoke('read_file_content', { path }),
+        confirmDialog: (message, options) => tauriConfirm(message, options)
+    };
+
 
         // タブが開かれた時に、ファイルの最新日時を取得する
     $: if (activeTab && activeTab.path && activeTab.path !== '__SEARCH__' && activeTab.lastModified === 0) {
@@ -47,62 +57,18 @@
         }
 
         savePromise = (async () => {
-            // 💥 非同期待ちの間にタブが切り替わっている可能性があるため、Storeから最新の情報を取得する
+            // 非同期待ちの間にタブが切り替わっている可能性があるため、Storeから最新の情報を取得する
             const currentId = $activeTabId;
             const targetTab = $openTabs.find(t => t.id === currentId);
 
-            if (targetTab && targetTab.isDirty && targetTab.path && targetTab.path !== '__SEARCH__') {
-                try {
-                    const newModified = await invoke('save_file_content', { 
-                        path: targetTab.path, content: targetTab.content, lastModified: targetTab.lastModified || 0, force: false 
-                    });
-                    openTabs.update(tabs => { 
-                        const t = tabs.find(t => t.id === targetTab.id); 
-                        if (t) { t.isDirty = false; t.lastModified = newModified as number; t.isConflict = false; } 
-                        return tabs; 
-                    });
-                } catch (e) {
-                    if (e === "CONFLICT") {
-                        isDialogShowing = true;
-                        const overwrite = await tauriConfirm(
-                            "このファイルは他のアプリによって外部で変更されています。\nこの編集内容で上書き保存しますか？", 
-                            { title: "ファイルの競合", kind: "warning" }
-                        );
-                        
-                        if (overwrite) {
-                            try {
-                                const newModified = await invoke('save_file_content', { path: targetTab.path, content: targetTab.content, lastModified: targetTab.lastModified || 0, force: true });
-                                openTabs.update(tabs => { const t = tabs.find(t => t.id === targetTab.id); if (t) { t.isDirty = false; t.lastModified = newModified as number; t.isConflict = false; } return tabs; });
-                            } catch (err) {}
-                        } else {
-                            const reload = await tauriConfirm(
-                                "この変更を破棄して最新の外部ファイルを読み込みますか？", 
-                                { title: "再読み込みの確認", kind: "info" }
-                            );
+            if (!targetTab) return;
 
-                            if (reload) {
-                                try {
-                                    const bytes: number[] = await invoke('read_file_content', { path: targetTab.path });
-                                    let latestContent = "";
-                                    try { latestContent = new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes)); } 
-                                    catch (e) { latestContent = new TextDecoder('shift-jis').decode(new Uint8Array(bytes)); }
-                                    
-                                    const newModified = await invoke('get_file_modified', { path: targetTab.path });
-                                    
-                                    openTabs.update(tabs => { 
-                                        const t = tabs.find(t => t.id === targetTab.id); 
-                                        if (t) { t.content = latestContent; t.isDirty = false; t.lastModified = newModified as number; t.isConflict = false; } 
-                                        return tabs; 
-                                    });
-                                } catch (err) {}
-                            } else {
-                                openTabs.update(tabs => { const t = tabs.find(t => t.id === targetTab.id); if (t) { t.isConflict = true; } return tabs; });
-                            }
-                        }
-                        isDialogShowing = false;
-                    }
-                }
-            }
+            await saveTabWithConflictCheck(
+                targetTab,
+                saveDeps,
+                (updater) => openTabs.update(tabs => tabs.map(t => t.id === targetTab.id ? updater(t) : t)),
+                (showing) => { isDialogShowing = showing; }
+            );
         })();
 
         await savePromise;
@@ -126,25 +92,15 @@
         if (savePromise) await savePromise; 
 
         const tab = $openTabs.find(t => t.id === tabId);
-        if (tab && tab.isDirty && tab.path && tab.path !== '__SEARCH__') {
-            try { 
-                await invoke('save_file_content', { path: tab.path, content: tab.content, lastModified: tab.lastModified || 0, force: false }); 
-            } catch (e) {
-                if (e === "CONFLICT") {
-                    isDialogShowing = true;
-                    const overwrite = await tauriConfirm(
-                        "このファイルは他のアプリによって外部で変更されています。\n現在の編集内容で上書き保存してタブを閉じますか？\n（キャンセルするとタブを閉じずに保留します）", 
-                        { title: "競合の確認", kind: "warning" }
-                    );
-                    if (overwrite) {
-                        try { await invoke('save_file_content', { path: tab.path, content: tab.content, lastModified: tab.lastModified || 0, force: true }); } catch (err) {}
-                    } else {
-                        isDialogShowing = false;
-                        return; // 処理を中断（タブは閉じない）
-                    }
-                    isDialogShowing = false;
-                }
-            }
+
+        if (tab) {
+            const saved = await saveTabWithConflictCheck(
+                tab,
+                saveDeps,
+                (updater) => openTabs.update(tabs => tabs.map(t => t.id === tab.id ? updater(t) : t)),
+                (showing) => { isDialogShowing = showing; }
+            );
+            if (!saved && tab.isConflict) return; // キャンセルされた場合は閉じない
         }
         closeTab(tabId);
     }
@@ -152,8 +108,11 @@
     async function toggleEditMode() {
         if (!activeTab) return;
         
-        if (activeTab.isEditing && editArea) { scrollRatio = editArea.scrollTop / editArea.scrollHeight; } 
-        else if (!activeTab.isEditing && previewScrollContainer) { scrollRatio = previewScrollContainer.scrollTop / previewScrollContainer.scrollHeight; }
+        if (activeTab.isEditing && editArea) { 
+            scrollRatio = calculateScrollRatio(editArea.scrollTop, editArea.scrollHeight); 
+        } else if (!activeTab.isEditing && previewScrollContainer) { 
+            scrollRatio = calculateScrollRatio(previewScrollContainer.scrollTop, previewScrollContainer.scrollHeight); 
+        }
 
         if (activeTab.isEditing && activeTab.path) { await saveCurrentTab(); } 
         else if (!activeTab.isEditing && activeTab.path && activeTab.path !== '__SEARCH__' && !activeTab.isDirty) {
@@ -172,13 +131,14 @@
 
          // プレビュー側はイベントで処理するため、ここは編集エリア（textarea）のみにする
         if (activeTab.isEditing && editArea) {
-            editArea.scrollTop = scrollRatio * editArea.scrollHeight;
+
+            editArea.scrollTop = calculateScrollTopFromRatio(scrollRatio, editArea.scrollHeight);
         }
     }
     // プレビュー画面のHTML描画が終わった合図を受け取って実行される関数
     function handlePreviewRendered() {
         if (!activeTab?.isEditing && previewScrollContainer) {
-            previewScrollContainer.scrollTop = scrollRatio * previewScrollContainer.scrollHeight;
+            previewScrollContainer.scrollTop = calculateScrollTopFromRatio(scrollRatio, previewScrollContainer.scrollHeight);
         }
     }
 
