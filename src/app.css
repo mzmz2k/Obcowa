@@ -159,15 +159,74 @@ html, body {
   line-height: 1.6;
 }
 
-/* チェックボックスとテキストの配置 */
+/* 前後のコード明確化: src/app.css */
+/* --- START OF preview extensions CSS --- */
+
+/* 1. タスク箇条書きのドット削除とインデント（字下げ）調整 */
+.editor-preview ul:has(li.task-list-item),
+.editor-preview ol:has(li.task-list-item) {
+  list-style-type: none !important;
+  padding-left: 1.25rem !important;
+}
+
+.editor-preview li.task-list-item {
+  list-style-type: none !important;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+  line-height: 1.6;
+}
+
+/* ★ カスタムチェックボックス: 大きめの丸型デザイン ★ */
 .editor-preview li.task-list-item > input.task-checkbox {
-  margin-right: 0.4rem;
-  vertical-align: middle;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.2rem;
+  height: 1.2rem;
+  border: 1.5px solid color-mix(in srgb, var(--text-color) 40%, transparent);
+  border-radius: 50%; /* 丸い形にする */
+  outline: none;
   cursor: pointer;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  background-color: transparent;
+  flex-shrink: 0;
+}
+
+/* ホバー時の枠線カラー */
+.editor-preview li.task-list-item > input.task-checkbox:hover {
+  border-color: var(--accent-color);
+}
+
+/* チェックON時のスタイル (var(--accent-color) を適用) */
+.editor-preview li.task-list-item > input.task-checkbox:checked {
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+/* チェックマーク（V字アイコン）の描画 */
+.editor-preview li.task-list-item > input.task-checkbox:checked::after {
+  content: '';
+  width: 0.35rem;
+  height: 0.6rem;
+  border: solid var(--bg-color); /* 背景色と同色でチェックマークを描画 */
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  margin-bottom: 2px;
 }
 
 .editor-preview li.task-list-item > .task-content {
   vertical-align: middle;
+}
+
+/* チェック済みタスク行全体のハイライト */
+.editor-preview li.task-list-item:has(> input:checked) {
+  
+  border-radius: 4px;
 }
 
 /* 2. コードブロックのコピペボタン */
