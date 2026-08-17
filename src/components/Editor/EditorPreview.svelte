@@ -113,6 +113,7 @@
           `;
       },
 
+
       listitem(itemOrText: any, taskArg?: boolean, checkedArg?: boolean) {
           let text = '';
           let isTask = false;
@@ -124,7 +125,11 @@
               isChecked = !!itemOrText.checked;
               
               if (itemOrText.tokens && this.parser) {
-                  text = this.parser.parseInline(itemOrText.tokens);
+                  try {
+                      text = this.parser.parse(itemOrText.tokens);
+                  } catch (e) {
+                      text = itemOrText.text || '';
+                  }
               } else {
                   text = itemOrText.text || '';
               }
@@ -136,13 +141,18 @@
 
           if (isTask) {
               const currentIndex = taskCounter++;
-              // 標準の<input>タグや [ ] マークを除去してクリーンな表示にする
-              const cleanText = text.replace(/^<input[^>]*>\s*/, '').replace(/^\[[ xX]\]\s*/, '');
+              // 先頭・末尾の<p>タグや<input>タグ、[ ]マークを除去してクリーンな表示にする
+              const cleanText = text
+                  .replace(/^<p>/, '')
+                  .replace(/<\/p>\n?$/, '')
+                  .replace(/^<input[^>]*>\s*/, '')
+                  .replace(/^\[[ xX]\]\s*/, '');
               const checkedAttr = isChecked ? 'checked' : '';
               return `<li class="task-list-item"><input type="checkbox" class="task-checkbox" data-task-index="${currentIndex}" ${checkedAttr} /> ${cleanText}</li>\n`;
           }
           return `<li>${text}</li>\n`;
       }
+
   };
 
   marked.use({ 
