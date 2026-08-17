@@ -336,7 +336,7 @@ A03_Obcowa/
 ### src/components/Editor/
 `src/components/Editor/Editor.svelte` : エディタ画面を統括する親部品
 `src/components/Editor/EditorHeader.svelte` : --- START OF src/components/EditorHeader.svelte ---
-`src/components/Editor/EditorPreview.svelte` : --- START OF src/components/Editor/EditorPreview.svelte ---
+`src/components/Editor/EditorPreview.svelte` : Markdownを綺麗に表示し、ユーザーがクリックしたイベントを外に教える
 `src/components/Editor/EditorSearch.svelte` : 検索機能と結果表示
 `src/components/Editor/TabBar.svelte` : --- START OF src/components/Editor/TabBar.svelte ---
 

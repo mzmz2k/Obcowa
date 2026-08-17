@@ -164,6 +164,25 @@
             }
         }, 1500);
     }
+
+    // 💥 プレビュー(ビューモード)でのコンテンツ変更（タスク切り替え等）を受け取って保存する関数
+    function handlePreviewContentChange(event: CustomEvent<{ path: string; content: string }>) {
+        if (!activeTab) return;
+        const { content } = event.detail;
+        
+        openTabs.update(tabs => {
+            return tabs.map(t => {
+                if (t.id === activeTab!.id) {
+                    return { ...t, content, isDirty: true, isConflict: false };
+                }
+                return t;
+            });
+        });
+
+        // Editor.svelte 既存の競合チェック付き安全保存を実行
+        saveCurrentTab();
+    }
+
 </script>
 
 <div class="h-full flex flex-col transition-colors duration-200" style="background-color: var(--bg-color); color: var(--text-color);">
@@ -183,8 +202,13 @@
                 {#if activeTab.isEditing}
                     <textarea bind:this={editArea} class="flex-1 w-full bg-transparent resize-none focus:outline-none p-6 overflow-y-auto" style="font-family: var(--editor-font, {$editorFont}); font-size: var(--editor-font-size, 14px); line-height: var(--editor-line-height, 1.6); color: var(--text-color);" value={activeTab.content} on:input={handleInput}></textarea>
                 {:else}
-                    <!-- 💥 独立させたプレビュー画面を配置（スクロール位置を双方向に同期） -->
-                    <EditorPreview {activeTab} bind:scrollContainer={previewScrollContainer} on:renderComplete={handlePreviewRendered} />
+                    <!-- 💥 独立させたプレビュー画面を配置（イベント接続を追加） -->
+                    <EditorPreview 
+                        {activeTab} 
+                        bind:scrollContainer={previewScrollContainer} 
+                        on:renderComplete={handlePreviewRendered} 
+                        on:contentChange={handlePreviewContentChange}
+                    />
                 {/if}
             {/if}
         </div>

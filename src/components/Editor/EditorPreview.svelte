@@ -1,3 +1,5 @@
+<!-- Markdownを綺麗に表示し、ユーザーがクリックしたイベントを外に教える -->
+
 <!-- --- START OF src/components/Editor/EditorPreview.svelte --- -->
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
@@ -211,7 +213,6 @@
       return content.replace(/^---\n[\s\S]*?\n---\n/, '');
   }
 
-
   async function handlePreviewClick(event: MouseEvent) {
       const target = event.target as HTMLElement;
 
@@ -222,7 +223,10 @@
           if (indexAttr !== null && activeTab) {
               const targetIndex = parseInt(indexAttr, 10);
               const updatedContent = toggleTaskMarkdown(activeTab.content, targetIndex);
+              
               activeTab.content = updatedContent;
+              
+              // 親(Editor.svelte)へコンテンツの変更を通知する（保存は親の saveCurrentTab が実行）
               dispatch('contentChange', { path: activeTab.path, content: updatedContent });
           }
           return;
