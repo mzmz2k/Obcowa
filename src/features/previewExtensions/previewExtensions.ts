@@ -1,0 +1,91 @@
+// プレビュー表示拡張機能（タスク切り替え、コードコピー、見出し折りたたみ）のロジックとDOM操作
+
+/**
+ * Markdown内の targetIndex 番目のタスク状態（[ ] ↔ [x]）を反転します。
+ * コードブロック（```）内のタスク記法はカウント対象外にします。
+ */
+export function toggleTaskMarkdown(content: string, targetIndex: number): string {
+  let currentIndex = 0;
+  let inCodeBlock = false;
+  const lines = content.split('\n');
+
+  const updatedLines = lines.map((line) => {
+    // コードブロックの開始/終了判定
+    if (line.trim().startsWith('```')) {
+      inCodeBlock = !inCodeBlock;
+      return line;
+    }
+
+    if (inCodeBlock) {
+      return line;
+    }
+
+    // タスクリスト項目の判定 (- [ ] / - [x] / * [ ] / + [ ] 等)
+    const taskRegex = /^(\s*[-*+]\s*\[)([ xX])(\].*)$/;
+    const match = line.match(taskRegex);
+
+    if (match) {
+      if (currentIndex === targetIndex) {
+        const currentCheck = match[2];
+        const newCheck = currentCheck === ' ' ? 'x' : ' ';
+        currentIndex++;
+        return `${match[1]}${newCheck}${match[3]}`;
+      }
+      currentIndex++;
+    }
+
+    return line;
+  });
+
+  return updatedLines.join('\n');
+}
+
+/**
+ * コードブロック内のテキストをクリップボードにコピーします。
+ */
+export async function copyCodeBlock(buttonEl: HTMLElement): Promise<boolean> {
+  const wrapper = buttonEl.closest('.code-block-wrapper');
+  if (!wrapper) return false;
+
+  const codeEl = wrapper.querySelector('code');
+  if (!codeEl) return false;
+
+  const textToCopy = codeEl.textContent || '';
+  try {
+    await navigator.clipboard.writeText(textToCopy);
+    return true;
+  } catch (err) {
+    console.error('Failed to copy code block:', err);
+    return false;
+  }
+}
+
+/**
+ * 見出し要素配下のコンテンツを表示/非表示トグルします。
+ */
+export function toggleHeadingCollapse(headingEl: HTMLElement): void {
+  const currentLevel = parseInt(headingEl.tagName.substring(1), 10);
+  if (isNaN(currentLevel)) return;
+
+  const isCollapsed = headingEl.classList.toggle('is-collapsed');
+
+  let nextEl = headingEl.nextElementSibling as HTMLElement | null;
+  while (nextEl) {
+    const tagName = nextEl.tagName;
+    if (/^H[1-6]$/.test(tagName)) {
+      const nextLevel = parseInt(tagName.substring(1), 10);
+      // 自分と同じかより上位の見出しが現れたら走査終了
+      if (nextLevel <= currentLevel) {
+        break;
+      }
+    }
+
+    if (isCollapsed) {
+      nextEl.classList.add('collapsed-child');
+    } else {
+      nextEl.classList.remove('collapsed-child');
+    }
+
+    nextEl = nextEl.nextElementSibling as HTMLElement | null;
+  }
+}

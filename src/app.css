@@ -142,3 +142,75 @@ html, body {
     font-size: inherit !important;
     line-height: inherit !important;
 }
+
+/* 1. チェック済みタスク行のハイライト */
+.editor-preview li.task-list-item:has(input:checked) {
+  background-color: var(--active-highlight-bg);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+/* 2. コードブロックのコピペボタン */
+.editor-preview .code-block-wrapper {
+  position: relative;
+}
+
+.editor-preview .code-copy-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  border-radius: 0.25rem;
+  background-color: color-mix(in srgb, var(--menu-bg) 80%, var(--text-color) 20%);
+  color: var(--text-color);
+  border: 1px solid color-mix(in srgb, var(--text-color) 20%, transparent);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s ease, background-color 0.2s ease;
+  user-select: none;
+}
+
+.editor-preview .code-block-wrapper:hover .code-copy-btn {
+  opacity: 1;
+}
+
+.editor-preview .code-copy-btn:hover {
+  background-color: var(--active-highlight-bg);
+  color: var(--accent-color);
+}
+
+/* 3. 見出しの折りたたみ表示 */
+.editor-preview h1,
+.editor-preview h2,
+.editor-preview h3,
+.editor-preview h4,
+.editor-preview h5,
+.editor-preview h6 {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+.editor-preview h1::before,
+.editor-preview h2::before,
+.editor-preview h3::before,
+.editor-preview h4::before,
+.editor-preview h5::before,
+.editor-preview h6::before {
+  content: '▼';
+  display: inline-block;
+  font-size: 0.7em;
+  margin-right: 0.4em;
+  opacity: 0.5;
+  transition: transform 0.2s ease;
+}
+
+.editor-preview .is-collapsed::before {
+  transform: rotate(-90deg);
+}
+
+.editor-preview .collapsed-child {
+  display: none !important;
+}

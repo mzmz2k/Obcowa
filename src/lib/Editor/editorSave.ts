@@ -7,7 +7,7 @@ export interface SaveDependencies {
     confirmDialog: (message: string, options: { title: string; kind: 'warning' | 'info' }) => Promise<boolean>;
 }
 
-export interface TabData {
+export interface BaseTabData {
     id: string;
     path?: string;
     content: string;
@@ -19,10 +19,10 @@ export interface TabData {
 /**
  * 指定したタブの保存を実行し、必要に応じて競合解決ダイアログを表示する
  */
-export async function saveTabWithConflictCheck(
-    targetTab: TabData,
+export async function saveTabWithConflictCheck<T extends BaseTabData>(
+    targetTab: T,
     deps: SaveDependencies,
-    updateTab: (updater: (tab: TabData) => TabData) => void,
+    updateTab: (updater: (tab: T) => T) => void,
     onDialogStateChange?: (showing: boolean) => void
 ): Promise<boolean> {
     if (!targetTab.isDirty || !targetTab.path || targetTab.path === '__SEARCH__') {

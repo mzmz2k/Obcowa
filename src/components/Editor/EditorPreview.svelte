@@ -8,6 +8,8 @@
   import { generateImageHtml, loadImagesInDom } from '../../lib/editor/imageViewer';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { FileQuestion } from 'lucide-svelte';
+  import { toggleTaskMarkdown, copyCodeBlock, toggleHeadingCollapse } from '../../features/previewExtensions/previewExtensions';
+
 
   const dispatch = createEventDispatcher();
 
@@ -72,7 +74,55 @@
       }
   };
 
-marked.use({ breaks: true, hooks, extensions: [highlightExtension, obsidianImageExtension] });
+
+  // marked のレンダラーカスタマイズ
+  let taskCounter = 0;
+
+  // marked のレンダラーカスタマイズ
+  const customRenderer = {
+      code(codeOrToken: any, infostring?: string, escaped?: boolean) {
+          let codeStr = '';
+          let lang = '';
+          let isEscaped = false;
+
+          // markedのバージョン差異（トークンオブジェクト形式 / 文字列形式）を吸収
+          if (typeof codeOrToken === 'object' && codeOrToken !== null) {
+              codeStr = codeOrToken.text || '';
+              lang = codeOrToken.lang || '';
+              isEscaped = !!codeOrToken.escaped;
+          } else {
+              codeStr = String(codeOrToken || '');
+              lang = infostring || '';
+              isEscaped = !!escaped;
+          }
+
+          const matchedLang = lang.match(/\S*/)?.[0] || '';
+          const escapedCode = isEscaped ? codeStr : codeStr.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          return `
+              <div class="code-block-wrapper">
+                  <button type="button" class="code-copy-btn">コピー</button>
+                  <pre><code class="language-${matchedLang}">${escapedCode}</code></pre>
+              </div>
+          `;
+      },
+      listitem(text: string, task: boolean, checked: boolean) {
+          if (task) {
+              const currentIndex = taskCounter++;
+              // markedが標準で挿入するcheckboxを自前で置き換える
+              const cleanText = text.replace(/^<input[^>]*>\s*/, '');
+              const checkedAttr = checked ? 'checked' : '';
+              return `<li class="task-list-item"><input type="checkbox" class="task-checkbox" data-task-index="${currentIndex}" ${checkedAttr} /> ${cleanText}</li>\n`;
+          }
+          return `<li>${text}</li>\n`;
+      }
+  };
+
+  marked.use({ 
+      breaks: true, 
+      hooks, 
+      extensions: [highlightExtension, obsidianImageExtension],
+      renderer: customRenderer
+  });
 
   let fileExists = true;
   let renderedHtml = '';
@@ -94,12 +144,16 @@ marked.use({ breaks: true, hooks, extensions: [highlightExtension, obsidianImage
               const safeText = tab.content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
               renderedHtml = DOMPurify.sanitize(safeText.replace(/\n/g, '<br>'));
           } else {
-              // parseObsidianImages の事前置換をやめる（markedが自動でタグを作ってくれるため）
+              taskCounter = 0; // 描画直前にタスクカウンターをリセット
               const rawHtml = marked(removeFrontmatter(tab.content));
               
-              // DOMPurifyに、自作画像ビューワーで使っている特別なデータ属性を「消さないで」とお願いする
+              // DOMPurifyに、自作画像ビューワーやタスクチェック、コピーボタン用の属性を許可する
               renderedHtml = DOMPurify.sanitize(rawHtml as string, {
-                  ADD_ATTR: ['data-img-filename', 'data-primary-dir', 'data-fallback-dir', 'data-cache-key']
+                  ADD_TAGS: ['button', 'input'],
+                  ADD_ATTR: [
+                      'data-img-filename', 'data-primary-dir', 'data-fallback-dir', 'data-cache-key',
+                      'data-task-index', 'type', 'checked', 'class'
+                  ]
               });
           }
           await tick(); 
@@ -116,6 +170,43 @@ marked.use({ breaks: true, hooks, extensions: [highlightExtension, obsidianImage
 
   async function handlePreviewClick(event: MouseEvent) {
       const target = event.target as HTMLElement;
+
+      // 1. タスクチェックボックスのクリックハンドリング
+      const taskInput = target.closest<HTMLInputElement>('.task-checkbox');
+      if (taskInput) {
+          const indexAttr = taskInput.getAttribute('data-task-index');
+          if (indexAttr !== null && activeTab) {
+              const targetIndex = parseInt(indexAttr, 10);
+              const updatedContent = toggleTaskMarkdown(activeTab.content, targetIndex);
+              activeTab.content = updatedContent;
+              dispatch('contentChange', { path: activeTab.path, content: updatedContent });
+          }
+          return;
+      }
+
+      // 2. コードコピーボタンのクリックハンドリング
+      const copyBtn = target.closest<HTMLButtonElement>('.code-copy-btn');
+      if (copyBtn) {
+          event.preventDefault();
+          const success = await copyCodeBlock(copyBtn);
+          if (success) {
+              const originalText = copyBtn.textContent;
+              copyBtn.textContent = 'コピー完了!';
+              setTimeout(() => {
+                  copyBtn.textContent = originalText;
+              }, 1500);
+          }
+          return;
+      }
+
+      // 3. 見出しのトグルクリックハンドリング
+      const headingEl = target.closest<HTMLElement>('h1, h2, h3, h4, h5, h6');
+      if (headingEl && headingEl.closest('.editor-preview')) {
+          toggleHeadingCollapse(headingEl);
+          return;
+      }
+
+      // 4. 既存の外部リンククリックハンドリング
       const anchor = target.closest('a');
       if (anchor && anchor.href) {
           event.preventDefault();

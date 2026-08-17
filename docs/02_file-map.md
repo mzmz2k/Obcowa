@@ -44,6 +44,9 @@ A03_Obcowa/
 │   │   ├── launcher
 │   │   │   ├── +page.svelte
 │   │   │   └── LauncherWindow.svelte
+│   │   ├── previewExtensions
+│   │   │   ├── previewExtensions.test.ts
+│   │   │   └── previewExtensions.ts
 │   │   └── styleSettings
 │   │       ├── styleStore.test.ts
 │   │       └── styleStore.ts
@@ -140,6 +143,7 @@ A03_Obcowa/
   └── import ../../lib/editor/imageViewer
   └── import @tauri-apps/plugin-opener
   └── import lucide-svelte
+  └── import ../../features/previewExtensions/previewExtensions
 
 📄 `src/components/Editor/EditorSearch.svelte`
   └── import @tauri-apps/api/core
@@ -223,6 +227,10 @@ A03_Obcowa/
   └── import @tauri-apps/api/core
   └── import @tauri-apps/api/event
   └── import @tauri-apps/api/window
+
+📄 `src/features/previewExtensions/previewExtensions.test.ts`
+  └── import vitest
+  └── import ./previewExtensions
 
 📄 `src/features/styleSettings/styleStore.test.ts`
   └── import vitest
@@ -356,6 +364,10 @@ A03_Obcowa/
 ### src/features/launcher/
 `src/features/launcher/+page.svelte` : 責務: ランチャーウィンドウ用のルーティングエントリポイント
 `src/features/launcher/LauncherWindow.svelte` : 責務: 独立した小ウィンドウでワークスペースの一覧を表示し、選択結果をメイン画面に送信する
+
+### src/features/previewExtensions/
+`src/features/previewExtensions/previewExtensions.test.ts` : previewExtensions の計算ロジックに関する単体テスト
+`src/features/previewExtensions/previewExtensions.ts` : プレビュー表示拡張機能（タスク切り替え、コードコピー、見出し折りたたみ）のロジックとDOM操作
 
 ### src/features/styleSettings/
 `src/features/styleSettings/styleStore.test.ts` : （説明未記載）

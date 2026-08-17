@@ -1,6 +1,6 @@
 // editorSave関数の単体テスト
 import { describe, it, expect, vi } from 'vitest';
-import { saveTabWithConflictCheck, type SaveDependencies, type TabData } from './editorSave';
+import { saveTabWithConflictCheck, type SaveDependencies, type BaseTabData } from './editorSave';
 
 describe('editorSave', () => {
     it('isDirtyがfalseの場合は保存処理を行わない', async () => {
@@ -12,7 +12,7 @@ describe('editorSave', () => {
             confirmDialog: vi.fn(),
         };
 
-        const tab: TabData = { id: '1', path: '/test.md', content: 'hello', isDirty: false };
+        const tab: BaseTabData = { id: '1', path: '/test.md', content: 'hello', isDirty: false };
         const result = await saveTabWithConflictCheck(tab, deps, vi.fn());
 
         expect(result).toBe(true);
@@ -27,8 +27,8 @@ describe('editorSave', () => {
             confirmDialog: vi.fn(),
         };
 
-        const tab: TabData = { id: '1', path: '/test.md', content: 'hello', isDirty: true, lastModified: 500 };
-        let updatedTab: TabData = { ...tab };
+        const tab: BaseTabData = { id: '1', path: '/test.md', content: 'hello', isDirty: true, lastModified: 500 };
+        let updatedTab = { ...tab };
 
         const result = await saveTabWithConflictCheck(tab, deps, (updater) => {
             updatedTab = updater(updatedTab);
@@ -51,8 +51,8 @@ describe('editorSave', () => {
             confirmDialog: vi.fn().mockResolvedValue(true),
         };
 
-        const tab: TabData = { id: '1', path: '/test.md', content: 'hello', isDirty: true };
-        let updatedTab: TabData = { ...tab };
+        const tab: BaseTabData = { id: '1', path: '/test.md', content: 'hello', isDirty: true };
+        let updatedTab = { ...tab };
 
         const result = await saveTabWithConflictCheck(tab, deps, (updater) => {
             updatedTab = updater(updatedTab);
