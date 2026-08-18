@@ -3,7 +3,8 @@
 ```
 A03_Obcowa/
 ├── .githooks
-│   └── pre-commit
+│   ├── pre-commit
+│   └── pre-push
 ├── .gitignore
 ├── .vscode
 │   ├── extensions.json

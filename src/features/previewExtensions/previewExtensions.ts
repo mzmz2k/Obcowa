@@ -61,30 +61,53 @@ export async function copyCodeBlock(buttonEl: HTMLElement): Promise<boolean> {
 
 /**
  * 見出し要素配下のコンテンツを表示/非表示トグルします。
+ * ネストされた上位・下位見出しの折りたたみ状態を正確に保持・再計算します。
  */
 export function toggleHeadingCollapse(headingEl: HTMLElement): void {
-  const currentLevel = parseInt(headingEl.tagName.substring(1), 10);
-  if (isNaN(currentLevel)) return;
+  const container = headingEl.parentElement;
+  if (!container) return;
 
-  const isCollapsed = headingEl.classList.toggle('is-collapsed');
+  // 1. クリックされた見出し自身の折りたたみ状態をトグル
+  headingEl.classList.toggle('is-collapsed');
 
-  let nextEl = headingEl.nextElementSibling as HTMLElement | null;
-  while (nextEl) {
-    const tagName = nextEl.tagName;
+  // 2. レベルごとの折りたたみ状態を追跡するスタック (index 1 = H1, index 6 = H6)
+  const collapsedAtLevel: boolean[] = [false, false, false, false, false, false, false];
+
+  const children = Array.from(container.children) as HTMLElement[];
+
+  // プレビューコンテナ内の要素を上から順に走査し、表示/非表示状態を正しく反映
+  for (const child of children) {
+    const tagName = child.tagName;
+
     if (/^H[1-6]$/.test(tagName)) {
-      const nextLevel = parseInt(tagName.substring(1), 10);
-      // 自分と同じかより上位の見出しが現れたら走査終了
-      if (nextLevel <= currentLevel) {
-        break;
+      const level = parseInt(tagName.substring(1), 10);
+
+      // 自分より下位のレベルの折りたたみ状態はリセット
+      for (let l = level + 1; l <= 6; l++) {
+        collapsedAtLevel[l] = false;
+      }
+
+      // 自分自身の折りたたみフラグを記録
+      collapsedAtLevel[level] = child.classList.contains('is-collapsed');
+
+      // 自分より上位レベル（1〜level-1）のいずれかが折りたたまれていれば非表示
+      const isParentCollapsed = collapsedAtLevel.slice(1, level).some(Boolean);
+
+      if (isParentCollapsed) {
+        child.classList.add('collapsed-child');
+      } else {
+        child.classList.remove('collapsed-child');
+      }
+    } else {
+      // 見出し以外の本文・リスト要素等
+      // レベル1〜6のいずれかの親見出しが折りたたまれていれば非表示
+      const isAnyParentCollapsed = collapsedAtLevel.some(Boolean);
+
+      if (isAnyParentCollapsed) {
+        child.classList.add('collapsed-child');
+      } else {
+        child.classList.remove('collapsed-child');
       }
     }
-
-    if (isCollapsed) {
-      nextEl.classList.add('collapsed-child');
-    } else {
-      nextEl.classList.remove('collapsed-child');
-    }
-
-    nextEl = nextEl.nextElementSibling as HTMLElement | null;
   }
 }
