@@ -264,7 +264,9 @@ html, body {
   color: var(--accent-color);
 }
 
-/* 3. 見出しの折りたたみ表示（Obsidian風の控えめなChevronアイコン） */
+/* 前後のコード明確化: src/app.css */
+/* --- 3. 見出しの折りたたみ表示（ホバー時のみ表示） --- */
+
 .editor-preview h1,
 .editor-preview h2,
 .editor-preview h3,
@@ -277,7 +279,7 @@ html, body {
   padding-left: 1.25rem;
 }
 
-/* 控えめな矢印（折りたたみ展開時: 下向き） */
+/* 矢印アイコン（デフォルトは完全に非表示: opacity: 0） */
 .editor-preview h1::before,
 .editor-preview h2::before,
 .editor-preview h3::before,
@@ -293,10 +295,11 @@ html, body {
   border-right: 1.5px solid var(--text-color);
   border-bottom: 1.5px solid var(--text-color);
   transform: translateY(-50%) rotate(45deg);
-  opacity: 0.3;
+  opacity: 0; /* ★ 通常時は完全に隠す */
   transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
+/* 見出しにマウスが乗った時だけ矢印を表示 */
 .editor-preview h1:hover::before,
 .editor-preview h2:hover::before,
 .editor-preview h3:hover::before,
@@ -306,9 +309,14 @@ html, body {
   opacity: 0.8;
 }
 
-/* 折りたたまれている状態（右向き） */
+/* 折りたたまれている状態（コンテンツが隠れていることがわかるよう控えめに表示） */
 .editor-preview .is-collapsed::before {
+  opacity: 0.5;
   transform: translateY(-65%) rotate(-45deg);
+}
+
+.editor-preview .is-collapsed:hover::before {
+  opacity: 1;
 }
 
 .editor-preview .collapsed-child {
