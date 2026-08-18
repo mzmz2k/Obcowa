@@ -1,0 +1,19 @@
+#!/bin/sh
+echo "🔍 Running pre-commit tests..."
+
+# 1. フロントエンド (Vitest) の単体テストを実行
+npx vitest run
+if [ $? -ne 0 ]; then
+    echo "❌ フロントエンドのテストに失敗したため、コミットを中止しました。"
+    exit 1
+fi
+
+# 2. バックエンド (Rust) のテストも実行する場合（不要ならこのブロックを削除してください）
+cd src-tauri && cargo test
+if [ $? -ne 0 ]; then
+    echo "❌ Rustのテストに失敗したため、コミットを中止しました。"
+    exit 1
+fi
+
+echo "✅ すべてのテストが通過しました！"
+exit 0
