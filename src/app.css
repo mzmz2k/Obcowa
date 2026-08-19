@@ -264,8 +264,7 @@ html, body {
   color: var(--accent-color);
 }
 
-/* 前後のコード明確化: src/app.css */
-/* --- 3. 見出しの折りたたみ表示（ホバー時のみ表示） --- */
+/* --- 3. 見出しの折りたたみ表示（文字センターと完全同期＆フォントサイズ自動連動） --- */
 
 .editor-preview h1,
 .editor-preview h2,
@@ -276,10 +275,10 @@ html, body {
   cursor: pointer;
   user-select: none;
   position: relative;
-  padding-left: 1.25rem;
+  padding-left: 0;
 }
 
-/* 矢印アイコン（デフォルトは完全に非表示: opacity: 0） */
+/* 矢印アイコン（top: 50% で文字の垂直センターと完全一致させ、em単位で文字サイズに完全連動） */
 .editor-preview h1::before,
 .editor-preview h2::before,
 .editor-preview h3::before,
@@ -288,14 +287,14 @@ html, body {
 .editor-preview h6::before {
   content: '';
   position: absolute;
-  left: 0.2rem;
-  top: 0.75em;
-  width: 0.45rem;
+  left: -0.8rem; /* 文字サイズに連動した左位置 */
+  top: 50%; /* 文字列行の高さのちょうど中央に配置 */
+  width: 0.45rem; 
   height: 0.45rem;
-  border-right: 1.5px solid var(--text-color);
-  border-bottom: 1.5px solid var(--text-color);
-  transform: translateY(-50%) rotate(45deg);
-  opacity: 0; /* ★ 通常時は完全に隠す */
+  border-right: 1.5px solid var(--text-color); 
+  border-bottom:  1.5px solid var(--text-color);
+  transform: translateY(-50%) rotate(45deg); /* 垂直中央揃え */
+  opacity: 0;
   transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
@@ -309,10 +308,10 @@ html, body {
   opacity: 0.8;
 }
 
-/* 折りたたまれている状態（コンテンツが隠れていることがわかるよう控えめに表示） */
+/* 折りたたまれている状態（右向き矢印） */
 .editor-preview .is-collapsed::before {
   opacity: 0.5;
-  transform: translateY(-65%) rotate(-45deg);
+  transform: translateY(-50%) rotate(-45deg); /* センターズレを防ぎつつ回転 */
 }
 
 .editor-preview .is-collapsed:hover::before {
