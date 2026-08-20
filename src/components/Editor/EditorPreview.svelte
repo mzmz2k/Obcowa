@@ -210,7 +210,8 @@
   }
 
   function removeFrontmatter(content: string) {
-      return content.replace(/^---\n[\s\S]*?\n---\n/, '');
+      // BOM(\uFEFF) や Windows改行(\r\n)・Unix改行(\n)の双方に対応
+      return content.replace(/^\uFEFF?---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
   }
 
   async function handlePreviewClick(event: MouseEvent) {
