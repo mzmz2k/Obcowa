@@ -89,6 +89,31 @@
 
   // marked のレンダラーカスタマイズ
   const customRenderer = {
+
+      // 見出しの先頭にトグル用クリックエリアを挿入
+      heading(this: MarkedRendererThis, textOrToken: any, levelArg?: number) {
+          let text = '';
+          let level = 1;
+
+          if (typeof textOrToken === 'object' && textOrToken !== null) {
+              level = textOrToken.depth || 1;
+              if (textOrToken.tokens && this.parser) {
+                  try {
+                      text = this.parser.parseInline(textOrToken.tokens);
+                  } catch {
+                      text = textOrToken.text || '';
+                  }
+              } else {
+                  text = textOrToken.text || '';
+              }
+          } else {
+              text = String(textOrToken || '');
+              level = levelArg || 1;
+          }
+
+          return `<h${level}><span class="heading-toggle" title="折りたたみ"></span>${text}</h${level}>\n`;
+      },
+
       code(codeOrToken: any, infostring?: string, escaped?: boolean) {
           let codeStr = '';
           let lang = '';
@@ -241,10 +266,13 @@
           return;
       }
 
-      // 3. 見出しのトグルクリックハンドリング
-      const headingEl = target.closest<HTMLElement>('h1, h2, h3, h4, h5, h6');
-      if (headingEl && headingEl.closest('.editor-preview')) {
-          toggleHeadingCollapse(headingEl);
+      // 3. 見出しの矢印アイコンクリックハンドリング（★ .heading-toggle のみで反応）
+      const headingToggle = target.closest<HTMLElement>('.heading-toggle');
+      if (headingToggle) {
+          const headingEl = headingToggle.closest<HTMLElement>('h1, h2, h3, h4, h5, h6');
+          if (headingEl) {
+              toggleHeadingCollapse(headingEl);
+          }
           return;
       }
 

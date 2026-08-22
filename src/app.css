@@ -264,7 +264,7 @@ html, body {
   color: var(--accent-color);
 }
 
-/* --- 3. 見出しの折りたたみ表示（文字センターと完全同期＆フォントサイズ自動連動） --- */
+/* --- 3. 見出しの折りたたみ表示（アイコンクリック専用エリア） --- */
 
 .editor-preview h1,
 .editor-preview h2,
@@ -272,49 +272,55 @@ html, body {
 .editor-preview h4,
 .editor-preview h5,
 .editor-preview h6 {
-  cursor: pointer;
-  user-select: none;
   position: relative;
   padding-left: 0;
+  user-select: text; /* 文字選択を許可 */
 }
 
-/* 矢印アイコン（top: 50% で文字の垂直センターと完全一致させ、em単位で文字サイズに完全連動） */
-.editor-preview h1::before,
-.editor-preview h2::before,
-.editor-preview h3::before,
-.editor-preview h4::before,
-.editor-preview h5::before,
-.editor-preview h6::before {
-  content: '';
+/* トグルアイコンの押しやすい領域（hitbox） */
+.editor-preview .heading-toggle {
   position: absolute;
-  left: -0.8rem; /* 文字サイズに連動した左位置 */
-  top: 50%; /* 文字列行の高さのちょうど中央に配置 */
-  width: 0.45rem; 
-  height: 0.45rem;
-  border-right: 1.5px solid var(--text-color); 
-  border-bottom:  1.5px solid var(--text-color);
-  transform: translateY(-50%) rotate(45deg); /* 垂直中央揃え */
+  left: -1rem; /* ★ より見出し文字の近くへ右寄せ */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0.75rem;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* 矢印アイコン本体 */
+.editor-preview .heading-toggle::before {
+  content: '';
+  width: 0.5rem; /* ★ 全見出しで統一された固定サイズ */
+  height: 0.5rem;
+  border-right: 1.5px solid var(--text-color);
+  border-bottom: 1.5px solid var(--text-color);
+  transform: rotate(45deg);
   opacity: 0;
   transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
-/* 見出しにマウスが乗った時だけ矢印を表示 */
-.editor-preview h1:hover::before,
-.editor-preview h2:hover::before,
-.editor-preview h3:hover::before,
-.editor-preview h4:hover::before,
-.editor-preview h5:hover::before,
-.editor-preview h6:hover::before {
+/* 見出しにマウスが乗った時に矢印を表示 */
+.editor-preview h1:hover .heading-toggle::before,
+.editor-preview h2:hover .heading-toggle::before,
+.editor-preview h3:hover .heading-toggle::before,
+.editor-preview h4:hover .heading-toggle::before,
+.editor-preview h5:hover .heading-toggle::before,
+.editor-preview h6:hover .heading-toggle::before {
   opacity: 0.8;
 }
 
 /* 折りたたまれている状態（右向き矢印） */
-.editor-preview .is-collapsed::before {
+.editor-preview .is-collapsed .heading-toggle::before {
   opacity: 0.5;
-  transform: translateY(-50%) rotate(-45deg); /* センターズレを防ぎつつ回転 */
+  transform: rotate(-45deg);
 }
 
-.editor-preview .is-collapsed:hover::before {
+.editor-preview .is-collapsed:hover .heading-toggle::before {
   opacity: 1;
 }
 
