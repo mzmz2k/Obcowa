@@ -10,7 +10,7 @@
   import { generateImageHtml, loadImagesInDom } from '../../lib/editor/imageViewer';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { FileQuestion } from 'lucide-svelte';
-  import { toggleTaskMarkdown,  copyCodeBlock, toggleHeadingCollapse, COPY_ICON_SVG, CHECK_ICON_SVG } from '../../features/previewExtensions/previewExtensions';
+  import { toggleTaskMarkdown,  copyCodeBlock, toggleHeadingCollapse, COPY_ICON_SVG, CHECK_ICON_SVG } from './previewExtensions';
 
 
   const dispatch = createEventDispatcher();
