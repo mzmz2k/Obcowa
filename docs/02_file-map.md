@@ -144,6 +144,7 @@ A03_Obcowa/
   └── import ../../lib/editor/imageViewer
   └── import @tauri-apps/plugin-opener
   └── import lucide-svelte
+  └── import ../../features/previewExtensions/previewExtensions
 
 📄 `src/components/Editor/EditorSearch.svelte`
   └── import @tauri-apps/api/core
