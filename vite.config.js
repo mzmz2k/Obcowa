@@ -32,6 +32,12 @@ export default defineConfig(async () => ({
   },
 
   	test: {
+      	pool: 'forks',
+		    poolOptions: {
+			       forks: {
+			              	singleFork: true,
+			       },
+		    },
 		environment: 'jsdom', // 💥 追加: テスト環境全体を最初から仮想ブラウザにする
 		include: ['src/**/*.{test,spec}.{js,ts}'] // ←ここは既存のものがあればそのまま残してください
 	},
