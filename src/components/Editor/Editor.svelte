@@ -122,6 +122,10 @@
                 try { latestContent = new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes)); } 
                 catch (e) { latestContent = new TextDecoder('shift-jis').decode(new Uint8Array(bytes)); }
                 activeTab.content = latestContent; 
+                
+                // 💥 閲覧モードから編集モードに戻す/読み込む際にも最新の更新日時を取得する
+                const modified = (await invoke('get_file_modified', { path: activeTab.path })) as number;
+                activeTab.lastModified = modified;
             } catch(e) {}
         }
 
@@ -135,6 +139,7 @@
             editArea.scrollTop = calculateScrollTopFromRatio(scrollRatio, editArea.scrollHeight);
         }
     }
+    
     // プレビュー画面のHTML描画が終わった合図を受け取って実行される関数
     function handlePreviewRendered() {
         if (!activeTab?.isEditing && previewScrollContainer) {

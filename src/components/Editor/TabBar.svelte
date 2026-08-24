@@ -40,9 +40,15 @@
               try { content = new TextDecoder('utf-8', { fatal: true }).decode(uint8Array); } 
               catch { content = new TextDecoder('shift-jis').decode(uint8Array); }
 
+              // 💥 最新の更新日時も取得する
+              const modified = (await invoke('get_file_modified', { path: tab.path })) as number;
+
               openTabs.update(tabs => {
                   const target = tabs.find(t => t.id === tab.id);
-                  if (target) target.content = content;
+                  if (target) {
+                      target.content = content;
+                      target.lastModified = modified; // 💥 更新日時も最新化
+                  }
                   return tabs;
               });
           } catch (err) {

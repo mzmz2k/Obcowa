@@ -1,10 +1,10 @@
 # ディレクトリ構成と主要ファイル
 
 ```
-Obcowa/
+A03_Obcowa/
 ├── .githooks
-│   ├── pre-commit
-│   └── pre-push
+│   ├── _pre-push
+│   └── pre-commit
 ├── .gitignore
 ├── .vscode
 │   ├── extensions.json
@@ -51,18 +51,18 @@ Obcowa/
 │   │       ├── styleStore.test.ts
 │   │       └── styleStore.ts
 │   ├── lib
-│   │   ├── Editor
+│   │   ├── editor
 │   │   │   ├── editorSave.test.ts
 │   │   │   ├── editorSave.ts
 │   │   │   ├── imageViewer.test.ts
 │   │   │   ├── imageViewer.ts
 │   │   │   ├── scrollSync.test.ts
 │   │   │   └── scrollSync.ts
-│   │   ├── Settings
-│   │   │   ├── theme.tet.ts
-│   │   │   └── theme.ts
 │   │   ├── library.test.ts
 │   │   ├── library.ts
+│   │   ├── settings
+│   │   │   ├── theme.tet.ts
+│   │   │   └── theme.ts
 │   │   ├── stores.ts
 │   │   ├── utils
 │   │   │   ├── tagUtils.test.ts
@@ -75,8 +75,6 @@ Obcowa/
 │       ├── +layout.ts
 │       └── +page.svelte
 ├── src-tauri
-│   ├── .cargo
-│   │   └── config.toml
 │   ├── .gitignore
 │   ├── 2
 │   ├── Cargo.lock
@@ -102,6 +100,7 @@ Obcowa/
 │   ├── tauri.svg
 │   └── vite.svg
 ├── svelte.config.js
+├── test-cases
 ├── tsconfig.json
 └── vite.config.js
 ```
@@ -241,32 +240,32 @@ Obcowa/
   └── import svelte/store
   └── import ../../lib/stores
 
-📄 `src/lib/Editor/editorSave.test.ts`
+📄 `src/lib/editor/editorSave.test.ts`
   └── import vitest
   └── import ./editorSave
 
-📄 `src/lib/Editor/imageViewer.test.ts`
+📄 `src/lib/editor/imageViewer.test.ts`
   └── import vitest
   └── import ./imageViewer
 
-📄 `src/lib/Editor/imageViewer.ts`
+📄 `src/lib/editor/imageViewer.ts`
   └── import @tauri-apps/api/core
 
-📄 `src/lib/Editor/scrollSync.test.ts`
+📄 `src/lib/editor/scrollSync.test.ts`
   └── import vitest
   └── import ./scrollSync
-
-📄 `src/lib/Settings/theme.tet.ts`
-  └── import vitest
-  └── import svelte/store
-  └── import ./theme
-
-📄 `src/lib/Settings/theme.ts`
-  └── import svelte/store
 
 📄 `src/lib/library.test.ts`
   └── import vitest
   └── import ./library
+
+📄 `src/lib/settings/theme.tet.ts`
+  └── import vitest
+  └── import svelte/store
+  └── import ./theme
+
+📄 `src/lib/settings/theme.ts`
+  └── import svelte/store
 
 📄 `src/lib/stores.ts`
   └── import svelte/store
@@ -372,22 +371,22 @@ Obcowa/
 `src/features/styleSettings/styleStore.test.ts` : （説明未記載）
 `src/features/styleSettings/styleStore.ts` : （説明未記載）
 
-### src/lib/Editor/
-`src/lib/Editor/editorSave.test.ts` : editorSave関数の単体テスト
-`src/lib/Editor/editorSave.ts` : エディタの保存処理、競合ダイアログハンドリングの純粋・抽象化ロジック
-`src/lib/Editor/imageViewer.test.ts` : --- START OF src/lib/imageViewer.test.ts ---
-`src/lib/Editor/imageViewer.ts` : --- START OF src/lib/editor/imageViewer.ts ---
-`src/lib/Editor/scrollSync.test.ts` : scrollSync関数の単体テスト
-`src/lib/Editor/scrollSync.ts` : 編集エリアとプレビューエリア間のスクロール位置比率の計算を行う純粋関数
-
-### src/lib/Settings/
-`src/lib/Settings/theme.tet.ts` : （説明未記載）
-`src/lib/Settings/theme.ts` : テーマ設定のプリセット、起動時テーマ復元処理、テーマ適用
+### src/lib/editor/
+`src/lib/editor/editorSave.test.ts` : editorSave関数の単体テスト
+`src/lib/editor/editorSave.ts` : エディタの保存処理、競合ダイアログハンドリングの純粋・抽象化ロジック
+`src/lib/editor/imageViewer.test.ts` : --- START OF src/lib/imageViewer.test.ts ---
+`src/lib/editor/imageViewer.ts` : --- START OF src/lib/editor/imageViewer.ts ---
+`src/lib/editor/scrollSync.test.ts` : scrollSync関数の単体テスト
+`src/lib/editor/scrollSync.ts` : 編集エリアとプレビューエリア間のスクロール位置比率の計算を行う純粋関数
 
 ### src/lib/
 `src/lib/library.test.ts` : --- START OF src/lib/library.test.ts ---
 `src/lib/library.ts` : --- START OF src/lib/library.ts ---
 `src/lib/stores.ts` : Svelte Store（タブの状態、ワークスペース一覧などをグローバル管理）
+
+### src/lib/settings/
+`src/lib/settings/theme.tet.ts` : （説明未記載）
+`src/lib/settings/theme.ts` : テーマ設定のプリセット、起動時テーマ復元処理、テーマ適用
 
 ### src/lib/utils/
 `src/lib/utils/tagUtils.test.ts` : （説明未記載）
