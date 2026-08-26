@@ -2,7 +2,7 @@
 
 <!-- --- START OF src/components/Editor.svelte --- -->
 <script lang="ts">
-    import { openTabs, activeTabId, currentWorkspaceIndex, openFileInNewTab, switchTab, closeTab, editorFont } from '$lib/stores';
+    import { openTabs, activeTabId, currentWorkspaceIndex, openFileInNewTab, switchTab, closeTab, editorFont, workspaces } from '$lib/stores';
     import { invoke } from '@tauri-apps/api/core';
     import { confirm as tauriConfirm } from '@tauri-apps/plugin-dialog'; 
     import { tick } from 'svelte';
@@ -13,12 +13,14 @@
     import TabBar from './TabBar.svelte';
     import EditorPreview from './EditorPreview.svelte';
     import EditorSearch from './EditorSearch.svelte';
-    import { imageFolderPath, currentWorkspace } from '../../lib/stores';
+    import { imageFolderPath, currentWorkspace} from '../../lib/stores';
     import { saveTabWithConflictCheck, type SaveDependencies } from '../../lib/editor/editorSave';
     import { calculateScrollRatio, calculateScrollTopFromRatio } from '../../lib/editor/scrollSync';
     import TaskList from '../../features/Task/TaskList.svelte';
 
     $: activeTab = $openTabs.find(t => t.id === $activeTabId);
+       // 現在のワークスペースの最新ノード（ツリー構造）を取得
+    $: currentNodes = $workspaces[$currentWorkspaceIndex]?.nodes || [];
 
     // --- タブと保存の管理 ---
     let saveTimeout: ReturnType<typeof setTimeout>;
@@ -202,7 +204,7 @@
             {#if activeTab.path === '__SEARCH__'}
                 <EditorSearch />
             {:else if activeTab.path === '__TASK__'}
-                <TaskList workspaceIndex={$currentWorkspaceIndex} />
+               <TaskList workspaceNodes={currentNodes} />
             {:else}
                 
                 <EditorHeader {activeTab} {toggleEditMode} />

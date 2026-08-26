@@ -37,19 +37,11 @@ fn should_scan_file(path: &Path, _options: &ScanOptions) -> bool {
 
 #[tauri::command]
 pub async fn get_workspace_tasks(
-    app: AppHandle,
-    workspace_index: usize,
+    workspace_nodes: Vec<VirtualNode>, // フロントから最新のツリーを直接もらう
     options: Option<ScanOptions>
 ) -> Result<Vec<Task>, String> {
     let mut tasks = Vec::new();
     let opts = options.unwrap_or_default();
-
-    // ワークスペース情報を読み込み
-    let workspaces = file_ops::load_workspaces(app).map_err(|e| e.to_string())?;
-    if workspace_index >= workspaces.len() {
-        return Err("無効なワークスペースです".to_string());
-    }
-    let ws = &workspaces[workspace_index];
 
     let mut all_files = Vec::new();
 
@@ -72,7 +64,7 @@ pub async fn get_workspace_tasks(
         }
     }
 
-    extract_files(&ws.nodes, &mut all_files);
+    extract_files(&workspace_nodes, &mut all_files); // 受け取ったツリーで実行
 
     // 同じファイルを何度もスキャンしないよう重複を排除
     all_files.sort();
