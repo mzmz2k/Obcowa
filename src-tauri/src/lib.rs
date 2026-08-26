@@ -8,6 +8,8 @@ mod file_ops;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use tauri::Manager;
+use std::collections::HashMap;
+mod task_ops;
 
 // ピン留め用の構造体
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -553,7 +555,9 @@ pub fn run() {
             file_ops::create_new_file,
             file_ops::open_folder,
             file_ops::find_image_file,
-            file_ops::check_file_exists 
+            file_ops::check_file_exists,
+            task_ops::get_workspace_tasks,
+            task_ops::complete_task,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

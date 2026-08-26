@@ -60,6 +60,27 @@ export function openSearchTab() {
     activeTabId.set(newId);
 }
 
+ // 💥 タスク一覧用の特殊なタブを作成・表示する関数
+ export function openTaskTab() {
+     const newId = "task-tab";
+     openTabs.update(tabs => {
+         const resetTabs = tabs.map(t => ({ ...t, isEditing: false }));
+         // 既にタスクタブがあればそれを表示
+         if (resetTabs.some(t => t.id === newId)) return resetTabs;
+         // なければ作成
+         return [...resetTabs, {
+             id: newId,
+             path: "__TASK__", // タスクタブと識別するための特殊パス
+             title: "タスク一覧",
+             content: "",
+             isEditing: false,
+             isDirty: false,
+             lastModified: 0 
+         }];
+     });
+     activeTabId.set(newId);
+ }
+
 // 💥 タブを切り替えるときに、すべてのタブをビューモード（isEditing = false）に戻す
 export function switchTab(tabId: string) {
     openTabs.update(tabs => tabs.map(t => ({ ...t, isEditing: false })));

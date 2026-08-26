@@ -3,8 +3,8 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { open as openDialog } from '@tauri-apps/plugin-dialog';
-  import { RotateCw, ArrowUpDown, Search, FolderPlus, FilePlus } from 'lucide-svelte';
-  import { openSearchTab } from '../../lib/stores';
+  import { RotateCw, ArrowUpDown, Search, FolderPlus, FilePlus, ListTodo } from 'lucide-svelte';
+  import { openSearchTab, openTaskTab } from '../../lib/stores';
 
   const dispatch = createEventDispatcher();
 
@@ -111,11 +111,16 @@
     
     {#if isAddFolderMenuOpen}
       <div class="absolute top-8 right-0 border border-black/20 rounded shadow-xl z-50 py-1 w-40 text-sm font-normal" style="background-color: var(--menu-bg); color: var(--text-color);">
-        <button class="block w-full text-left px-4 py-2 hover:opacity-70 transition"  on:click={addFolder}>普通のフォルダ</button>
+        <button class="flex items-center w-full text-left px-4 py-2 hover:opacity-70 transition" on:click={openSmartFolderModal}><Search size={14} class="mr-2" /> フォルダを追加</button>
         <button class="flex items-center w-full text-left px-4 py-2 hover:opacity-70 transition" on:click={addFile}><FilePlus size={14} class="mr-2" /> ファイルを追加</button>
-        <button class="flex items-center w-full text-left px-4 py-2 hover:opacity-70 transition" on:click={openSmartFolderModal}><Search size={14} class="mr-2" /> 条件で抽出</button>
       </div>
     {/if}
+
+     <!-- タスク一覧ボタン（ストアの関数を直接呼ぶ） -->
+     <button on:click={openTaskTab} class="flex items-center justify-center w-6 h-6 hover:opacity-70 rounded transition" title="タスク一覧">
+       <ListTodo size={14} />
+     </button>
+
   </div>
 </div>
 <!-- --- END OF src/components/Sidebar/SidebarHeader.svelte --- -->

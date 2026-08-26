@@ -13,11 +13,15 @@
     import TabBar from './TabBar.svelte';
     import EditorPreview from './EditorPreview.svelte';
     import EditorSearch from './EditorSearch.svelte';
-    import { imageFolderPath } from '../../lib/stores';
+    import { imageFolderPath, currentWorkspace } from '../../lib/stores';
     import { saveTabWithConflictCheck, type SaveDependencies } from '../../lib/editor/editorSave';
     import { calculateScrollRatio, calculateScrollTopFromRatio } from '../../lib/editor/scrollSync';
+    import TaskList from '../../features/Task/TaskList.svelte';
 
     $: activeTab = $openTabs.find(t => t.id === $activeTabId);
+
+     // 現在のワークスペースのルートパスを取得
+    $: workspacePath = $currentWorkspace?.path || $currentWorkspace?.original_path || '';
 
     // --- タブと保存の管理 ---
     let saveTimeout: ReturnType<typeof setTimeout>;
@@ -200,6 +204,8 @@
             
             {#if activeTab.path === '__SEARCH__'}
                 <EditorSearch />
+            {:else if activeTab.path === '__TASK__'}
+                <TaskList {workspacePath} />
             {:else}
                 
                 <EditorHeader {activeTab} {toggleEditMode} />
