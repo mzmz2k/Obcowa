@@ -336,8 +336,8 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 
 </script>
 
-<!-- on:click の中から `isAddFolderMenuOpen = false; isGlobalSortMenuOpen = false;` を削除しました（子部品の中で処理するため） -->
-<svelte:window on:mousemove={doResize} on:mouseup={stopResize} on:click={() => { isListMenuOpen = false; }} />
+
+<svelte:window on:mousemove={doResize} on:mouseup={stopResize} />
 
 {#if isLauncherWindow}
     <!-- ランチャーとして開かれた場合は、これだけを表示 -->
