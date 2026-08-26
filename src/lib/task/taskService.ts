@@ -1,4 +1,4 @@
-// Tauriと通信し、タスクの取得および完了処理を行うAPIサービス
+// 責務: Tauriと通信し、タスクの取得および完了処理を行うAPIサービス
 
 import { invoke } from '@tauri-apps/api/core';
 
@@ -18,10 +18,10 @@ export interface TaskScanOptions {
 /**
  * ワークスペース内の未完了タスクを取得する
  */
-export async function fetchWorkspaceTasks(workspacePath: string, options?: TaskScanOptions): Promise<Task[]> {
+export async function fetchWorkspaceTasks(workspaceIndex: number, options?: TaskScanOptions): Promise<Task[]> {
     try {
         const tasks = await invoke<Task[]>('get_workspace_tasks', { 
-            workspacePath, 
+            workspaceIndex, 
             options: options || null 
         });
         return tasks;

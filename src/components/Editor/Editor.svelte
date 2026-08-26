@@ -20,9 +20,6 @@
 
     $: activeTab = $openTabs.find(t => t.id === $activeTabId);
 
-     // 現在のワークスペースのルートパスを取得
-    $: workspacePath = $currentWorkspace?.path || $currentWorkspace?.original_path || '';
-
     // --- タブと保存の管理 ---
     let saveTimeout: ReturnType<typeof setTimeout>;
     let isDialogShowing = false; //  ダイアログの連続表示を防止するためのフラグ
@@ -205,7 +202,7 @@
             {#if activeTab.path === '__SEARCH__'}
                 <EditorSearch />
             {:else if activeTab.path === '__TASK__'}
-                <TaskList {workspacePath} />
+                <TaskList workspaceIndex={$currentWorkspaceIndex} />
             {:else}
                 
                 <EditorHeader {activeTab} {toggleEditMode} />

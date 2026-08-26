@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
+use tauri::AppHandle;
+use crate::{file_ops, VirtualNode};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Task {
@@ -33,34 +35,74 @@ fn should_scan_file(path: &Path, _options: &ScanOptions) -> bool {
 }
 
 #[tauri::command]
-pub fn get_workspace_tasks(workspace_path: String, options: Option<ScanOptions>) -> Result<Vec<Task>, String> {
+pub async fn get_workspace_tasks(
+    app: AppHandle,
+    workspace_index: usize,
+    options: Option<ScanOptions>
+) -> Result<Vec<Task>, String> {
     let mut tasks = Vec::new();
     let opts = options.unwrap_or_default();
-    let root_path = Path::new(&workspace_path);
 
-    if !root_path.exists() || !root_path.is_dir() {
-        return Err("Invalid workspace path".to_string());
+    // ワークスペース情報を読み込み
+    let workspaces = file_ops::load_workspaces(app).map_err(|e| e.to_string())?;
+    if workspace_index >= workspaces.len() {
+        return Err("無効なワークスペースです".to_string());
     }
+    let ws = &workspaces[workspace_index];
 
-    scan_dir(root_path, &opts, &mut tasks).map_err(|e| e.to_string())?;
-    Ok(tasks)
-}
+    let mut all_files = Vec::new();
 
-fn scan_dir(dir: &Path, options: &ScanOptions, tasks: &mut Vec<Task>) -> io::Result<()> {
-    if dir.is_dir() {
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-
-            if path.is_dir() {
-                // TODO: フォルダの除外設定がある場合はここで判定
-                scan_dir(&path, options, tasks)?;
-            } else if should_scan_file(&path, options) {
-                extract_tasks_from_file(&path, tasks)?;
+    // 仮想ツリー（VirtualNode）からファイルをかき集める関数
+    fn extract_files(nodes: &[VirtualNode], files: &mut Vec<String>) {
+        for node in nodes {
+            match node {
+                VirtualNode::Folder { original_path, children, .. } => {
+                    if let Some(path) = original_path {
+                        // フォルダの実体がある場合はそこから収集
+                        collect_files_from_dir(Path::new(path), files);
+                    }
+                    // 子ノードも再帰的にチェック（スマートフォルダ等）
+                    extract_files(children, files);
+                },
+                VirtualNode::File { path, .. } => {
+                    files.push(path.clone());
+                }
             }
         }
     }
-    Ok(())
+
+    extract_files(&ws.nodes, &mut all_files);
+
+    // 同じファイルを何度もスキャンしないよう重複を排除
+    all_files.sort();
+    all_files.dedup();
+
+    for file_path in all_files {
+        let path = Path::new(&file_path);
+        if should_scan_file(path, &opts) {
+            let _ = extract_tasks_from_file(path, &mut tasks); // 失敗したファイルはスキップ
+        }
+    }
+
+    Ok(tasks)
+}
+
+// フォルダ内の物理ファイルを再帰的に集めるヘルパー関数
+fn collect_files_from_dir(dir: &Path, files: &mut Vec<String>) {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                collect_files_from_dir(&path, files);
+            } else if path.is_file() {
+                if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                    if ext == "md" || ext == "txt" {
+                        files.push(path.to_string_lossy().into_owned());
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn extract_tasks_from_file(file_path: &Path, tasks: &mut Vec<Task>) -> io::Result<()> {

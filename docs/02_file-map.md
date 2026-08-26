@@ -351,6 +351,8 @@ A03_Obcowa/
   └── use/mod std::fs::{self, File}
   └── use/mod std::io::{self, BufRead, Write}
   └── use/mod std::path::{Path, PathBuf}
+  └── use/mod tauri::AppHandle
+  └── use/mod crate::{file_ops, VirtualNode}
 
 📄 `svelte.config.js`
   └── import @sveltejs/adapter-static
@@ -427,7 +429,7 @@ A03_Obcowa/
 
 ### src/lib/task/
 `src/lib/task/taskService.test.ts` : taskServiceの単体テスト
-`src/lib/task/taskService.ts` : Tauriと通信し、タスクの取得および完了処理を行うAPIサービス
+`src/lib/task/taskService.ts` : 責務: Tauriと通信し、タスクの取得および完了処理を行うAPIサービス
 
 ### src/lib/utils/
 `src/lib/utils/tagUtils.test.ts` : （説明未記載）
