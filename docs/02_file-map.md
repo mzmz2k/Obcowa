@@ -44,6 +44,9 @@ A03_Obcowa/
 │   │   │   └── SidebarTree.svelte
 │   │   └── TreeNode.svelte
 │   ├── features
+│   │   ├── Task
+│   │   │   ├── TaskItem.svelte
+│   │   │   └── TaskList.svelte
 │   │   ├── launcher
 │   │   │   ├── +page.svelte
 │   │   │   └── LauncherWindow.svelte
@@ -64,6 +67,9 @@ A03_Obcowa/
 │   │   │   ├── theme.tet.ts
 │   │   │   └── theme.ts
 │   │   ├── stores.ts
+│   │   ├── task
+│   │   │   ├── taskService.test.ts
+│   │   │   └── taskService.ts
 │   │   ├── utils
 │   │   │   ├── tagUtils.test.ts
 │   │   │   └── tagUtils.ts
@@ -92,7 +98,8 @@ A03_Obcowa/
 │   ├── src
 │   │   ├── file_ops.rs
 │   │   ├── lib.rs
-│   │   └── main.rs
+│   │   ├── main.rs
+│   │   └── task_ops.rs
 │   └── tauri.conf.json
 ├── static
 │   ├── favicon.png
@@ -129,6 +136,7 @@ A03_Obcowa/
   └── import ../../lib/stores
   └── import ../../lib/editor/editorSave
   └── import ../../lib/editor/scrollSync
+  └── import ../../features/Task/TaskList.svelte
 
 📄 `src/components/Editor/EditorHeader.svelte`
   └── import @tauri-apps/api/core
@@ -223,6 +231,16 @@ A03_Obcowa/
   └── import lucide-svelte
   └── import ../lib/utils/tagUtils
 
+📄 `src/features/Task/TaskItem.svelte`
+  └── import svelte
+  └── import ../../lib/task/taskService
+
+📄 `src/features/Task/TaskList.svelte`
+  └── import svelte
+  └── import lucide-svelte
+  └── import ../../lib/task/taskService
+  └── import ./TaskItem.svelte
+
 📄 `src/features/launcher/+page.svelte`
   └── import ../../features/launcher/LauncherWindow.svelte
 
@@ -269,6 +287,13 @@ A03_Obcowa/
 
 📄 `src/lib/stores.ts`
   └── import svelte/store
+
+📄 `src/lib/task/taskService.test.ts`
+  └── import vitest
+  └── import ./taskService
+
+📄 `src/lib/task/taskService.ts`
+  └── import @tauri-apps/api/core
 
 📄 `src/lib/utils/tagUtils.test.ts`
   └── import vitest
@@ -318,6 +343,14 @@ A03_Obcowa/
   └── use/mod std::fs
   └── use/mod tauri::Manager
   └── use/mod std::collections::HashMap
+  └── use/mod task_ops
+  └── use/mod std::collections::HashMap
+
+📄 `src-tauri/src/task_ops.rs`
+  └── use/mod serde::{Deserialize, Serialize}
+  └── use/mod std::fs::{self, File}
+  └── use/mod std::io::{self, BufRead, Write}
+  └── use/mod std::path::{Path, PathBuf}
 
 📄 `svelte.config.js`
   └── import @sveltejs/adapter-static
@@ -363,6 +396,10 @@ A03_Obcowa/
 ### src/components/
 `src/components/TreeNode.svelte` : （説明未記載）
 
+### src/features/Task/
+`src/features/Task/TaskItem.svelte` : タスク1件分のUI表示と、チェックボックス操作のイベント発火
+`src/features/Task/TaskList.svelte` : 責務: ワークスペースの未完了タスク一覧を表示し、更新を管理する親コンポーネント
+
 ### src/features/launcher/
 `src/features/launcher/+page.svelte` : 責務: ランチャーウィンドウ用のルーティングエントリポイント
 `src/features/launcher/LauncherWindow.svelte` : 責務: 独立した小ウィンドウでワークスペースの一覧を表示し、選択結果をメイン画面に送信する
@@ -388,6 +425,10 @@ A03_Obcowa/
 `src/lib/settings/theme.tet.ts` : （説明未記載）
 `src/lib/settings/theme.ts` : テーマ設定のプリセット、起動時テーマ復元処理、テーマ適用
 
+### src/lib/task/
+`src/lib/task/taskService.test.ts` : taskServiceの単体テスト
+`src/lib/task/taskService.ts` : Tauriと通信し、タスクの取得および完了処理を行うAPIサービス
+
 ### src/lib/utils/
 `src/lib/utils/tagUtils.test.ts` : （説明未記載）
 `src/lib/utils/tagUtils.ts` : タグの文字列処理など（純粋関数）
@@ -408,6 +449,7 @@ A03_Obcowa/
 `src-tauri/src/file_ops.rs` : ファイル保存、読み込み関係。
 `src-tauri/src/lib.rs` : 全てのTauriコマンド（ファイル検索、OS連携など）が書かれたメイン処理。（今後は少しずつ分割する）
 `src-tauri/src/main.rs` : Prevents additional console window on Windows in release, DO NOT REMOVE!!
+`src-tauri/src/task_ops.rs` : 責務: ワークスペース内のタスク検索と、タスク状態の安全な更新処理
 
 `svelte.config.js` : Tauri doesn't have a Node.js server to do proper SSR
 `vite.config.js` : （説明未記載）
