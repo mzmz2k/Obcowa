@@ -73,7 +73,7 @@
         {:else if tasks.length === 0}
             <div class="empty-state">未完了タスクはありません</div>
         {:else}
-            {#each tasks as task (task.filePath + task.lineNumber)}
+           {#each tasks as task (`${task.filePath}:${task.lineNumber}`)}
                 <TaskItem 
                     {task} 
                     isUpdating={updatingTasks.has(`${task.filePath}:${task.lineNumber}`)}

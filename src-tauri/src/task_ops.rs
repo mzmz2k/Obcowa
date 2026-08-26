@@ -8,6 +8,7 @@ use tauri::AppHandle;
 use crate::{file_ops, VirtualNode};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Task {
     pub file_path: String,
     pub line_number: usize,
