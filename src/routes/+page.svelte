@@ -18,7 +18,7 @@
   import SidebarLinks from '../components/Sidebar/SidebarLinks.svelte';
   import { activeTheme, initTheme, applyThemeToRoot } from '../lib/settings/theme';
   import { initStyles } from '../features/styleSettings/styleStore'; 
-  import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, showLauncherOnStartup, imageFolderPath } from '../lib/stores';
+  import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, showLauncherOnStartup, imageFolderPath, workspacesStore } from '../lib/stores';
   import { cloneNodeAsIndependent } from '../lib/library';
   import { listen } from '@tauri-apps/api/event';
   import LauncherWindow from '../features/launcher/LauncherWindow.svelte';
@@ -35,6 +35,7 @@
 
   let workspaces: any[] = [];
   let currentIndex = 0;
+  $: $workspacesStore = workspaces;
   $: $currentWorkspaceIndex = currentIndex;
 
   let isInitialized = false; 

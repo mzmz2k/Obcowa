@@ -93,9 +93,7 @@ pub struct SearchResultItem {
 // バックエンドでの高速な検索処理
 #[tauri::command]
 async fn search_files(
-    app: tauri::AppHandle,
-    workspace_index: usize,
-    include_library: bool,
+    nodes: Vec<VirtualNode>,
     search_by_filename: bool, 
     query: String,
 ) -> Result<Vec<SearchResultItem>, String> {
@@ -103,81 +101,59 @@ async fn search_files(
         return Ok(Vec::new());
     }
 
-    // 最新のワークスペース情報を取得して対象フォルダを抽出
-    let workspaces = crate::file_ops::load_workspaces(app.clone())?;
-    
-    if workspace_index >= workspaces.len() {
-        return Err("無効なワークスペースです".into());
-    }
-
-    let ws = &workspaces[workspace_index];
-    let mut dirs = Vec::new();
-
-    // フォルダツリーから original_path を再帰的にかき集める関数
-    fn extract_dirs(nodes: &[VirtualNode], dirs: &mut Vec<String>) {
+    // 画面上の最新ツリーからファイルノードのみを再帰的に収集
+    fn collect_virtual_files(nodes: &[VirtualNode], files: &mut Vec<(String, String)>) {
         for node in nodes {
-            if let VirtualNode::Folder { original_path: Some(path), children, .. } = node {
-                dirs.push(path.clone());
-                extract_dirs(children, dirs);
-            }
-        }
-    }
+            match node {
+                VirtualNode::Folder { children, .. } => {
+                    collect_virtual_files(children, files);
+                }
+                VirtualNode::File { name, path, .. } => {
+                    files.push((name.clone(), path.clone()));
+                }
 
-    extract_dirs(&ws.nodes, &mut dirs);
+             }
+         }
+     }
+ 
+    let mut files = Vec::new();
+    collect_virtual_files(&nodes, &mut files);
 
-    // ライブラリを含める場合
-    if include_library {
-        for lib_id in &ws.linked_libraries {
-            if let Some(lib) = workspaces.iter().find(|w| &w.id == lib_id) {
-                extract_dirs(&lib.nodes, &mut dirs);
-            }
-        }
-    }
-
-    // 重複を削除（同じフォルダを何度も検索しないため）
-    dirs.sort();
-    dirs.dedup();
-
-    let mut all_files = Vec::new();
-    for dir in dirs {
-        collect_files(std::path::Path::new(&dir), &mut all_files);
-    }
-
-    // ファイルの重複を削除（別リストで同じファイルを参照している場合）
-    all_files.sort_by(|a, b| a.path.cmp(&b.path));
-    all_files.dedup_by(|a, b| a.path == b.path);
+    // 重複パスを排除
+    files.sort_by(|a, b| a.1.cmp(&b.1));
+    files.dedup_by(|a, b| a.1 == b.1);
 
     let mut results = Vec::new();
     let query_lower = query.to_lowercase();
 
-    // 全ファイルを走査
-    for file in all_files {
+    for (name, path) in files {
         if search_by_filename {
-            // ファイル名のみを検索対象とする場合
-            if file.name.to_lowercase().contains(&query_lower) {
+            if name.to_lowercase().contains(&query_lower) {
                 results.push(SearchResultItem {
-                    path: file.path.clone(),
-                    name: file.name.clone(),
-                    snippet: "(ファイル名に一致)".to_string(), // 中身のスニペットはないため固定メッセージ
+                   path,
+                   name,
+                   snippet: "(ファイル名に一致)".to_string(),
                 });
             }
         } else {
-            // 💥 既存: 本文を検索対象とする場合
-            for line in file.content.lines() {
-                if line.to_lowercase().contains(&query_lower) {
-                    let trimmed = line.trim();
-                    let snippet = if trimmed.chars().count() > 100 {
-                        format!("{}...", trimmed.chars().take(100).collect::<String>())
-                    } else {
-                        trimmed.to_string()
-                    };
+           // 必要なファイルのみ本文を読み込む
+           if let Ok(content) = fs::read_to_string(&path) {
+               for line in content.lines() {
+                   if line.to_lowercase().contains(&query_lower) {
+                       let trimmed = line.trim();
+                       let snippet = if trimmed.chars().count() > 100 {
+                           format!("{}...", trimmed.chars().take(100).collect::<String>())
+                       } else {
+                           trimmed.to_string()
+                       };
 
-                    results.push(SearchResultItem {
-                        path: file.path.clone(),
-                        name: file.name.clone(),
-                        snippet,
-                    });
-                    break; // 1ファイルにつき1箇所の表示で十分なため次のファイルへ
+                       results.push(SearchResultItem {
+                           path,
+                           name,
+                           snippet,
+                       });
+                       break;
+                   }
                 }
             }
         }

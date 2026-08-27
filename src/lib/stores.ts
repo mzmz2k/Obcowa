@@ -13,6 +13,7 @@ export interface TabData {
     isConflict?: boolean; // 競合発生中で保留しているかどうかのフラグ
 }
 
+export const workspacesStore = writable<any[]>([]);
 export const openTabs = writable<TabData[]>([]);
 export const activeTabId = writable<string | null>(null);
 

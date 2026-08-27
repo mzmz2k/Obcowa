@@ -2,7 +2,7 @@
 
 <script lang="ts">
     import { invoke } from '@tauri-apps/api/core';
-    import { openTabs, currentWorkspaceIndex, switchTab, openFileInNewTab, searchState } from '../../lib/stores';
+    import { openTabs, currentWorkspaceIndex, workspacesStore, switchTab, openFileInNewTab, searchState } from '../../lib/stores';
     import { FileText } from 'lucide-svelte';
 
     let isSearching = false;
@@ -12,11 +12,24 @@
         if (!$searchState.query.trim()) return;
         isSearching = true; 
         $searchState.hasSearched = true;
-        try { 
-            // 💥 変更: ストアの値($searchState)を使うように変更
+
+       try {
+           const currentWs = $workspacesStore[$currentWorkspaceIndex];
+           let targetNodes = currentWs ? [...(currentWs.nodes || [])] : [];
+
+           // 常に関連ライブラリのノードを検索対象に含める
+           if (currentWs?.linked_libraries) {
+               for (const libId of currentWs.linked_libraries) {
+                   const lib = $workspacesStore.find((w: any) => w.id === libId);
+                   if (lib && lib.nodes) {
+                       targetNodes = targetNodes.concat(lib.nodes);
+                   }
+               }
+           }
+
+               // 画面上の最新ツリー(targetNodes)を直接渡す
             $searchState.results = await invoke('search_files', { 
-                workspaceIndex: $currentWorkspaceIndex, 
-                includeLibrary: $searchState.includeLibrary, 
+                nodes: targetNodes, 
                 searchByFilename: $searchState.searchByFilename, 
                 query: $searchState.query 
             }); 
@@ -63,11 +76,6 @@
             style="background-color: var(--menu-bg); color: var(--text-color); border-color: color-mix(in srgb, var(--text-color) 20%, transparent);" 
             placeholder="検索キーワードを入力... (Enterで検索)"
         >
-        
-        <!-- 💥 変更: bind:checked を $searchState.includeLibrary に変更 -->
-        <label class="flex items-center text-sm cursor-pointer select-none" style="color: var(--text-color);">
-            <input type="checkbox" bind:checked={$searchState.includeLibrary} class="mr-2"> ライブラリを含める
-        </label>
         
         <!-- 💥 変更: bind:checked を $searchState.searchByFilename に変更 -->
         <label class="flex items-center text-sm cursor-pointer select-none" style="color: var(--text-color);">
