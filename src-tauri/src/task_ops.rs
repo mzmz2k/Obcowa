@@ -1,5 +1,4 @@
 // 責務: ワークスペース内のタスク検索と、タスク状態の安全な更新処理
-
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::{self, BufRead, Write};
@@ -16,19 +15,16 @@ pub struct Task {
     pub original_text: String,
 }
 
-// 将来のフィルタリング設定用インターフェース
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct ScanOptions {
     pub exclude_paths: Option<Vec<String>>,
     pub include_paths: Option<Vec<String>>,
 }
 
-// フィルタリング判定（将来拡張用）
+// 拡張子判定
 fn should_scan_file(path: &Path, _options: &ScanOptions) -> bool {
-    // 拡張子が.mdまたは.txtのものだけを対象とする
     if let Some(ext) = path.extension() {
         if ext == "md" || ext == "txt" {
-            // TODO: ここに将来 exclude_paths や include_paths の判定ロジックを追加する
             return true;
         }
     }
@@ -37,50 +33,58 @@ fn should_scan_file(path: &Path, _options: &ScanOptions) -> bool {
 
 #[tauri::command]
 pub async fn get_workspace_tasks(
-    workspace_nodes: Vec<VirtualNode>, // フロントから最新のツリーを直接もらう
+    app: AppHandle,
+    workspace_index: usize, // 💥 フロントからはインデックスだけ受け取るように戻す
     options: Option<ScanOptions>
 ) -> Result<Vec<Task>, String> {
     let mut tasks = Vec::new();
     let opts = options.unwrap_or_default();
 
-    let mut all_files = Vec::new();
+    // 💥 検索機能と全く同じ方法でワークスペース情報を読み込む
+    let workspaces = file_ops::load_workspaces(app).map_err(|e| e.to_string())?;
+    if workspace_index >= workspaces.len() {
+        return Err("無効なワークスペースです".to_string());
+    }
+    let ws = &workspaces[workspace_index];
+    let mut dirs = Vec::new();
 
-    // 仮想ツリー（VirtualNode）からファイルをかき集める関数
-    fn extract_files(nodes: &[VirtualNode], files: &mut Vec<String>) {
+    // 💥 検索機能から流用：ツリーから original_path をかき集める
+    fn extract_dirs(nodes: &[VirtualNode], dirs: &mut Vec<String>) {
         for node in nodes {
-            match node {
-                VirtualNode::Folder { original_path, children, .. } => {
-                    if let Some(path) = original_path {
-                        // フォルダの実体がある場合はそこから収集
-                        collect_files_from_dir(Path::new(path), files);
-                    }
-                    // 子ノードも再帰的にチェック（スマートフォルダ等）
-                    extract_files(children, files);
-                },
-                VirtualNode::File { path, .. } => {
-                    files.push(path.clone());
-                }
+            if let VirtualNode::Folder { original_path: Some(path), children, .. } = node {
+                dirs.push(path.clone());
+                extract_dirs(children, dirs);
             }
         }
     }
 
-    extract_files(&workspace_nodes, &mut all_files); // 受け取ったツリーで実行
+    extract_dirs(&ws.nodes, &mut dirs);
 
-    // 同じファイルを何度もスキャンしないよう重複を排除
+    // 重複を削除
+    dirs.sort();
+    dirs.dedup();
+
+    let mut all_files = Vec::new();
+    
+    // ディレクトリの中身を再帰的に集める
+    for dir in dirs {
+        collect_files_from_dir(Path::new(&dir), &mut all_files);
+    }
+
     all_files.sort();
     all_files.dedup();
 
+    // 集めたファイル群から未完了タスクを探す
     for file_path in all_files {
         let path = Path::new(&file_path);
         if should_scan_file(path, &opts) {
-            let _ = extract_tasks_from_file(path, &mut tasks); // 失敗したファイルはスキップ
+            let _ = extract_tasks_from_file(path, &mut tasks);
         }
     }
 
     Ok(tasks)
 }
 
-// フォルダ内の物理ファイルを再帰的に集めるヘルパー関数
 fn collect_files_from_dir(dir: &Path, files: &mut Vec<String>) {
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
@@ -88,11 +92,7 @@ fn collect_files_from_dir(dir: &Path, files: &mut Vec<String>) {
             if path.is_dir() {
                 collect_files_from_dir(&path, files);
             } else if path.is_file() {
-                if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-                    if ext == "md" || ext == "txt" {
-                        files.push(path.to_string_lossy().into_owned());
-                    }
-                }
+                files.push(path.to_string_lossy().into_owned());
             }
         }
     }
@@ -105,10 +105,9 @@ fn extract_tasks_from_file(file_path: &Path, tasks: &mut Vec<Task>) -> io::Resul
     for (index, line_result) in reader.lines().enumerate() {
         let line = match line_result {
             Ok(l) => l,
-            Err(_) => continue, // バイナリなど読み取れない行はスキップ
+            Err(_) => continue,
         };
 
-        // 未完了タスク "- [ ] " のみ抽出 (先頭の空白も許容)
         let trimmed = line.trim_start();
         if trimmed.starts_with("- [ ] ") {
             let text_content = trimmed.trim_start_matches("- [ ] ").to_string();

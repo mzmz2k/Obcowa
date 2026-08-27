@@ -19,8 +19,6 @@
     import TaskList from '../../features/Task/TaskList.svelte';
 
     $: activeTab = $openTabs.find(t => t.id === $activeTabId);
-       // 現在のワークスペースの最新ノード（ツリー構造）を取得
-    $: currentNodes = $workspaces[$currentWorkspaceIndex]?.nodes || [];
 
     // --- タブと保存の管理 ---
     let saveTimeout: ReturnType<typeof setTimeout>;
@@ -204,7 +202,7 @@
             {#if activeTab.path === '__SEARCH__'}
                 <EditorSearch />
             {:else if activeTab.path === '__TASK__'}
-               <TaskList workspaceNodes={currentNodes} />
+               <TaskList workspaceIndex={$currentWorkspaceIndex} />
             {:else}
                 
                 <EditorHeader {activeTab} {toggleEditMode} />

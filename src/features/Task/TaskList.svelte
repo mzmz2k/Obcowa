@@ -5,7 +5,7 @@
     import { fetchWorkspaceTasks, completeTaskStatus, type Task } from '../../lib/task/taskService';
     import TaskItem from './TaskItem.svelte';
 
-    export let workspaceNodes: any[]; // 呼び出し元から現在のワークスペースパスを受け取る
+    export let workspaceIndex: number;// 呼び出し元から現在のワークスペースパスを受け取る
 
     let tasks: Task[] = [];
     let isLoading = false;
@@ -13,12 +13,12 @@
     let updatingTasks = new Set<string>(); // 処理中のタスクを特定する用（filePath + lineNumber）
 
     async function loadTasks() {
-        if (!workspaceNodes || workspaceNodes.length === 0) return;
+        if (workspaceIndex === undefined || workspaceIndex === null) return;
         isLoading = true;
         errorMessage = '';
         try {
             // 将来的に設定ストア等から options を渡す形に拡張可能
-            tasks = await fetchWorkspaceTasks(workspaceNodes);
+            tasks = await fetchWorkspaceTasks(workspaceIndex);
         } catch (error: any) {
             errorMessage = error.message;
         } finally {
