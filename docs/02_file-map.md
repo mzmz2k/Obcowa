@@ -254,6 +254,8 @@ A03_Obcowa/
   └── import lucide-svelte
   └── import ../../lib/task/taskService
   └── import ./TaskItem.svelte
+  └── import ../../lib/stores
+  └── import ../../lib/workspace/treeUtils
 
 📄 `src/features/launcher/+page.svelte`
   └── import ../../features/launcher/LauncherWindow.svelte
@@ -373,8 +375,8 @@ A03_Obcowa/
   └── use/mod std::fs::{self, File}
   └── use/mod std::io::{self, BufRead, Write}
   └── use/mod std::path::{Path, PathBuf}
-  └── use/mod tauri::AppHandle
-  └── use/mod crate::{file_ops, VirtualNode}
+  └── use/mod crate::VirtualNode
+  └── use/mod crate::search_ops
 
 📄 `svelte.config.js`
   └── import @sveltejs/adapter-static
@@ -554,7 +556,7 @@ A03_Obcowa/
 - `src/lib/task/taskService.ts` : 責務: Tauriと通信し、タスクの取得および完了処理を行うAPIサービス
   - `export interface Task`
   - `export interface TaskScanOptions`
-  - `export async function fetchWorkspaceTasks(workspaceIndex: number, options?: TaskScanOptions)`
+  - `export async function fetchWorkspaceTasks(nodes: any[], options?: TaskScanOptions)`
   - `export async function completeTaskStatus(task: Task)`
 
 ### src/lib/utils/
@@ -612,7 +614,7 @@ A03_Obcowa/
 - `src-tauri/src/task_ops.rs` : 責務: ワークスペース内のタスク検索と、タスク状態の安全な更新処理
   - `pub struct Task`
   - `pub struct ScanOptions`
-  - `pub async fn get_workspace_tasks( app: AppHandle, workspace_index: usize, // 💥 フロントからはインデックスだけ受け取るように戻す options: Option<ScanOptions> ) -> Result<Vec<Task>, String>`
+  - `pub async fn get_workspace_tasks( nodes: Vec<VirtualNode>, options: Option<ScanOptions> ) -> Result<Vec<Task>, String>`
   - `pub fn complete_task(file_path: String, line_number: usize, original_text: String) -> Result<(), String>`
 
 - `svelte.config.js` : Tauri doesn't have a Node.js server to do proper SSR

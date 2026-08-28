@@ -4,6 +4,8 @@
     import { RefreshCw, CheckCircle2 } from 'lucide-svelte';
     import { fetchWorkspaceTasks, completeTaskStatus, type Task } from '../../lib/task/taskService';
     import TaskItem from './TaskItem.svelte';
+    import { workspacesStore } from '../../lib/stores';
+    import { getWorkspaceNodes } from '../../lib/workspace/treeUtils';
 
     export let workspaceIndex: number;// 呼び出し元から現在のワークスペースパスを受け取る
 
@@ -12,13 +14,25 @@
     let errorMessage = '';
     let updatingTasks = new Set<string>(); // 処理中のタスクを特定する用（filePath + lineNumber）
 
+    // 💥 workspacesStoreから現在のツリーを生成し、リアクティブに監視する
+    $: targetNodes = ($workspacesStore && $workspacesStore.length > workspaceIndex) 
+        ? getWorkspaceNodes($workspacesStore, workspaceIndex, true) 
+        : [];
+
+    // 💥 ツリーが展開されて中身が更新されたら、自動でタスクを再取得する
+    $: {
+        if (targetNodes && targetNodes.length > 0) {
+            loadTasks();
+        }
+    }
+
     async function loadTasks() {
-        if (workspaceIndex === undefined || workspaceIndex === null) return;
+        if (!targetNodes || targetNodes.length === 0) return;
         isLoading = true;
         errorMessage = '';
         try {
             // 将来的に設定ストア等から options を渡す形に拡張可能
-            tasks = await fetchWorkspaceTasks(workspaceIndex);
+            tasks = await fetchWorkspaceTasks(targetNodes);
         } catch (error: any) {
             errorMessage = error.message;
         } finally {
@@ -47,9 +61,6 @@
         }
     }
 
-    onMount(() => {
-        loadTasks();
-    });
 </script>
 
 <div class="task-list-container">

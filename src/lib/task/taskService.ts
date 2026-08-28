@@ -18,10 +18,10 @@ export interface TaskScanOptions {
 /**
  * ワークスペース内の未完了タスクを取得する
  */
-export async function fetchWorkspaceTasks(workspaceIndex: number, options?: TaskScanOptions): Promise<Task[]> {
+export async function fetchWorkspaceTasks(nodes: any[], options?: TaskScanOptions): Promise<Task[]> {
     try {
         const tasks = await invoke<Task[]>('get_workspace_tasks', { 
-            workspaceIndex, 
+            nodes,
             options: options || null 
         });
         return tasks;
