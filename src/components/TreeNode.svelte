@@ -5,6 +5,8 @@
   import { ChevronDown, ChevronRight, Library, FolderOpen, Folder, FileText, Tag, Pin, PinOff, Search, Pencil, ArrowUpDown, ExternalLink } from 'lucide-svelte';
 
   import { extractTags, updateTagsInContent } from '../lib/utils/tagUtils';
+  import ContextMenu from '../features/ContextMenu.svelte';
+  import { buildCommonFileMenu, type MenuItem } from '../lib/workspace/menuUtils';
 
     // コンテキストアクションから新しい関数も受け取る
   const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior, saveWorkspace, editSmartFolder, openNewFileModal, getGlobalSort, setNodeSort, getLibraries, addNodeToLibrary } = getContext('workspaceActions') as any;
@@ -22,6 +24,7 @@
   let showMenu = false;
   let menuX = 0;
   let menuY = 0;
+  let menuItems: MenuItem[] = [];
 
      // 💥対象ファイルの現在のタグを保持する変数
   let currentFileTags: string[] = [];
@@ -155,6 +158,87 @@
         adjustedY = Math.max(0, window.innerHeight - estimatedMenuHeight);
     }
 
+    // ==== メニュー項目の構築 ====
+    const items: MenuItem[] = [];
+
+    if (node.type === 'File') {
+      items.push(...buildCommonFileMenu({
+        registeredTags: $registeredTags,
+        currentFileTags,
+        onOpenInNewTab: async () => {
+          const content = await loadFileContent(node.path);
+          openFileInNewTab(node.path, node.name, content);
+        },
+        onAddTag: (tag) => operateTag(tag, true),
+        onRemoveTag: (tag) => operateTag(tag, false)
+      }));
+    }
+
+    // ピン留め
+    items.push({
+      label: checkIsPinned(node) ? 'ピン留め解除' : 'ピン留め',
+      icon: checkIsPinned(node) ? PinOff : Pin,
+      accent: true,
+      action: () => checkIsPinned(node) ? unpinNode(node) : pinNode(node)
+    });
+
+    // フォルダ専用メニュー
+    if (node.type === 'Folder' && !node.is_virtual_wrapper) {
+      if (node.smart_rules) {
+        items.push({ label: '条件を編集', icon: Search, action: () => editSmartFolder(node) });
+      } else {
+        items.push({ label: '表示名を変更', icon: Pencil, action: () => renameFolder() });
+        if (node.original_path) {
+          items.push({ label: '新規ファイル作成', icon: FileText, action: () => createNewFileInFolder() });
+        }
+      }
+      
+      items.push({
+        label: 'ソート順変更',
+        icon: ArrowUpDown,
+        submenu: [
+          { label: '昇順', checked: sortOrder !== 'desc', action: () => setNodeSort(node, sortBy, 'asc') },
+          { label: '降順', checked: sortOrder === 'desc', action: () => setNodeSort(node, sortBy, 'desc') },
+          { divider: true },
+          { label: '名前', checked: sortBy === 'name', action: () => setNodeSort(node, 'name', sortOrder) },
+          { label: '作成日', checked: sortBy === 'created', action: () => setNodeSort(node, 'created', sortOrder) },
+          { label: '更新日', checked: sortBy === 'modified', action: () => setNodeSort(node, 'modified', sortOrder) },
+        ]
+      });
+      items.push({ divider: true });
+    }
+
+    if (node.type === 'Folder' && node.original_path) {
+      items.push({ label: 'エクスプローラーで開く', icon: ExternalLink, action: () => openInExplorer() });
+    }
+    
+    if (!node.is_virtual_wrapper) {
+      if (!isLibraryNode) {
+        const libs = getLibraries();
+        items.push({
+          label: 'ライブラリに登録',
+          icon: Library,
+          submenu: [
+            { label: '＋ 新しいライブラリを作成', bold: true, action: () => addNodeToLibrary(node, 'new') },
+            { divider: true },
+            ...(libs.length > 0 ? libs.map((lib: any) => ({
+              label: lib.name,
+              action: () => addNodeToLibrary(node, lib.id)
+            })) : [{ label: '既存ライブラリなし', disabled: true }])
+          ]
+        });
+        items.push({ divider: true });
+      }
+
+      items.push({
+        label: isLibraryNode ? 'ライブラリ登録解除' : 'リストから削除',
+        danger: true,
+        action: () => removeNode(node, ownerId)
+      });
+    }
+
+    menuItems = items;
+
     showMenu = true;
     menuX = e.clientX;
     menuY = adjustedY;
@@ -284,193 +368,14 @@
 
  <!-- 💥 カスタムコンテキストメニュー -->
   {#if showMenu}
-    <div 
-      class="fixed border border-black/20 rounded shadow-xl z-50 py-1 w-48"
-      style="left: {menuX}px; top: {menuY}px; background-color: var(--menu-bg); color: var(--text-color);"
-    >
-      {#if node.type === 'File'}
-        <button 
-          class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition"
-          on:click={async () => {
-            const content = await loadFileContent(node.path);
-            openFileInNewTab(node.path, node.name, content);
-            closeMenu();
-          }}
-        >
-          新しいタブで開く
-        </button>
 
-        <hr class="border-black/10 my-1">
+    <ContextMenu 
+      x={menuX} 
+      y={menuY} 
+      items={menuItems} 
+      onClose={closeMenu} 
+    />
 
-        <!-- タグ挿入サブメニュー -->
-        <div class="relative group/tagadd">
-          <button class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition flex justify-between items-center">
-            <span class="flex items-center"><Tag size={14} class="mr-2" /> タグを挿入</span>
-            <ChevronRight size={14} />
-          </button>
-          <div class="absolute left-full top-0 hidden group-hover/tagadd:block border border-black/20 rounded shadow-xl py-1 w-36 -ml-1" style="background-color: var(--menu-bg);">
-            {#each $registeredTags as tag}
-              <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10 truncate" on:click={() => operateTag(tag, true)}>
-                {tag}
-              </button>
-            {:else}
-              <div class="px-4 py-1.5 text-sm opacity-50">タグ未登録</div>
-            {/each}
-          </div>
-        </div>
-        
-
-        <!-- 💥 追加: タグ削除サブメニュー -->
-        <div class="relative group/tagdel">
-          <button class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition flex justify-between items-center">
-            <span class="flex items-center"><Tag size={14} class="mr-2" /> タグを削除</span>
-            <ChevronRight size={14} />
-          </button>
-          <div class="absolute left-full top-0 hidden group-hover/tagdel:block border border-black/20 rounded shadow-xl py-1 w-36 -ml-1" style="background-color: var(--menu-bg);">
-            {#each currentFileTags as tag}
-              <button class="block w-full text-left px-4 py-1.5 text-sm text-red-400 hover:bg-black/10 truncate" on:click={() => operateTag(tag, false)}>
-                <span class="inline-block w-4">✓</span>{tag}
-              </button>
-            {:else}
-              <div class="px-4 py-1.5 text-sm opacity-50">タグなし</div>
-            {/each}
-          </div>
-        </div>
-
-        <hr class="border-black/10 my-1">
-      
-      {/if}
-
-      <!-- 変更：ピン留め状態によって「ピン留め」と「解除」を切り替え -->
-      {#if checkIsPinned(node)}
-        <button 
-          class="flex items-center w-full text-left px-4 py-2 text-sm text-[var(--accent-color)] hover:brightness-110 hover:bg-black/10 transition"
-          on:click={() => { unpinNode(node); closeMenu(); }}
-        >
-          <PinOff size={14} class="mr-2" /> ピン留め解除
-        </button>
-      {:else}
-        <button 
-          class="flex items-center w-full text-left px-4 py-2 text-sm text-[var(--accent-color)] hover:brightness-110 hover:bg-black/10 transition"
-          on:click={() => { pinNode(node); closeMenu(); }}
-        >
-          <Pin size={14} class="mr-2" /> ピン留め
-        </button>
-      {/if}
-
-     <!-- 新規追加：フォルダ専用メニュー -->
-      {#if node.type === 'Folder'}
-        <!-- 💥 変更: isReadonlyではなく、仮想のガワ以外ならフル操作可能にする -->
-        {#if !node.is_virtual_wrapper}
-          
-          <!-- 💥 スマートフォルダの場合は「条件を編集」にする -->
-          {#if node.smart_rules}
-            <button 
-              class="flex items-center w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition"
-              on:click={() => { editSmartFolder(node); closeMenu(); }}
-            >
-              <Search size={14} class="mr-2" /> 条件を編集
-            </button>
-          {:else}
-            <!-- 普通のフォルダの場合は今まで通り -->
-            <button 
-              class="flex items-center w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition"
-              on:click={() => { renameFolder(); closeMenu(); }}
-            >
-              <Pencil size={14} class="mr-2" /> 表示名を変更
-            </button>
-            
-            {#if node.original_path}
-              <button 
-                class="flex items-center w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition"
-                on:click={() => { createNewFileInFolder(); closeMenu(); }}
-              >
-                <FileText size={14} class="mr-2" /> 新規ファイル作成
-              </button>
-            {/if}
-          {/if}
-      <!-- フォルダの場合にソートサブメニューを追加 -->
-      {#if node.type === 'Folder'}
-        <div class="relative group/sort">
-          <button class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition flex justify-between items-center">
-            <span class="flex items-center"><ArrowUpDown size={14} class="mr-2" /> ソート順変更</span>
-            <ChevronRight size={14} />
-          </button>
-          
-          <div class="absolute left-full top-0 hidden group-hover/sort:block border border-black/20 rounded shadow-xl py-1 w-36 -ml-1" style="background-color: var(--menu-bg);">
-            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10" on:click={() => { setNodeSort(node, sortBy, 'asc'); closeMenu(); }}>
-              <span class="inline-block w-4">{sortOrder !== 'desc' ? '✓' : ''}</span>昇順
-            </button>
-            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10" on:click={() => { setNodeSort(node, sortBy, 'desc'); closeMenu(); }}>
-              <span class="inline-block w-4">{sortOrder === 'desc' ? '✓' : ''}</span>降順
-            </button>
-            <hr class="border-black/10 my-1">
-            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10" on:click={() => { setNodeSort(node, 'name', sortOrder); closeMenu(); }}>
-              <span class="inline-block w-4">{sortBy === 'name' ? '✓' : ''}</span>名前
-            </button>
-            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10" on:click={() => { setNodeSort(node, 'created', sortOrder); closeMenu(); }}>
-              <span class="inline-block w-4">{sortBy === 'created' ? '✓' : ''}</span>作成日
-            </button>
-            <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10" on:click={() => { setNodeSort(node, 'modified', sortOrder); closeMenu(); }}>
-              <span class="inline-block w-4">{sortBy === 'modified' ? '✓' : ''}</span>更新日
-            </button>
-          </div>
-        </div>
-        <hr class="border-black/10 my-1">
-      {/if}
-        {/if}
-
-        {#if node.original_path}
-          <button 
-            class="flex items-center w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition"
-            on:click={() => { openInExplorer(); closeMenu(); }}
-          >
-            <ExternalLink size={14} class="mr-2" /> エクスプローラーで開く
-          </button>
-        {/if}
-      {/if}
-
-      <!-- 💥 仮想のガワ以外なら表示 -->
-      {#if !node.is_virtual_wrapper}
-
-        <!-- 💥 追加: ライブラリに登録 (現在のワークスペースのノードのみ表示) -->
-        {#if !isLibraryNode}
-          <div class="relative group/library">
-            <button class="block w-full text-left px-4 py-2 text-sm hover:bg-black/10 transition flex justify-between items-center">
-              <span class="flex items-center"><Library size={14} class="mr-2" /> ライブラリに登録</span>
-              <ChevronRight size={14} />
-            </button>
-            <div class="absolute left-full top-0 hidden group-hover/library:block border border-black/20 rounded shadow-xl py-1 w-48 -ml-1" style="background-color: var(--menu-bg);">
-              <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10 font-bold" on:click={() => { addNodeToLibrary(node, 'new'); closeMenu(); }}>
-                 ＋ 新しいライブラリを作成
-              </button>
-              <hr class="border-black/10 my-1">
-              {#each getLibraries() as lib}
-                <button class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10 truncate" on:click={() => { addNodeToLibrary(node, lib.id); closeMenu(); }}>
-                   {lib.name}
-                </button>
-              {:else}
-                <div class="px-4 py-1.5 text-xs opacity-50">既存ライブラリなし</div>
-              {/each}
-            </div>
-          </div>
-          <hr class="border-black/10 my-1">
-        {/if}
-
-        <button 
-          class="flex items-center w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-black/10 transition"
-          on:click={() => { removeNode(node, ownerId); closeMenu(); }}
-        >
-          <!-- 💥 ライブラリ内なら解除、通常なら削除と表記を変える -->
-          {#if isLibraryNode}
-            ライブラリ登録解除
-          {:else}
-            リストから削除
-          {/if}
-        </button>
-      {/if}
-      
-    </div>
   {/if}
 
   {#if isOpen && sortedChildren && sortedChildren.length > 0}

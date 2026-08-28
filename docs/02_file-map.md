@@ -44,6 +44,7 @@ A03_Obcowa/
 │   │   │   └── SidebarTree.svelte
 │   │   └── TreeNode.svelte
 │   ├── features
+│   │   ├── ContextMenu.svelte
 │   │   ├── Task
 │   │   │   ├── TaskItem.svelte
 │   │   │   └── TaskList.svelte
@@ -74,6 +75,7 @@ A03_Obcowa/
 │   │   │   ├── tagUtils.test.ts
 │   │   │   └── tagUtils.ts
 │   │   └── workspace
+│   │       ├── menuUtils.ts
 │   │       ├── treeUtils.test.ts
 │   │       └── treeUtils.ts
 │   └── routes
@@ -233,6 +235,12 @@ A03_Obcowa/
   └── import svelte
   └── import lucide-svelte
   └── import ../lib/utils/tagUtils
+  └── import ../features/ContextMenu.svelte
+  └── import ../lib/workspace/menuUtils
+
+📄 `src/features/ContextMenu.svelte`
+  └── import ../lib/workspace/menuUtils
+  └── import lucide-svelte
 
 📄 `src/features/Task/TaskItem.svelte`
   └── import svelte
@@ -301,6 +309,10 @@ A03_Obcowa/
 📄 `src/lib/utils/tagUtils.test.ts`
   └── import vitest
   └── import ./tagUtils
+
+📄 `src/lib/workspace/menuUtils.ts`
+  └── import lucide-svelte
+  └── import svelte
 
 📄 `src/lib/workspace/treeUtils.test.ts`
   └── import vitest
@@ -453,6 +465,13 @@ A03_Obcowa/
   - `export let ownerId`
   - `export let isLibraryNode`
 
+### src/features/
+- `src/features/ContextMenu.svelte` : 右クリックメニューのUI。画面外をクリックしたら自動で閉じる
+  - `export let x`
+  - `export let y`
+  - `export let items`
+  - `export let onClose`
+
 ### src/features/Task/
 - `src/features/Task/TaskItem.svelte` : タスク1件分のUI表示と、チェックボックス操作のイベント発火
   - `export let task`
@@ -541,6 +560,10 @@ A03_Obcowa/
   - `export function updateTagsInContent(content: string, tag: string, isAdd: boolean)`
 
 ### src/lib/workspace/
+- `src/lib/workspace/menuUtils.ts` : 右クリックメニューを表示するデータ構造を定義し、ファイル共通のアクションを生成
+  - `export interface MenuItem`
+  - `export interface FileMenuParams`
+  - `export function buildCommonFileMenu(params: FileMenuParams)`
 - `src/lib/workspace/treeUtils.test.ts` : 責務: treeUtils関数の単体テスト
 - `src/lib/workspace/treeUtils.ts` : ワークスペースのノードツリー最新化およびスマートフォルダ評価、ワークスペースのファイル一覧取得
   - `export async function refreshTree(nodes: any[], workspaceNodes: any[])`
