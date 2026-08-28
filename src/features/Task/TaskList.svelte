@@ -1,10 +1,11 @@
 <!-- 責務: ワークスペースの未完了タスク一覧を表示し、更新を管理する親コンポーネント -->
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { RefreshCw, CheckCircle2 } from 'lucide-svelte';
+    import { RefreshCw, CheckCircle2, FileText } from 'lucide-svelte';
+    import { invoke } from '@tauri-apps/api/core';
     import { fetchWorkspaceTasks, completeTaskStatus, type Task } from '../../lib/task/taskService';
     import TaskItem from './TaskItem.svelte';
-    import { workspacesStore } from '../../lib/stores';
+    import { workspacesStore, openTabs, switchTab, openFileInNewTab } from '../../lib/stores';
     import { getWorkspaceNodes } from '../../lib/workspace/treeUtils';
 
     export let workspaceIndex: number;// 呼び出し元から現在のワークスペースパスを受け取る
@@ -19,6 +20,19 @@
     $: targetNodes = ($workspacesStore && $workspacesStore.length > workspaceIndex) 
         ? getWorkspaceNodes($workspacesStore, workspaceIndex, !excludeLibrary)
         : [];
+
+    // 💥 ファイルごとにタスクをグループ化する（表示用）
+    $: groupedTasksArray = Object.entries(
+        tasks.reduce((acc, task) => {
+            if (!acc[task.filePath]) acc[task.filePath] = [];
+            acc[task.filePath].push(task);
+            return acc;
+        }, {} as Record<string, Task[]>)
+    ).map(([filePath, fileTasks]) => ({
+        filePath,
+        fileName: filePath.split(/[/\\]/).pop() || 'Unknown',
+        tasks: fileTasks
+    }));
 
     // 💥 ツリーが展開されて中身が更新されたら、自動でタスクを再取得する
     $: {
@@ -61,7 +75,26 @@
             updatingTasks = updatingTasks;
         }
     }
-
+    // 💥 ファイルを新しいタブで開く
+    async function openFile(filePath: string, fileName: string) {
+        const existingTab = $openTabs.find(t => t.path === filePath);
+        if (existingTab) { 
+            switchTab(existingTab.id); 
+            return; 
+        }
+        try {
+            const bytes: number[] = await invoke('read_file_content', { path: filePath });
+            let content = "";
+            try { 
+                content = new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes)); 
+            } catch (e) { 
+                content = new TextDecoder('shift-jis').decode(new Uint8Array(bytes)); 
+            }
+            openFileInNewTab(filePath, fileName, content);
+        } catch(e) {
+            console.error(e);
+        }
+    }
 </script>
 
 <div class="task-list-container">
@@ -92,13 +125,23 @@
         {:else if tasks.length === 0}
             <div class="empty-state">未完了タスクはありません</div>
         {:else}
-           {#each tasks as task (`${task.filePath}:${task.lineNumber}`)}
-                <TaskItem 
-                    {task} 
-                    isUpdating={updatingTasks.has(`${task.filePath}:${task.lineNumber}`)}
-                    on:complete={handleTaskComplete}
-                />
-            {/each}
+           {#each groupedTasksArray as group (group.filePath)}
+                <div class="task-group">
+                    <!-- svelte-ignore a11y-click-events-have-key-events -->
+                    <!-- svelte-ignore a11y-no-static-element-interactions -->
+                    <div class="group-header" on:click={() => openFile(group.filePath, group.fileName)}>
+                        <FileText size={14} /> {group.fileName}
+                    </div>
+                    {#each group.tasks as task (`${task.filePath}:${task.lineNumber}`)}
+                        <TaskItem 
+                            {task} 
+                            isUpdating={updatingTasks.has(`${task.filePath}:${task.lineNumber}`)}
+                            on:complete={handleTaskComplete}
+                        />
+                    {/each}
+                </div>
+           {/each}
+
         {/if}
     </div>
 </div>
@@ -186,5 +229,27 @@
         margin: 8px;
         border-radius: 4px;
         font-size: 0.85em;
+    }
+
+    .task-group {
+        margin-bottom: 12px;
+    }
+
+    .group-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 8px;
+        font-size: 0.9em;
+        font-weight: 600;
+        color: var(--accent-color);
+        cursor: pointer;
+        border-bottom: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
+        margin-bottom: 4px;
+        transition: background-color 0.2s;
+    }
+
+    .group-header:hover {
+        background-color: var(--active-highlight-bg);
     }
 </style>

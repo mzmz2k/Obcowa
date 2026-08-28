@@ -14,8 +14,6 @@
         }
     }
 
-    // ファイル名だけを抽出して表示用にする
-    $: fileName = task.filePath.split(/[/\\]/).pop() || 'Unknown';
 </script>
 
 <div class="task-item">
@@ -28,7 +26,7 @@
         />
         <div class="task-content">
             <span class="task-text">{task.text}</span>
-            <span class="task-meta">{fileName} (行: {task.lineNumber + 1})</span>
+            <span class="task-meta">行: {task.lineNumber + 1}</span>
         </div>
     </label>
 </div>
@@ -57,9 +55,43 @@
     }
 
     .task-checkbox {
-        margin-top: 4px;
-        cursor: inherit;
-        accent-color: var(--accent-color);
+        appearance: none;
+        -webkit-appearance: none;
+        width: 1.2rem;
+        height: 1.2rem;
+        border: 1.5px solid color-mix(in srgb, var(--text-color) 40%, transparent);
+        border-radius: 50%;
+        outline: none;
+        cursor: pointer;
+        margin-top: 2px;
+        margin-right: 4px;
+        vertical-align: middle;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        transition: background-color 0.15s ease, border-color 0.15s ease;
+        background-color: transparent;
+        flex-shrink: 0;
+    }
+
+    .task-checkbox:hover:not(:disabled) {
+        border-color: var(--accent-color);
+    }
+
+    .task-checkbox:checked {
+        background-color: var(--accent-color);
+        border-color: var(--accent-color);
+    }
+
+    .task-checkbox:checked::after {
+        content: '';
+        width: 0.35rem;
+        height: 0.6rem;
+        border: solid var(--bg-color); /* 背景色と同色でチェックマーク */
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+        margin-bottom: 2px;
     }
 
     .task-content {

@@ -252,6 +252,7 @@ A03_Obcowa/
 📄 `src/features/Task/TaskList.svelte`
   └── import svelte
   └── import lucide-svelte
+  └── import @tauri-apps/api/core
   └── import ../../lib/task/taskService
   └── import ./TaskItem.svelte
   └── import ../../lib/stores
