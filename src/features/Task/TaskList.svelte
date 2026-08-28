@@ -13,10 +13,11 @@
     let isLoading = false;
     let errorMessage = '';
     let updatingTasks = new Set<string>(); // 処理中のタスクを特定する用（filePath + lineNumber）
+    let excludeLibrary = false;
 
     // 💥 workspacesStoreから現在のツリーを生成し、リアクティブに監視する
     $: targetNodes = ($workspacesStore && $workspacesStore.length > workspaceIndex) 
-        ? getWorkspaceNodes($workspacesStore, workspaceIndex, true) 
+        ? getWorkspaceNodes($workspacesStore, workspaceIndex, !excludeLibrary)
         : [];
 
     // 💥 ツリーが展開されて中身が更新されたら、自動でタスクを再取得する
@@ -65,13 +66,20 @@
 
 <div class="task-list-container">
     <div class="header">
-        <h3 class="title">
-            <CheckCircle2 size={16} />
-            未完了タスク: {tasks.length}件
-        </h3>
-        <button class="icon-btn" on:click={loadTasks} title="更新" disabled={isLoading}>
-            <RefreshCw size={16} class={isLoading ? 'spinning' : ''} />
-        </button>
+
+        <div class="header-top">
+            <h3 class="title">
+                <CheckCircle2 size={16} />
+                未完了タスク: {tasks.length}件
+            </h3>
+            <button class="icon-btn" on:click={loadTasks} title="更新" disabled={isLoading}>
+                <RefreshCw size={16} class={isLoading ? 'spinning' : ''} />
+            </button>
+        </div>
+        <label class="flex items-center text-sm cursor-pointer select-none" style="color: var(--text-color);">
+            <input type="checkbox" bind:checked={excludeLibrary} class="mr-2"> ライブラリを含めない
+        </label>
+
     </div>
 
     {#if errorMessage}
@@ -107,10 +115,16 @@
 
     .header {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
+        flex-direction: column;
+        gap: 12px;
         padding: 12px 16px;
         border-bottom: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
+    }
+    .header-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
     }
 
     .title {
