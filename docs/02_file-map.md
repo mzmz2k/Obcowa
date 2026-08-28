@@ -373,95 +373,221 @@ A03_Obcowa/
 ## 各ファイル詳細
 
 ### scripts/
-`scripts/generate_filemap.js` : （説明未記載）
-`scripts/generate_filemap.test.js` : （説明未記載）
+- `scripts/generate_filemap.js` : （説明未記載）
+  - `export const Extractor`
+- `scripts/generate_filemap.test.js` : （説明未記載）
 
 ### src/components/Editor/
-`src/components/Editor/Editor.svelte` : エディタ画面を統括する親部品
-`src/components/Editor/EditorHeader.svelte` : --- START OF src/components/EditorHeader.svelte ---
-`src/components/Editor/EditorPreview.svelte` : Markdownを綺麗に表示し、ユーザーがクリックしたイベントを外に教える
-`src/components/Editor/EditorSearch.svelte` : 検索機能と結果表示
-`src/components/Editor/TabBar.svelte` : --- START OF src/components/Editor/TabBar.svelte ---
-`src/components/Editor/previewExtensions.test.ts` : 前後のコード明確化: src/features/previewExtensions/previewExtensions.test.ts
-`src/components/Editor/previewExtensions.ts` : プレビュー表示拡張機能（タスク切り替え、コードコピー、見出し折りたたみ）のロジックとDOM操作
+- `src/components/Editor/Editor.svelte` : エディタ画面を統括する親部品
+- `src/components/Editor/EditorHeader.svelte` : --- START OF src/components/EditorHeader.svelte ---
+  - `export let activeTab`
+  - `export let toggleEditMode`
+- `src/components/Editor/EditorPreview.svelte` : Markdownを綺麗に表示し、ユーザーがクリックしたイベントを外に教える
+  - `export let activeTab`
+  - `export let scrollContainer`
+- `src/components/Editor/EditorSearch.svelte` : 検索機能と結果表示
+- `src/components/Editor/TabBar.svelte` : --- START OF src/components/Editor/TabBar.svelte ---
+  - `export let handleTabClick`
+  - `export let handleTabClose`
+- `src/components/Editor/previewExtensions.test.ts` : 前後のコード明確化: src/features/previewExtensions/previewExtensions.test.ts
+- `src/components/Editor/previewExtensions.ts` : プレビュー表示拡張機能（タスク切り替え、コードコピー、見出し折りたたみ）のロジックとDOM操作
+  - `export const COPY_ICON_SVG`
+  - `export const CHECK_ICON_SVG`
+  - `export function toggleTaskMarkdown(content: string, targetIndex: number)`
+  - `export async function copyCodeBlock(buttonEl: HTMLElement)`
+  - `export function toggleHeadingCollapse(headingEl: HTMLElement)`
 
 ### src/components/Modals/
-`src/components/Modals/NewFileModal.svelte` : --- START OF src/components/Modals/NewFileModal.svelte ---
-`src/components/Modals/SmartFolderModal.svelte` : --- START OF src/components/Modals/SmartFolderModal.svelte ---
-`src/components/Modals/WorkspaceManager.svelte` : --- START OF src/components/Modals/WorkspaceManager.svelte ---
+- `src/components/Modals/NewFileModal.svelte` : --- START OF src/components/Modals/NewFileModal.svelte ---
+  - `export let isOpen`
+  - `export let targetDir`
+- `src/components/Modals/SmartFolderModal.svelte` : --- START OF src/components/Modals/SmartFolderModal.svelte ---
+  - `export let isOpen`
+  - `export let editingSmartNode`
+  - `export let workspaceNodes`
+- `src/components/Modals/WorkspaceManager.svelte` : --- START OF src/components/Modals/WorkspaceManager.svelte ---
+  - `export let workspaces`
+  - `export let currentIndex`
+  - `export let editingListIndex`
+  - `export let isCreateModalOpen`
+  - `export let isManageModalOpen`
+  - `export let isImportLibraryModalOpen`
 
 ### src/components/Settings/
-`src/components/Settings/SettingsModal.svelte` : --- START OF src/components/SettingsModal.svelte ---
-`src/components/Settings/StyleSettings.svelte` : --- START OF src/components/StyleSettings.svelte ---
-`src/components/Settings/ThemeSettings.svelte` : （説明未記載）
-`src/components/Settings/ThemeSettings.tst.ts` : （説明未記載）
+- `src/components/Settings/SettingsModal.svelte` : --- START OF src/components/SettingsModal.svelte ---
+  - `export let workspaces`
+  - `export let currentIndex`
+- `src/components/Settings/StyleSettings.svelte` : --- START OF src/components/StyleSettings.svelte ---
+  - `export let tempStyle`
+  - `export let tempCustomSlots`
+  - `export let defaultStyle`
+- `src/components/Settings/ThemeSettings.svelte` : （説明未記載）
+  - `export let tempTheme`
+  - `export function applyPreset()`
+  - `export function saveCustomTheme()`
+- `src/components/Settings/ThemeSettings.tst.ts` : （説明未記載）
 
 ### src/components/Sidebar/
-`src/components/Sidebar/SidebarFooter.svelte` : サイドバー下部のリスト切り替え・設定ボタン
-`src/components/Sidebar/SidebarHeader.svelte` : サイドバー上部の新規追加ボタン等
-`src/components/Sidebar/SidebarLinks.svelte` : 責務: サイドバー内の外部リンク一覧の表示・コンテキストメニューおよび開く処理の管理
-`src/components/Sidebar/SidebarTree.svelte` : サイドバーのツリー表示とピン留め
+- `src/components/Sidebar/SidebarFooter.svelte` : サイドバー下部のリスト切り替え・設定ボタン
+  - `export let workspaces`
+  - `export let currentIndex`
+  - `export let editingListIndex`
+  - `export let isCreateModalOpen`
+  - `export let isManageModalOpen`
+  - `export let isImportLibraryModalOpen`
+  - `export let openSettings`
+- `src/components/Sidebar/SidebarHeader.svelte` : サイドバー上部の新規追加ボタン等
+  - `export let workspaces`
+  - `export let currentIndex`
+- `src/components/Sidebar/SidebarLinks.svelte` : 責務: サイドバー内の外部リンク一覧の表示・コンテキストメニューおよび開く処理の管理
+  - `export let links`
+  - `export let onLinkDelete`
+- `src/components/Sidebar/SidebarTree.svelte` : サイドバーのツリー表示とピン留め
+  - `export let workspaces`
+  - `export let currentIndex`
+  - `export let unpin`
 
 ### src/components/
-`src/components/TreeNode.svelte` : （説明未記載）
+- `src/components/TreeNode.svelte` : （説明未記載）
+  - `export let node`
+  - `export let ownerId`
+  - `export let isLibraryNode`
 
 ### src/features/Task/
-`src/features/Task/TaskItem.svelte` : タスク1件分のUI表示と、チェックボックス操作のイベント発火
-`src/features/Task/TaskList.svelte` : 責務: ワークスペースの未完了タスク一覧を表示し、更新を管理する親コンポーネント
+- `src/features/Task/TaskItem.svelte` : タスク1件分のUI表示と、チェックボックス操作のイベント発火
+  - `export let task`
+  - `export let isUpdating`
+- `src/features/Task/TaskList.svelte` : 責務: ワークスペースの未完了タスク一覧を表示し、更新を管理する親コンポーネント
+  - `export let workspaceIndex`
 
 ### src/features/launcher/
-`src/features/launcher/+page.svelte` : 責務: ランチャーウィンドウ用のルーティングエントリポイント
-`src/features/launcher/LauncherWindow.svelte` : 責務: 独立した小ウィンドウでワークスペースの一覧を表示し、選択結果をメイン画面に送信する
+- `src/features/launcher/+page.svelte` : 責務: ランチャーウィンドウ用のルーティングエントリポイント
+- `src/features/launcher/LauncherWindow.svelte` : 責務: 独立した小ウィンドウでワークスペースの一覧を表示し、選択結果をメイン画面に送信する
 
 ### src/features/styleSettings/
-`src/features/styleSettings/styleStore.test.ts` : （説明未記載）
-`src/features/styleSettings/styleStore.ts` : （説明未記載）
+- `src/features/styleSettings/styleStore.test.ts` : （説明未記載）
+- `src/features/styleSettings/styleStore.ts` : （説明未記載）
+  - `export interface HeadingStyle`
+  - `export interface StyleSlot`
+  - `export const defaultStyle`
+  - `export const activeStyleSlot`
+  - `export const customStyleSlots`
+  - `export function generateStyleCssVariables(style: StyleSlot)`
+  - `export function applyStyleToRoot(style: StyleSlot)`
+  - `export function initStyles()`
 
 ### src/lib/editor/
-`src/lib/editor/editorSave.test.ts` : editorSave関数の単体テスト
-`src/lib/editor/editorSave.ts` : エディタの保存処理、競合ダイアログハンドリングの純粋・抽象化ロジック
-`src/lib/editor/imageViewer.test.ts` : --- START OF src/lib/imageViewer.test.ts ---
-`src/lib/editor/imageViewer.ts` : --- START OF src/lib/editor/imageViewer.ts ---
-`src/lib/editor/scrollSync.test.ts` : scrollSync関数の単体テスト
-`src/lib/editor/scrollSync.ts` : 編集エリアとプレビューエリア間のスクロール位置比率の計算を行う純粋関数
+- `src/lib/editor/editorSave.test.ts` : editorSave関数の単体テスト
+- `src/lib/editor/editorSave.ts` : エディタの保存処理、競合ダイアログハンドリングの純粋・抽象化ロジック
+  - `export interface SaveDependencies`
+  - `export interface BaseTabData`
+- `src/lib/editor/imageViewer.test.ts` : --- START OF src/lib/imageViewer.test.ts ---
+- `src/lib/editor/imageViewer.ts` : --- START OF src/lib/editor/imageViewer.ts ---
+  - `export function generateImageHtml(filenameWithOpts: string, activeTabPath: string, imageFolderPath: string = '')`
+  - `export async function loadImagesInDom()`
+- `src/lib/editor/scrollSync.test.ts` : scrollSync関数の単体テスト
+- `src/lib/editor/scrollSync.ts` : 編集エリアとプレビューエリア間のスクロール位置比率の計算を行う純粋関数
+  - `export function calculateScrollRatio(scrollTop: number, scrollHeight: number)`
+  - `export function calculateScrollTopFromRatio(ratio: number, scrollHeight: number)`
 
 ### src/lib/
-`src/lib/library.test.ts` : --- START OF src/lib/library.test.ts ---
-`src/lib/library.ts` : --- START OF src/lib/library.ts ---
-`src/lib/stores.ts` : Svelte Store（タブの状態、ワークスペース一覧などをグローバル管理）
+- `src/lib/library.test.ts` : --- START OF src/lib/library.test.ts ---
+- `src/lib/library.ts` : --- START OF src/lib/library.ts ---
+  - `export function cloneNodeAsIndependent(node: any)`
+- `src/lib/stores.ts` : Svelte Store（タブの状態、ワークスペース一覧などをグローバル管理）
+  - `export interface TabData`
+  - `export const workspacesStore`
+  - `export const openTabs`
+  - `export const activeTabId`
+  - `export const workspaces`
+  - `export const currentWorkspace`
+  - `export const editorFont`
+  - `export const currentWorkspaceIndex`
+  - `export const registeredTags`
+  - `export const imageFolderPath`
+  - `export const searchState`
+  - `export const expandTreeRequest`
+  - `export function openSearchTab()`
+  - `export function openTaskTab()`
+  - `export function switchTab(tabId: string)`
+  - `export function openFileInCurrentTab(filePath: string, title: string, initialContent: string)`
+  - `export function openFileInNewTab(filePath: string, title: string, initialContent: string)`
+  - `export function createNewTab()`
+  - `export function closeTab(idToClose: string)`
+  - `export const showLauncherOnStartup`
 
 ### src/lib/settings/
-`src/lib/settings/theme.tet.ts` : （説明未記載）
-`src/lib/settings/theme.ts` : テーマ設定のプリセット、起動時テーマ復元処理、テーマ適用
+- `src/lib/settings/theme.tet.ts` : （説明未記載）
+- `src/lib/settings/theme.ts` : テーマ設定のプリセット、起動時テーマ復元処理、テーマ適用
+  - `export interface Theme`
+  - `export const defaultThemes`
+  - `export const activeTheme`
+  - `export const customThemes`
+  - `export function initTheme()`
+  - `export function applyThemeToRoot(theme: Theme)`
 
 ### src/lib/task/
-`src/lib/task/taskService.test.ts` : taskServiceの単体テスト
-`src/lib/task/taskService.ts` : 責務: Tauriと通信し、タスクの取得および完了処理を行うAPIサービス
+- `src/lib/task/taskService.test.ts` : taskServiceの単体テスト
+- `src/lib/task/taskService.ts` : 責務: Tauriと通信し、タスクの取得および完了処理を行うAPIサービス
+  - `export interface Task`
+  - `export interface TaskScanOptions`
+  - `export async function fetchWorkspaceTasks(workspaceIndex: number, options?: TaskScanOptions)`
+  - `export async function completeTaskStatus(task: Task)`
 
 ### src/lib/utils/
-`src/lib/utils/tagUtils.test.ts` : （説明未記載）
-`src/lib/utils/tagUtils.ts` : タグの文字列処理など（純粋関数）
+- `src/lib/utils/tagUtils.test.ts` : （説明未記載）
+- `src/lib/utils/tagUtils.ts` : タグの文字列処理など（純粋関数）
+  - `export function extractTags(content: string)`
+  - `export function updateTagsInContent(content: string, tag: string, isAdd: boolean)`
 
 ### src/lib/workspace/
-`src/lib/workspace/treeUtils.test.ts` : 責務: treeUtils関数の単体テスト
-`src/lib/workspace/treeUtils.ts` : ワークスペースのノードツリー最新化およびスマートフォルダ評価、ワークスペースのファイル一覧取得
+- `src/lib/workspace/treeUtils.test.ts` : 責務: treeUtils関数の単体テスト
+- `src/lib/workspace/treeUtils.ts` : ワークスペースのノードツリー最新化およびスマートフォルダ評価、ワークスペースのファイル一覧取得
+  - `export async function refreshTree(nodes: any[], workspaceNodes: any[])`
 
 ### src/routes/
-`src/routes/+layout.svelte` : （説明未記載）
-`src/routes/+layout.ts` : Tauri doesn't have a Node.js server to do proper SSR
-`src/routes/+page.svelte` : アプリのメイン画面（ガワ）。全体のデータとモーダル状態を管理。
+- `src/routes/+layout.svelte` : （説明未記載）
+- `src/routes/+layout.ts` : Tauri doesn't have a Node.js server to do proper SSR
+  - `export const ssr`
+- `src/routes/+page.svelte` : アプリのメイン画面（ガワ）。全体のデータとモーダル状態を管理。
 
 ### src-tauri/
-`src-tauri/build.rs` : （説明未記載）
+- `src-tauri/build.rs` : （説明未記載）
 
 ### src-tauri/src/
-`src-tauri/src/file_ops.rs` : ファイル保存、読み込み関係。
-`src-tauri/src/lib.rs` : 全てのTauriコマンド（ファイル検索、OS連携など）が書かれたメイン処理。（今後は少しずつ分割する）
-`src-tauri/src/main.rs` : Prevents additional console window on Windows in release, DO NOT REMOVE!!
-`src-tauri/src/models.rs` : アプリケーション全体で使用する共通データモデル（Workspace, VirtualNode など）の定義
-`src-tauri/src/search_ops.rs` : 画面上の仮想ツリー（VirtualNode）を対象とした高速ファイル検索コマンドおよび関連処理
-`src-tauri/src/task_ops.rs` : 責務: ワークスペース内のタスク検索と、タスク状態の安全な更新処理
+- `src-tauri/src/file_ops.rs` : ファイル保存、読み込み関係。
+  - `pub fn atomic_write(path: &std::path::Path, content: &[u8]) -> Result<(), String>`
+  - `pub fn get_file_modified(path: String) -> Result<u64, String>`
+  - `pub fn save_workspaces(app: AppHandle, workspaces: Vec<Workspace>) -> Result<(), String>`
+  - `pub fn load_workspaces(app: AppHandle) -> Result<Vec<Workspace>, String>`
+  - `pub fn save_file_content(path: String, content: String, last_modified: u64, force: bool) -> Result<u64, String>`
+  - `pub fn read_file_content(path: String) -> Result<Vec<u8>, String>`
+  - `pub fn read_directory(path: String) -> Result<Vec<VirtualNode>, String>`
+  - `pub fn create_new_file(dir_path: String, file_name: String, insert_tag: String) -> Result<(), String>`
+  - `pub fn open_folder(path: String) -> Result<(), String>`
+  - `pub async fn find_image_file(dir_path: String, file_name: String) -> Result<Option<String>, String>`
+  - `pub fn check_file_exists(path: String) -> bool`
+- `src-tauri/src/lib.rs` : 全てのTauriコマンド（ファイル検索、OS連携など）が書かれたメイン処理。（今後は少しずつ分割する）
+  - `pub fn run()`
+- `src-tauri/src/main.rs` : Prevents additional console window on Windows in release, DO NOT REMOVE!!
+- `src-tauri/src/models.rs` : アプリケーション全体で使用する共通データモデル（Workspace, VirtualNode など）の定義
+  - `pub struct PinnedItem`
+  - `pub struct LinkItem`
+  - `pub struct SavedTab`
+  - `pub enum SmartCondition`
+  - `pub struct SmartRules`
+  - `pub enum VirtualNode`
+  - `pub struct Workspace`
+- `src-tauri/src/search_ops.rs` : 画面上の仮想ツリー（VirtualNode）を対象とした高速ファイル検索コマンドおよび関連処理
+  - `pub struct SearchResultItem`
+  - `pub fn extract_files_from_nodes(nodes: &[VirtualNode]) -> Vec<(String, String)>`
+  - `pub async fn search_files( nodes: Vec<VirtualNode>, search_by_filename: bool, query: String, ) -> Result<Vec<SearchResultItem>, String>`
+- `src-tauri/src/task_ops.rs` : 責務: ワークスペース内のタスク検索と、タスク状態の安全な更新処理
+  - `pub struct Task`
+  - `pub struct ScanOptions`
+  - `pub async fn get_workspace_tasks( app: AppHandle, workspace_index: usize, // 💥 フロントからはインデックスだけ受け取るように戻す options: Option<ScanOptions> ) -> Result<Vec<Task>, String>`
+  - `pub fn complete_task(file_path: String, line_number: usize, original_text: String) -> Result<(), String>`
 
-`svelte.config.js` : Tauri doesn't have a Node.js server to do proper SSR
-`vite.config.js` : （説明未記載）
+- `svelte.config.js` : Tauri doesn't have a Node.js server to do proper SSR
+- `vite.config.js` : （説明未記載）
 

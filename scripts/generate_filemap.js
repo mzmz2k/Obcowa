@@ -32,6 +32,39 @@ export const Extractor = {
             while ((match = regex.exec(content)) !== null) deps.push(`import ${match[1].trim()}`);
         }
         return deps;
+
+    },
+
+    /** 公開関数／構造体／インターフェース等のシグネチャを抽出 */
+    extractSignatures(content, ext) {
+        const signatures = [];
+        if (ext === '.rs') {
+            // pub fn, pub async fn, pub struct, pub enum, pub type, pub trait
+            const regex = /^\s*(?:#\[.*?\]\s*)*(pub(?:\(.*?\))?\s+(?:async\s+)?(?:fn|struct|enum|type|trait)\s+[^\{;=]+)/gm;
+            let match;
+            while ((match = regex.exec(content)) !== null) {
+                const sig = match[1].replace(/\s+/g, ' ').trim();
+                signatures.push(sig);
+            }
+        } else if (['.js', '.ts'].includes(ext)) {
+            // export function, export async function, export const/let/var, export type, export interface, export class, export enum
+            const regex = /^\s*export\s+(?:default\s+)?(?:async\s+)?(function\s+[a-zA-Z0-9_$]+(?:\<.*?\>)?\s*\(.*?\)|(?:const|let|var)\s+[a-zA-Z0-9_$]+|(?:interface|type|class|enum)\s+[a-zA-Z0-9_$]+(?:\<.*?\>)?)/gm;
+            let match;
+            while ((match = regex.exec(content)) !== null) {
+                const sig = match[0].replace(/\s+/g, ' ').trim();
+                signatures.push(sig);
+            }
+        } else if (ext === '.svelte') {
+            // Svelte 内の export let (props) や export function
+            const regex = /^\s*export\s+(?:let\s+[a-zA-Z0-9_$]+|function\s+[a-zA-Z0-9_$]+(?:\<.*?\>)?\s*\(.*?\))/gm;
+            let match;
+            while ((match = regex.exec(content)) !== null) {
+                const sig = match[0].replace(/\s+/g, ' ').trim();
+                signatures.push(sig);
+            }
+        }
+        return signatures;
+
     }
 };
 
@@ -66,7 +99,8 @@ function analyzeProject(dirPath, rootPath = dirPath) {
                         dir: dirName === './' ? '' : dirName,
                         fileName: item,
                         description: Extractor.extractDescription(content),
-                        dependencies: Extractor.extractDependencies(content, ext)
+                        dependencies: Extractor.extractDependencies(content, ext),
+                        signatures: Extractor.extractSignatures(content, ext)
                     });
                 }
             }
@@ -110,7 +144,12 @@ function generateMarkdown() {
     for (const [dir, files] of Object.entries(grouped)) {
         if (dir) md += `### ${dir}\n`;
         files.forEach(f => {
-            md += `\`${f.path}\` : ${f.description}\n`;
+            md += `- \`${f.path}\` : ${f.description}\n`;
+            if (f.signatures.length > 0) {
+                f.signatures.forEach(sig => {
+                    md += `  - \`${sig}\`\n`;
+                });
+            }
         });
         md += '\n';
     }
