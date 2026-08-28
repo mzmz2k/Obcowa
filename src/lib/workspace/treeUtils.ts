@@ -1,4 +1,4 @@
-// 責務: ワークスペースのノードツリー最新化およびスマートフォルダ評価を行う関数群
+// ワークスペースのノードツリー最新化およびスマートフォルダ評価、ワークスペースのファイル一覧取得
 import { invoke } from '@tauri-apps/api/core';
 
 export async function refreshTree(nodes: any[], workspaceNodes: any[]): Promise<any[]> {
@@ -40,4 +40,27 @@ export async function refreshTree(nodes: any[], workspaceNodes: any[]): Promise<
     updatedNodes.push(node);
   }
   return updatedNodes;
+}
+
+// ワークスペースと関連ライブラリのノードをマージして取得する共通関数
+export function getWorkspaceNodes(
+    workspaces: any[],
+    workspaceIndex: number,
+    includeLibrary: boolean = true
+): any[] {
+    const currentWs = workspaces[workspaceIndex];
+    if (!currentWs) return [];
+
+    let targetNodes = [...(currentWs.nodes || [])];
+
+    if (includeLibrary && currentWs.linked_libraries) {
+        for (const libId of currentWs.linked_libraries) {
+            const lib = workspaces.find((w: any) => w.id === libId);
+            if (lib && lib.nodes) {
+                targetNodes = targetNodes.concat(lib.nodes);
+            }
+        }
+    }
+
+    return targetNodes;
 }

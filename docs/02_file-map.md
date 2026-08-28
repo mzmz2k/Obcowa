@@ -99,6 +99,8 @@ A03_Obcowa/
 │   │   ├── file_ops.rs
 │   │   ├── lib.rs
 │   │   ├── main.rs
+│   │   ├── models.rs
+│   │   ├── search_ops.rs
 │   │   └── task_ops.rs
 │   └── tauri.conf.json
 ├── static
@@ -156,6 +158,7 @@ A03_Obcowa/
 📄 `src/components/Editor/EditorSearch.svelte`
   └── import @tauri-apps/api/core
   └── import ../../lib/stores
+  └── import ../../lib/workspace/treeUtils
   └── import lucide-svelte
 
 📄 `src/components/Editor/TabBar.svelte`
@@ -338,13 +341,17 @@ A03_Obcowa/
     use super::*
 
 📄 `src-tauri/src/lib.rs`
-  └── use/mod file_ops
-  └── use/mod serde::{Deserialize, Serialize}
   └── use/mod std::fs
   └── use/mod tauri::Manager
   └── use/mod std::collections::HashMap
-  └── use/mod task_ops
-  └── use/mod std::collections::HashMap
+
+📄 `src-tauri/src/models.rs`
+  └── use/mod serde::{Deserialize, Serialize}
+
+📄 `src-tauri/src/search_ops.rs`
+  └── use/mod std::fs
+  └── use/mod serde::Serialize
+  └── use/mod crate::models::VirtualNode
 
 📄 `src-tauri/src/task_ops.rs`
   └── use/mod serde::{Deserialize, Serialize}
@@ -437,7 +444,7 @@ A03_Obcowa/
 
 ### src/lib/workspace/
 `src/lib/workspace/treeUtils.test.ts` : 責務: treeUtils関数の単体テスト
-`src/lib/workspace/treeUtils.ts` : 責務: ワークスペースのノードツリー最新化およびスマートフォルダ評価を行う関数群
+`src/lib/workspace/treeUtils.ts` : ワークスペースのノードツリー最新化およびスマートフォルダ評価、ワークスペースのファイル一覧取得
 
 ### src/routes/
 `src/routes/+layout.svelte` : （説明未記載）
@@ -451,6 +458,8 @@ A03_Obcowa/
 `src-tauri/src/file_ops.rs` : ファイル保存、読み込み関係。
 `src-tauri/src/lib.rs` : 全てのTauriコマンド（ファイル検索、OS連携など）が書かれたメイン処理。（今後は少しずつ分割する）
 `src-tauri/src/main.rs` : Prevents additional console window on Windows in release, DO NOT REMOVE!!
+`src-tauri/src/models.rs` : アプリケーション全体で使用する共通データモデル（Workspace, VirtualNode など）の定義
+`src-tauri/src/search_ops.rs` : 画面上の仮想ツリー（VirtualNode）を対象とした高速ファイル検索コマンドおよび関連処理
 `src-tauri/src/task_ops.rs` : 責務: ワークスペース内のタスク検索と、タスク状態の安全な更新処理
 
 `svelte.config.js` : Tauri doesn't have a Node.js server to do proper SSR

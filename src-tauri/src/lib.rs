@@ -3,210 +3,14 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
 // モジュールを登録
-mod file_ops;
+pub mod models;
+pub mod search_ops;
+pub mod file_ops;
+pub mod task_ops;
 
-use serde::{Deserialize, Serialize};
+pub use models::*;
 use std::fs;
 use tauri::Manager;
-use std::collections::HashMap;
-mod task_ops;
-
-// ピン留め用の構造体
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PinnedItem {
-    pub item_type: String,
-    pub name: String,
-    pub path: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct LinkItem {
-    pub id: String,
-    pub title: String,
-    pub url: String,
-}
-
-fn default_font() -> String { "sans-serif".to_string() }
-fn default_sort_by() -> String { "name".to_string() }
-fn default_sort_order() -> String { "asc".to_string() }
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Workspace {
-    pub id: String,
-    pub name: String,
-    pub category: String,
-    pub nodes: Vec<VirtualNode>,
-    #[serde(default)]
-    pub links: Vec<LinkItem>,
-    #[serde(default)]
-    pub pinned: Vec<PinnedItem>,
-    
-    #[serde(default)]
-    pub linked_libraries: Vec<String>,
-    #[serde(default)]
-    pub is_flat: bool,
-    #[serde(default)]
-    pub open_in_new_tab: bool,
-
-    #[serde(default)]
-    pub saved_tabs: Vec<SavedTab>,
-    #[serde(default)]
-    pub active_tab_id: Option<String>,
-    #[serde(default = "default_font")]
-    pub editor_font: String,
-
-    #[serde(default = "default_sort_by")]
-    pub sort_by: String,
-    #[serde(default = "default_sort_order")]
-    pub sort_order: String,
-}
-
-// タブ情報用の構造体
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct SavedTab {
-    pub id: String,
-    pub path: String,
-    pub title: String,
-    #[serde(rename = "isEditing")] // JSのキャメルケースと合わせる
-    pub is_editing: bool,
-}
-
-// スマートフォルダのルール構造体
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct SmartRules {
-    pub target_dir: String,
-    #[serde(default)]
-    pub target_workspace: bool, // これを追加
-    pub match_type: String,
-    pub conditions: Vec<SmartCondition>,
-    pub keep_structure: bool,
-}
-
-// 検索結果用の構造体
-#[derive(Debug, Serialize, Clone)]
-pub struct SearchResultItem {
-    pub path: String,
-    pub name: String,
-    pub snippet: String,
-}
-
-// バックエンドでの高速な検索処理
-#[tauri::command]
-async fn search_files(
-    nodes: Vec<VirtualNode>,
-    search_by_filename: bool, 
-    query: String,
-) -> Result<Vec<SearchResultItem>, String> {
-    if query.trim().is_empty() {
-        return Ok(Vec::new());
-    }
-
-    // 画面上の最新ツリーからファイルノードのみを再帰的に収集
-    fn collect_virtual_files(nodes: &[VirtualNode], files: &mut Vec<(String, String)>) {
-        for node in nodes {
-            match node {
-                VirtualNode::Folder { children, .. } => {
-                    collect_virtual_files(children, files);
-                }
-                VirtualNode::File { name, path, .. } => {
-                    files.push((name.clone(), path.clone()));
-                }
-
-             }
-         }
-     }
- 
-    let mut files = Vec::new();
-    collect_virtual_files(&nodes, &mut files);
-
-    // 重複パスを排除
-    files.sort_by(|a, b| a.1.cmp(&b.1));
-    files.dedup_by(|a, b| a.1 == b.1);
-
-    let mut results = Vec::new();
-    let query_lower = query.to_lowercase();
-
-    for (name, path) in files {
-        if search_by_filename {
-            if name.to_lowercase().contains(&query_lower) {
-                results.push(SearchResultItem {
-                   path,
-                   name,
-                   snippet: "(ファイル名に一致)".to_string(),
-                });
-            }
-        } else {
-           // 必要なファイルのみ本文を読み込む
-           if let Ok(content) = fs::read_to_string(&path) {
-               for line in content.lines() {
-                   if line.to_lowercase().contains(&query_lower) {
-                       let trimmed = line.trim();
-                       let snippet = if trimmed.chars().count() > 100 {
-                           format!("{}...", trimmed.chars().take(100).collect::<String>())
-                       } else {
-                           trimmed.to_string()
-                       };
-
-                       results.push(SearchResultItem {
-                           path,
-                           name,
-                           snippet,
-                       });
-                       break;
-                   }
-                }
-            }
-        }
-    }
-    Ok(results)
-}
-
-
-// 💥 デフォルト値用の関数を用意
-fn default_match_mode() -> String { "contains".to_string() }
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(tag = "cond_type")]
-pub enum SmartCondition {
-    Tag {
-        tag: String,
-        #[serde(default = "default_match_mode")] // 過去データ互換用
-        match_mode: String,
-        include_inline: bool,
-        is_exclude: bool,
-    },
-    Date {
-        date_type: String, 
-        limit: usize,
-    }
-}
-
-// 💥 変更: VirtualNode に smart_rules を追加（過去データ互換のため default を指定）
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(tag = "type")]
-pub enum VirtualNode {
-    Folder {
-        name: String,
-        original_path: Option<String>,
-        children: Vec<VirtualNode>,
-        #[serde(default)]
-        smart_rules: Option<SmartRules>,
-        // 個別フォルダごとのソート設定
-        #[serde(default)]
-        sort_by: Option<String>,
-        #[serde(default)]
-        sort_order: Option<String>,
-    },
-    File {
-        name: String,
-        path: String,
-        // ファイルのメタデータ（UNIXタイムスタンプ）
-        #[serde(default)]
-        created: u64,
-        #[serde(default)]
-        modified: u64,
-    },
-}
 
 #[tauri::command]
 async fn extract_files_by_tag(
@@ -517,7 +321,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             extract_files_by_tag,
             evaluate_smart_folder,
-            search_files,
+            search_ops::search_files,
 
             open_launcher,      
             show_main_window,   
