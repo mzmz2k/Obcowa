@@ -6,6 +6,7 @@
     import { FileText } from 'lucide-svelte';
 
     let isSearching = false;
+    let excludeLibrary = false;
 
    // 検索の実行
     async function executeSearch() {
@@ -17,8 +18,8 @@
            const currentWs = $workspacesStore[$currentWorkspaceIndex];
            let targetNodes = currentWs ? [...(currentWs.nodes || [])] : [];
 
-           // 常に関連ライブラリのノードを検索対象に含める
-           if (currentWs?.linked_libraries) {
+           // 「ライブラリを含めない」にチェックがない場合はライブラリを含める（デフォルト）
+           if (!excludeLibrary && currentWs?.linked_libraries) {
                for (const libId of currentWs.linked_libraries) {
                    const lib = $workspacesStore.find((w: any) => w.id === libId);
                    if (lib && lib.nodes) {
@@ -76,8 +77,13 @@
             style="background-color: var(--menu-bg); color: var(--text-color); border-color: color-mix(in srgb, var(--text-color) 20%, transparent);" 
             placeholder="検索キーワードを入力... (Enterで検索)"
         >
+
+       <label class="flex items-center text-sm cursor-pointer select-none" style="color: var(--text-color);">
+           <input type="checkbox" bind:checked={excludeLibrary} class="mr-2"> ライブラリを含めない
+       </label>
+       
         
-        <!-- 💥 変更: bind:checked を $searchState.searchByFilename に変更 -->
+        <!-- 💥 bind:checked を $searchState.searchByFilename に変更 -->
         <label class="flex items-center text-sm cursor-pointer select-none" style="color: var(--text-color);">
             <input type="checkbox" bind:checked={$searchState.searchByFilename} class="mr-2"> ファイル名のみ検索
         </label>
