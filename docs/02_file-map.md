@@ -167,7 +167,10 @@ A03_Obcowa/
   └── import ../../lib/stores
   └── import @tauri-apps/api/core
   └── import lucide-svelte
+  └── import ../../features/ContextMenu.svelte
+  └── import ../../lib/workspace/menuUtils
   └── import ../../lib/utils/tagUtils
+  └── import svelte
 
 📄 `src/components/Editor/previewExtensions.test.ts`
   └── import vitest
@@ -470,6 +473,7 @@ A03_Obcowa/
   - `export let x`
   - `export let y`
   - `export let items`
+  - `export let openSubLeft`
   - `export let onClose`
 
 ### src/features/Task/

@@ -1,11 +1,12 @@
 <!-- 右クリックメニューのUI。画面外をクリックしたら自動で閉じる -->
 <script lang="ts">
   import type { MenuItem } from '../lib/workspace/menuUtils';
-  import { ChevronRight } from 'lucide-svelte';
+  import { ChevronRight, ChevronLeft } from 'lucide-svelte';
 
   export let x: number;
   export let y: number;
   export let items: MenuItem[];
+  export let openSubLeft: boolean = false; // 💥 右端対策：サブメニューを左に開くか
   export let onClose: () => void;
 
   function handleClick(e: MouseEvent, item: MenuItem) {
@@ -40,16 +41,17 @@
             {#if item.icon}<svelte:component this={item.icon} size={14} class="mr-2" />{/if}
             {item.label}
           </span>
-          <ChevronRight size={14} />
+          <svelte:component this={openSubLeft ? ChevronLeft : ChevronRight} size={14} />
         </button>
         <!-- サブメニュー展開部分 -->
-        <div class="absolute left-full top-0 hidden group-hover/submenu:block border border-black/20 rounded shadow-xl py-1 w-48 -ml-1" style="background-color: var(--menu-bg);">
+        <!-- 💥 w-48 を min-w-[12rem] w-max に変更し、中身に合わせて横幅が広がるようにする -->
+        <div class="absolute {openSubLeft ? 'right-full -mr-1' : 'left-full -ml-1'} top-0 hidden group-hover/submenu:block border border-black/20 rounded shadow-xl py-1 min-w-[12rem] w-max" style="background-color: var(--menu-bg);">
           {#each item.submenu as subItem}
             {#if subItem.divider}
               <hr class="border-black/10 my-1">
             {:else}
               <button 
-                class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10 truncate
+                class="block w-full text-left px-4 py-1.5 text-sm hover:bg-black/10 whitespace-nowrap
                        {subItem.danger ? 'text-red-400' : ''} 
                        {subItem.disabled ? 'opacity-50 cursor-default' : ''}
                        {subItem.bold ? 'font-bold' : ''}"
