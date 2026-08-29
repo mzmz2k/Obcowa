@@ -46,6 +46,15 @@
     }
   }
 
+  // タスク除外ファイルの解除処理
+  function removeExcludePath(pathToRemove: string) {
+    if (workspaces[currentIndex] && workspaces[currentIndex].task_exclude_paths) {
+      workspaces[currentIndex].task_exclude_paths = workspaces[currentIndex].task_exclude_paths.filter((p: string) => p !== pathToRemove);
+      workspaces = workspaces; // Svelteに配列の変更を検知させる
+    }
+  }
+
+
   // 画像フォルダの選択ダイアログ
   async function selectImageFolder() {
     const selectedPath = await openDialog({ directory: true, multiple: false });
@@ -153,6 +162,24 @@ async function openLauncherWindow() {
 
         <hr class="border-black/10 mb-6">
 
+        <!-- 💥 タスク除外設定エリア -->
+        <div class="mb-6">
+          <div class="text-sm opacity-80 mb-2">タスク一覧から除外されているファイル (現在のワークスペース)</div>
+          {#if workspaces[currentIndex]?.task_exclude_paths && workspaces[currentIndex].task_exclude_paths.length > 0}
+            <ul class="border border-black/20 rounded bg-black/5 max-h-40 overflow-y-auto p-2 space-y-1">
+              {#each workspaces[currentIndex].task_exclude_paths as path}
+                <li class="flex justify-between items-center text-sm p-1 hover:bg-black/10 rounded">
+                  <span class="truncate opacity-80" title={path}>{path.split(/[/\\]/).pop()}</span>
+                  <button class="text-red-400 hover:text-red-500 font-bold px-2" on:click={() => removeExcludePath(path)}>×</button>
+                </li>
+              {/each}
+            </ul>
+          {:else}
+            <div class="text-sm opacity-50 p-2 border border-black/20 rounded bg-black/5">除外されているファイルはありません</div>
+          {/if}
+        </div>
+
+        <hr class="border-black/10 mb-6">
         <div class="mb-6">
           <div class="text-sm opacity-80 mb-2">タグの管理</div>
           <div class="flex gap-2 mb-4">

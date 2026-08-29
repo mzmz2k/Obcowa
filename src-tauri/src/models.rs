@@ -115,4 +115,7 @@ pub struct Workspace {
     pub sort_by: String,
     #[serde(default = "default_sort_order")]
     pub sort_order: String,
+
+    #[serde(default)]
+    pub task_exclude_paths: Option<Vec<String>>,
 }

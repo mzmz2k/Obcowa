@@ -1,12 +1,14 @@
 <!-- 責務: ワークスペースの未完了タスク一覧を表示し、更新を管理する親コンポーネント -->
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { RefreshCw, CheckCircle2, FileText } from 'lucide-svelte';
+    import { RefreshCw, CheckCircle2, FileText, EyeOff } from 'lucide-svelte';
     import { invoke } from '@tauri-apps/api/core';
     import { fetchWorkspaceTasks, completeTaskStatus, type Task } from '../../lib/task/taskService';
     import TaskItem from './TaskItem.svelte';
     import { workspacesStore, openTabs, switchTab, openFileInNewTab } from '../../lib/stores';
     import { getWorkspaceNodes } from '../../lib/workspace/treeUtils';
+    import ContextMenu from '../ContextMenu.svelte';
+    import type { MenuItem } from '../../lib/workspace/menuUtils';
 
     export let workspaceIndex: number;// 呼び出し元から現在のワークスペースパスを受け取る
 
@@ -20,6 +22,14 @@
     $: targetNodes = ($workspacesStore && $workspacesStore.length > workspaceIndex) 
         ? getWorkspaceNodes($workspacesStore, workspaceIndex, !excludeLibrary)
         : [];
+
+    // コンテキストメニューの状態管理
+    let contextMenu = {
+        isOpen: false,
+        x: 0,
+        y: 0,
+        filePath: ''
+    };
 
     // 💥 ファイルごとにタスクをグループ化する（表示用）
     $: groupedTasksArray = Object.entries(
@@ -46,8 +56,8 @@
         isLoading = true;
         errorMessage = '';
         try {
-            // 将来的に設定ストア等から options を渡す形に拡張可能
-            tasks = await fetchWorkspaceTasks(targetNodes);
+            const excludes = $workspacesStore[workspaceIndex]?.task_exclude_paths || [];
+            tasks = await fetchWorkspaceTasks(targetNodes, { excludePaths: excludes });
         } catch (error: any) {
             errorMessage = error.message;
         } finally {
@@ -93,6 +103,43 @@
             console.error(e);
         }
     }
+    
+    // 💥 タスク一覧からファイルを除外し、ワークスペース設定を保存する
+    async function excludeFileFromTasks(filePath: string) {
+
+        workspacesStore.update(wsList => {
+            const currentWs = wsList[workspaceIndex];
+            if (!currentWs) return wsList;
+            
+            if (!currentWs.task_exclude_paths) currentWs.task_exclude_paths = [];
+            if (!currentWs.task_exclude_paths.includes(filePath)) {
+                currentWs.task_exclude_paths.push(filePath);
+            }
+            return wsList;
+        });
+
+        await invoke('save_workspaces', { workspaces: $workspacesStore });
+        loadTasks(); // リストを再取得して画面から消す
+    }
+
+    // 右クリックメニューの表示
+    function handleContextMenu(e: MouseEvent, filePath: string) {
+        contextMenu = {
+            isOpen: true,
+            x: e.clientX,
+            y: e.clientY,
+            filePath
+        };
+    }
+
+    // メニューの中身
+    $: menuItems = [
+        {
+            label: "タスク一覧から除外",
+            icon: EyeOff,
+            action: () => excludeFileFromTasks(contextMenu.filePath)
+        }
+    ] as MenuItem[];
 </script>
 
 <div class="task-list-container">
@@ -136,6 +183,7 @@
                             type="button" 
                             class="filename-btn" 
                             on:click={() => openFile(group.filePath, group.fileName)}
+                            on:contextmenu|preventDefault={(e) => handleContextMenu(e, group.filePath)}
                         >
                             <FileText size={14} /> <span>{group.fileName}</span>
                         </button>
@@ -158,6 +206,15 @@
         {/if}
     </div>
 </div>
+<!-- 💥 コンテキストメニューの表示 -->
+{#if contextMenu.isOpen}
+    <ContextMenu 
+        x={contextMenu.x} 
+        y={contextMenu.y} 
+        items={menuItems} 
+        onClose={() => contextMenu.isOpen = false} 
+    />
+{/if}
 
 <style>
     .task-list-container {

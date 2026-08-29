@@ -257,6 +257,8 @@ A03_Obcowa/
   └── import ./TaskItem.svelte
   └── import ../../lib/stores
   └── import ../../lib/workspace/treeUtils
+  └── import ../ContextMenu.svelte
+  └── import ../../lib/workspace/menuUtils
 
 📄 `src/features/launcher/+page.svelte`
   └── import ../../features/launcher/LauncherWindow.svelte

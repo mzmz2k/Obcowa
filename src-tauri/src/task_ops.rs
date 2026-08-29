@@ -16,13 +16,22 @@ pub struct Task {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct ScanOptions {
     pub exclude_paths: Option<Vec<String>>,
     pub include_paths: Option<Vec<String>>,
 }
 
 // 拡張子判定
-fn should_scan_file(path: &Path, _options: &ScanOptions) -> bool {
+fn should_scan_file(path: &Path, options: &ScanOptions) -> bool {
+    // 💥 除外パスのチェックを追加
+    if let Some(excludes) = &options.exclude_paths {
+        let path_str = path.to_string_lossy().to_string();
+        if excludes.contains(&path_str) {
+            return false;
+        }
+    }
+
     if let Some(ext) = path.extension() {
         if ext == "md" || ext == "txt" {
             return true;
