@@ -108,7 +108,12 @@
             </button>
         </div>
         <label class="flex items-center text-sm cursor-pointer select-none" style="color: var(--text-color);">
-            <input type="checkbox" bind:checked={excludeLibrary} class="mr-2"> ライブラリを含めない
+            <input 
+                type="checkbox" 
+                bind:checked={excludeLibrary} 
+                class="mr-2" 
+                style="accent-color: var(--accent-color);"
+            /> ライブラリを含めない
         </label>
 
     </div>
@@ -125,10 +130,16 @@
         {:else}
            {#each groupedTasksArray as group (group.filePath)}
                 <div class="task-group">
-                    <!-- svelte-ignore a11y-click-events-have-key-events -->
-                    <!-- svelte-ignore a11y-no-static-element-interactions -->
-                    <div class="group-header" on:click={() => openFile(group.filePath, group.fileName)}>
-                        <FileText size={14} /> {group.fileName}
+
+                    <div class="group-header">
+                        <button 
+                            type="button" 
+                            class="filename-btn" 
+                            on:click={() => openFile(group.filePath, group.fileName)}
+                        >
+                            <FileText size={14} /> <span>{group.fileName}</span>
+                        </button>
+
                     </div>
 
                     <div class="group-tasks">
@@ -239,19 +250,22 @@
     .group-header {
         display: flex;
         align-items: center;
+        padding: 4px 8px;
+        margin-bottom: 4px;
+    }
+
+    .filename-btn {
+        display: inline-flex;
+        align-items: center;
         gap: 6px;
-        padding: 6px 8px;
+        background: transparent;
+        border: none;
+        padding: 0;
         font-size: 0.9em;
         font-weight: 600;
         color: var(--accent-color);
         cursor: pointer;
         border-bottom: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
-        margin-bottom: 4px;
-        transition: background-color 0.2s;
-    }
-
-    .group-header:hover {
-        background-color: var(--active-highlight-bg);
     }
 
     .group-tasks {
