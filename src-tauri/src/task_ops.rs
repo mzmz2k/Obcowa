@@ -80,7 +80,13 @@ fn extract_tasks_from_file(file_path: &Path, tasks: &mut Vec<Task>) -> io::Resul
 }
 
 #[tauri::command]
-pub fn complete_task(file_path: String, line_number: usize, original_text: String) -> Result<(), String> {
+pub fn complete_task(
+    file_path: String, 
+    line_number: usize, 
+    original_text: String,
+    completed: Option<bool>,
+) -> Result<(), String> {
+    let is_completed = completed.unwrap_or(true);
     let path = Path::new(&file_path);
     if !path.exists() {
         return Err("File not found".to_string());
@@ -94,13 +100,41 @@ pub fn complete_task(file_path: String, line_number: usize, original_text: Strin
         return Err("Line number out of bounds. File might have been modified.".to_string());
     }
 
-    // 楽観的ロック：行の内容が取得時と一致するか確認
-    if lines[line_number] != original_text {
+    let line = &lines[line_number];
+    let trimmed = line.trim_start();
+    let orig_trimmed = original_text.trim_start();
+
+    // タスク文言の一致チェック（チェックボックスのプレフィックスを除去して比較）
+    let current_content = if trimmed.starts_with("- [ ] ") {
+        trimmed.trim_start_matches("- [ ] ")
+    } else if trimmed.starts_with("- [x] ") || trimmed.starts_with("- [X] ") {
+        &trimmed[6..]
+    } else {
+        return Err("Target line is not a task checkbox.".to_string());
+    };
+
+    let orig_content = if orig_trimmed.starts_with("- [ ] ") {
+        orig_trimmed.trim_start_matches("- [ ] ")
+    } else if orig_trimmed.starts_with("- [x] ") || orig_trimmed.starts_with("- [X] ") {
+        &orig_trimmed[6..]
+    } else {
+        orig_trimmed
+    };
+
+    if current_content != orig_content {
         return Err("The file has been modified externally. Please refresh the task list.".to_string());
     }
 
-    // 未完了を完了に置き換え（最初に見つかった "- [ ] " のみ置換してインデントを崩さない）
-    lines[line_number] = lines[line_number].replacen("- [ ] ", "- [x] ", 1);
+    // 状態に応じて置換
+    if is_completed {
+        lines[line_number] = lines[line_number].replacen("- [ ] ", "- [x] ", 1);
+    } else {
+        if lines[line_number].contains("- [x] ") {
+            lines[line_number] = lines[line_number].replacen("- [x] ", "- [ ] ", 1);
+        } else if lines[line_number].contains("- [X] ") {
+            lines[line_number] = lines[line_number].replacen("- [X] ", "- [ ] ", 1);
+        }
+    }
 
     // アトミック書き込み: 一時ファイルに書き込んでからリネーム
     let parent = path.parent().unwrap_or(Path::new(""));

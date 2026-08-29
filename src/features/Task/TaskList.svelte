@@ -55,15 +55,15 @@
         }
     }
 
-    async function handleTaskComplete(event: CustomEvent<Task>) {
-        const task = event.detail;
+    async function handleTaskChange(event: CustomEvent<{ task: Task; completed: boolean }>) {
+        const { task, completed } = event.detail;
         const taskId = `${task.filePath}:${task.lineNumber}`;
         
         updatingTasks.add(taskId);
         updatingTasks = updatingTasks; // Svelteに再描画を通知
 
         try {
-            await completeTaskStatus(task);
+            await completeTaskStatus(task, completed);
             // TODO: エディタで対象ファイルを開いている場合は再読み込みイベントを発火させる等の連携が必要
         } catch (error: any) {
             alert(`エラー: ${error.message}\n一覧を再読み込みします。`);
@@ -136,7 +136,7 @@
                             <TaskItem 
                                 {task} 
                                 isUpdating={updatingTasks.has(`${task.filePath}:${task.lineNumber}`)}
-                                on:complete={handleTaskComplete}
+                                on:change={handleTaskChange}
                             />
                         {/each}
                     </div>

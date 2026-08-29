@@ -34,12 +34,13 @@ export async function fetchWorkspaceTasks(nodes: any[], options?: TaskScanOption
 /**
  * タスクを完了状態にする（対象行の安全な上書き）
  */
-export async function completeTaskStatus(task: Task): Promise<void> {
+export async function completeTaskStatus(task: Task, completed: boolean = true) {
     try {
         await invoke('complete_task', {
             filePath: task.filePath,
             lineNumber: task.lineNumber,
-            originalText: task.originalText
+            originalText: task.originalText,
+            completed
         });
     } catch (error) {
         console.error("Failed to complete task:", error);

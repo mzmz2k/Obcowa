@@ -558,7 +558,7 @@ A03_Obcowa/
   - `export interface Task`
   - `export interface TaskScanOptions`
   - `export async function fetchWorkspaceTasks(nodes: any[], options?: TaskScanOptions)`
-  - `export async function completeTaskStatus(task: Task)`
+  - `export async function completeTaskStatus(task: Task, completed: boolean = true)`
 
 ### src/lib/utils/
 - `src/lib/utils/tagUtils.test.ts` : （説明未記載）
@@ -616,7 +616,7 @@ A03_Obcowa/
   - `pub struct Task`
   - `pub struct ScanOptions`
   - `pub async fn get_workspace_tasks( nodes: Vec<VirtualNode>, options: Option<ScanOptions> ) -> Result<Vec<Task>, String>`
-  - `pub fn complete_task(file_path: String, line_number: usize, original_text: String) -> Result<(), String>`
+  - `pub fn complete_task( file_path: String, line_number: usize, original_text: String, completed: Option<bool>, ) -> Result<(), String>`
 
 - `svelte.config.js` : Tauri doesn't have a Node.js server to do proper SSR
 - `vite.config.js` : （説明未記載）

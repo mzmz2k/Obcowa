@@ -8,11 +8,11 @@
 
     let isChecked = false;
 
-    const dispatch = createEventDispatcher<{ complete: Task }>();
+    const dispatch = createEventDispatcher<{ change: { task: Task; completed: boolean } }>();
 
     function handleCheck() {
-        if (!isUpdating && isChecked) {
-            dispatch('complete', task);
+        if (!isUpdating) {
+            dispatch('change', { task, completed: isChecked });
         }
     }
 
