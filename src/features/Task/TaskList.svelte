@@ -64,8 +64,6 @@
 
         try {
             await completeTaskStatus(task);
-            // 成功したら一覧から削除
-            tasks = tasks.filter(t => `${t.filePath}:${t.lineNumber}` !== taskId);
             // TODO: エディタで対象ファイルを開いている場合は再読み込みイベントを発火させる等の連携が必要
         } catch (error: any) {
             alert(`エラー: ${error.message}\n一覧を再読み込みします。`);
@@ -132,13 +130,17 @@
                     <div class="group-header" on:click={() => openFile(group.filePath, group.fileName)}>
                         <FileText size={14} /> {group.fileName}
                     </div>
-                    {#each group.tasks as task (`${task.filePath}:${task.lineNumber}`)}
-                        <TaskItem 
-                            {task} 
-                            isUpdating={updatingTasks.has(`${task.filePath}:${task.lineNumber}`)}
-                            on:complete={handleTaskComplete}
-                        />
-                    {/each}
+
+                    <div class="group-tasks">
+                        {#each group.tasks as task (`${task.filePath}:${task.lineNumber}`)}
+                            <TaskItem 
+                                {task} 
+                                isUpdating={updatingTasks.has(`${task.filePath}:${task.lineNumber}`)}
+                                on:complete={handleTaskComplete}
+                            />
+                        {/each}
+                    </div>
+
                 </div>
            {/each}
 
@@ -161,7 +163,6 @@
         flex-direction: column;
         gap: 12px;
         padding: 12px 16px;
-        border-bottom: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
     }
     .header-top {
         display: flex;
@@ -251,5 +252,12 @@
 
     .group-header:hover {
         background-color: var(--active-highlight-bg);
+    }
+
+    .group-tasks {
+        padding-left: 20px; /* インデントを追加 */
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
     }
 </style>

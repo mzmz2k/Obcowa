@@ -6,10 +6,12 @@
     export let task: Task;
     export let isUpdating = false;
 
+    let isChecked = false;
+
     const dispatch = createEventDispatcher<{ complete: Task }>();
 
     function handleCheck() {
-        if (!isUpdating) {
+        if (!isUpdating && isChecked) {
             dispatch('complete', task);
         }
     }
@@ -17,18 +19,18 @@
 </script>
 
 <div class="task-item">
-    <label class="task-label" class:disabled={isUpdating}>
+    <div class="task-item-row" class:disabled={isUpdating}>
         <input 
             type="checkbox" 
             class="task-checkbox" 
             disabled={isUpdating}
+            bind:checked={isChecked}
             on:change={handleCheck}
         />
         <div class="task-content">
-            <span class="task-text">{task.text}</span>
-            <span class="task-meta">行: {task.lineNumber + 1}</span>
+            <span class="task-text" class:completed={isChecked}>{task.text}</span>
         </div>
-    </label>
+    </div>
 </div>
 
 <style>
@@ -38,18 +40,13 @@
         transition: background-color 0.2s;
     }
 
-    .task-item:hover {
-        background-color: var(--active-highlight-bg);
-    }
-
-    .task-label {
+    .task-item-row {
         display: flex;
         align-items: flex-start;
-        gap: 12px;
-        cursor: pointer;
+        gap: 8px;
     }
 
-    .task-label.disabled {
+    .task-item-row.disabled {
         opacity: 0.5;
         cursor: not-allowed;
     }
@@ -107,14 +104,12 @@
         font-size: 0.95em;
         line-height: 1.4;
         word-break: break-word;
+        user-select: text;
     }
 
-    .task-meta {
-        /* 半透明の文字色を表現 */
-        color: color-mix(in srgb, var(--text-color) 60%, transparent);
-        font-size: 0.75em;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    .task-text.completed {
+        text-decoration: line-through;
+        opacity: 0.5;
     }
+
 </style>
