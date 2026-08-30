@@ -8,7 +8,7 @@ const imageBlobCache = new Map<string, string>();
 /**
  * Obsidian形式の画像リンク文字列から、HTMLのimgタグ（プレースホルダー）を生成します。
  */
-export function generateImageHtml(filenameWithOpts: string, activeTabPath: string, imageFolderPath: string = ''): string {
+export function generateImageHtml(filenameWithOpts: string, activeTabPath: string, imageFolders: string[] = []): string {
     if (!activeTabPath) return '';
 
     const parts = filenameWithOpts.split('|');
@@ -17,9 +17,11 @@ export function generateImageHtml(filenameWithOpts: string, activeTabPath: strin
     const sizeAttr = parts.length > 1 ? ` width="${parts[1].trim()}"` : ' class="max-w-full h-auto"';
 
     const parentDir = activeTabPath.replace(/\\/g, '/').replace(/\/[^\/]+$/, '');
-    const cacheKey = imageFolderPath ? `${imageFolderPath}/${filename}` : `${parentDir}/${filename}`;
+    const cacheKey = imageFolders.length > 0 ? `${imageFolders.join('|')}/${filename}` : `${parentDir}/${filename}`;
 
-    return `<img data-img-filename="${filename}" data-primary-dir="${imageFolderPath}" data-fallback-dir="${parentDir}" data-cache-key="${cacheKey}" alt="${filename}"${sizeAttr} style="border-radius: 4px; display: inline-block; margin: 0.5rem 0; min-height: 40px; min-width: 40px; background-color: rgba(0,0,0,0.1);" />`;
+    const dirsAttr = imageFolders.length > 0 ? ` data-primary-dirs="${encodeURIComponent(JSON.stringify(imageFolders))}"` : '';
+
+    return `<img data-img-filename="${filename}"${dirsAttr} data-fallback-dir="${parentDir}" data-cache-key="${cacheKey}" alt="${filename}"${sizeAttr} style="border-radius: 4px; display: inline-block; margin: 0.5rem 0; min-height: 40px; min-width: 40px; background-color: rgba(0,0,0,0.1);" />`;
 }
 
 /**
@@ -29,7 +31,7 @@ export async function loadImagesInDom() {
     const placeholders = document.querySelectorAll('img[data-img-filename]');
     for (const img of placeholders) {
         const filename = img.getAttribute('data-img-filename');
-        const primaryDir = img.getAttribute('data-primary-dir');
+        const primaryDirsRaw = img.getAttribute('data-primary-dirs');
         const fallbackDir = img.getAttribute('data-fallback-dir');
         const cacheKey = img.getAttribute('data-cache-key');
         
@@ -49,8 +51,15 @@ export async function loadImagesInDom() {
         try {
             let foundPath: string | null = null;
 
-            if (primaryDir) {
-                foundPath = await invoke('find_image_file', { dirPath: primaryDir, fileName: filename });
+            if (primaryDirsRaw) {
+                try {
+                    const primaryDirs: string[] = JSON.parse(decodeURIComponent(primaryDirsRaw));
+                    for (const dir of primaryDirs) {
+                        if (!dir) continue;
+                        foundPath = await invoke('find_image_file', { dirPath: dir, fileName: filename });
+                        if (foundPath) break;
+                    }
+                } catch (e) {}
             }
             
             if (!foundPath && fallbackDir) {
@@ -92,7 +101,7 @@ function setImageData(img: Element, cacheKey: string, bytes: number[]) {
     imageBlobCache.set(cacheKey, blobUrl);
     img.setAttribute('src', blobUrl);
     img.removeAttribute('data-img-filename');
-    img.removeAttribute('data-primary-dir');
+    img.removeAttribute('data-primary-dirs');
     img.removeAttribute('data-fallback-dir');
     img.removeAttribute('data-cache-key');
 }

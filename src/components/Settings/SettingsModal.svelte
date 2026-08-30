@@ -5,7 +5,7 @@
   import StyleSettings from './StyleSettings.svelte';
   import { activeStyleSlot, customStyleSlots, defaultStyle, applyStyleToRoot } from '../../features/styleSettings/styleStore';
   import { activeTheme, type Theme } from '../../lib/settings/theme';
-  import { editorFont, registeredTags, imageFolderPath } from '../../lib/stores';
+  import { editorFont, registeredTags } from '../../lib/stores';
   import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
   import { showLauncherOnStartup } from '../../lib/stores';
@@ -17,7 +17,6 @@
   export let currentIndex: number;
 
   let tempFont = $editorFont || 'sans-serif';
-  let tempImageFolder = $imageFolderPath || '';
   let activeSettingsTab = 'general';
   
   let tempTheme: Theme = { ...$activeTheme };
@@ -59,16 +58,24 @@
   async function selectImageFolder() {
     const selectedPath = await openDialog({ directory: true, multiple: false });
     if (typeof selectedPath === 'string') {
-      tempImageFolder = selectedPath;
+      if (!workspaces[currentIndex].image_folders) workspaces[currentIndex].image_folders = [];
+      if (!workspaces[currentIndex].image_folders.includes(selectedPath)) {
+        workspaces[currentIndex].image_folders = [...workspaces[currentIndex].image_folders, selectedPath];
+      }
     }
   }
 
+  // 画像フォルダの削除
+  function removeImageFolder(folder: string) {
+    if (workspaces[currentIndex] && workspaces[currentIndex].image_folders) {
+      workspaces[currentIndex].image_folders = workspaces[currentIndex].image_folders.filter((f: string) => f !== folder);
+      workspaces = workspaces; // Svelteに配列の変更を検知させる
+    }
+  }
+
+
   // 設定の保存と適用
   function saveSettings() {
-    
-    // 画像フォルダパスの保存
-    $imageFolderPath = tempImageFolder;
-    localStorage.setItem('imageFolderPath', tempImageFolder);
 
     // テーマの保存
     $activeTheme = { ...tempTheme };
@@ -125,15 +132,19 @@ async function openLauncherWindow() {
       
         <!-- 画像フォルダの設定エリア -->
         <div class="mb-6">
-          <div class="text-sm opacity-80 mb-2">添付ファイル（画像）の保存フォルダ</div>
+          <div class="text-sm opacity-80 mb-2">添付ファイル（画像）の保存フォルダ (複数指定可)</div>
+          <ul class="mb-2 space-y-1">
+            {#each workspaces[currentIndex]?.image_folders || [] as folder}
+              <li class="flex justify-between items-center bg-black/5 border border-black/20 rounded p-2 text-sm opacity-80">
+                <span class="truncate" title={folder}>{folder}</span>
+                <button class="text-red-400 hover:text-red-500 font-bold px-2" on:click={() => removeImageFolder(folder)}>×</button>
+              </li>
+            {/each}
+          </ul>
           <div class="flex gap-2">
-            <input type="text" class="flex-1 bg-black/5 border border-black/20 rounded p-2 text-sm opacity-70" value={tempImageFolder} readonly placeholder="指定しない（ファイルと同じ場所を探します）" />
-            <button on:click={selectImageFolder} class="px-4 py-2 bg-black/10 hover:bg-black/20 rounded text-sm border border-black/20 transition">選択</button>
-            {#if tempImageFolder}
-              <button on:click={() => tempImageFolder = ''} class="px-4 py-2 bg-red-900/50 hover:bg-red-900/80 text-red-100 rounded text-sm transition">クリア</button>
-            {/if}
+            <button on:click={selectImageFolder} class="w-full px-4 py-2 bg-black/10 hover:bg-black/20 rounded text-sm border border-black/20 transition text-center">＋ フォルダを追加</button>
           </div>
-          <div class="text-xs opacity-50 mt-1">※Obsidian側で添付ファイルを特定のフォルダにまとめている場合は、ここを指定してください</div>
+          <div class="text-xs opacity-50 mt-1">※上から順に画像を検索します。指定しない場合はファイルと同じ場所を探します。</div>
         </div>
 
         <!-- ランチャーの設定エリア -->

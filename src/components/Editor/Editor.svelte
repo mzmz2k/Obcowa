@@ -13,7 +13,7 @@
     import TabBar from './TabBar.svelte';
     import EditorPreview from './EditorPreview.svelte';
     import EditorSearch from './EditorSearch.svelte';
-    import { imageFolderPath, currentWorkspace} from '../../lib/stores';
+    import { currentWorkspace } from '../../lib/stores';
     import { saveTabWithConflictCheck, type SaveDependencies } from '../../lib/editor/editorSave';
     import { calculateScrollRatio, calculateScrollTopFromRatio } from '../../lib/editor/scrollSync';
     import TaskList from '../../features/Task/TaskList.svelte';

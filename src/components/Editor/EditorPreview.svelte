@@ -6,7 +6,7 @@
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
   import { tick, createEventDispatcher } from 'svelte';
-  import { editorFont, imageFolderPath } from '../../lib/stores';
+  import { editorFont, workspacesStore, currentWorkspaceIndex } from '../../lib/stores';
   import { generateImageHtml, loadImagesInDom } from '../../lib/editor/imageViewer';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { FileQuestion } from 'lucide-svelte';
@@ -71,8 +71,10 @@
           }
       },
       renderer(token: any) {
+          const currentWs = $workspacesStore[$currentWorkspaceIndex];
+          const folders = currentWs?.image_folders || [];
           // コンポーネント内の現在のタブパスを使って画像タグを生成
-          return generateImageHtml(token.filename, activeTab?.path || '', $imageFolderPath);
+          return generateImageHtml(token.filename, activeTab?.path || '', folders);
       }
   };
 
@@ -215,7 +217,7 @@
               renderedHtml = DOMPurify.sanitize(rawHtml as string, {
                   ADD_TAGS: ['button', 'input'],
                   ADD_ATTR: [
-                      'data-img-filename', 'data-primary-dir', 'data-fallback-dir', 'data-cache-key',
+                      'data-img-filename', 'data-primary-dirs', 'data-fallback-dir', 'data-cache-key',
                       'data-task-index', 'type', 'checked', 'class'
                   ]
               });

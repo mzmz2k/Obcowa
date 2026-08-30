@@ -23,8 +23,6 @@ export const editorFont = writable<string>('sans-serif');
 export const currentWorkspaceIndex = writable<number>(0);
 
 export const registeredTags = writable<string[]>([]);
-// 画像を保存しているフォルダのパス
-export const imageFolderPath = writable<string>('');
 
 // 検索タブの状態を保持するためのストア
 export const searchState = writable({

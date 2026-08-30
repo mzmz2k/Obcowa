@@ -118,4 +118,6 @@ pub struct Workspace {
 
     #[serde(default)]
     pub task_exclude_paths: Option<Vec<String>>,
+    #[serde(default)]
+    pub image_folders: Option<Vec<String>>,
 }

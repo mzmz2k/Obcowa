@@ -511,7 +511,7 @@ A03_Obcowa/
   - `export interface BaseTabData`
 - `src/lib/editor/imageViewer.test.ts` : --- START OF src/lib/imageViewer.test.ts ---
 - `src/lib/editor/imageViewer.ts` : --- START OF src/lib/editor/imageViewer.ts ---
-  - `export function generateImageHtml(filenameWithOpts: string, activeTabPath: string, imageFolderPath: string = '')`
+  - `export function generateImageHtml(filenameWithOpts: string, activeTabPath: string, imageFolders: string[] = [])`
   - `export async function loadImagesInDom()`
 - `src/lib/editor/scrollSync.test.ts` : scrollSync関数の単体テスト
 - `src/lib/editor/scrollSync.ts` : 編集エリアとプレビューエリア間のスクロール位置比率の計算を行う純粋関数
@@ -532,7 +532,6 @@ A03_Obcowa/
   - `export const editorFont`
   - `export const currentWorkspaceIndex`
   - `export const registeredTags`
-  - `export const imageFolderPath`
   - `export const searchState`
   - `export const expandTreeRequest`
   - `export function openSearchTab()`
