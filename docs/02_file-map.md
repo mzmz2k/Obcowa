@@ -45,6 +45,10 @@ A03_Obcowa/
 │   │   └── TreeNode.svelte
 │   ├── features
 │   │   ├── ContextMenu.svelte
+│   │   ├── Dashboard
+│   │   │   ├── DashboardManager.ts
+│   │   │   └── widgets
+│   │   │       └── SearchWidget.svelte
 │   │   ├── Task
 │   │   │   ├── TaskItem.svelte
 │   │   │   └── TaskList.svelte
@@ -157,6 +161,8 @@ A03_Obcowa/
   └── import @tauri-apps/plugin-opener
   └── import lucide-svelte
   └── import ./previewExtensions
+  └── import ../../features/Dashboard/DashboardManager
+  └── import svelte
 
 📄 `src/components/Editor/EditorSearch.svelte`
   └── import @tauri-apps/api/core
@@ -245,6 +251,17 @@ A03_Obcowa/
 
 📄 `src/features/ContextMenu.svelte`
   └── import ../lib/workspace/menuUtils
+  └── import lucide-svelte
+
+📄 `src/features/Dashboard/DashboardManager.ts`
+  └── import svelte
+  └── import ./widgets/SearchWidget.svelte
+
+📄 `src/features/Dashboard/widgets/SearchWidget.svelte`
+  └── import @tauri-apps/api/core
+  └── import svelte
+  └── import ../../../lib/stores
+  └── import ../../../lib/workspace/treeUtils
   └── import lucide-svelte
 
 📄 `src/features/Task/TaskItem.svelte`
@@ -490,6 +507,15 @@ A03_Obcowa/
   - `export let items`
   - `export let openSubLeft`
   - `export let onClose`
+
+### src/features/Dashboard/
+- `src/features/Dashboard/DashboardManager.ts` : プレビュー画面上のプレースホルダー(div)にSvelteコンポーネントをマウント・アンマウントする (Svelte 5対応版)
+  - `export function unmountAllWidgets()`
+  - `export function mountWidgets(container: HTMLElement)`
+
+### src/features/Dashboard/widgets/
+- `src/features/Dashboard/widgets/SearchWidget.svelte` : 渡されたクエリで検索を実行し、結果をコンパクトなリストで表示する
+  - `export let query`
 
 ### src/features/Task/
 - `src/features/Task/TaskItem.svelte` : タスク1件分のUI表示と、チェックボックス操作のイベント発火

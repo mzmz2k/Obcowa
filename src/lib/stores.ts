@@ -178,6 +178,7 @@ export async function openDashboardTab(workspaceId: string, workspaceName: strin
             title: `Dashboard: ${workspaceName}`,
             content: content,
             isDirty: false, // isUnsaved ではなく isDirty
+            isEditing: false, 
             path: `__DASHBOARD__${workspaceId}`, // filePath ではなく path。他と被らない名前
             lastModified: Date.now(),
             isDashboard: true,

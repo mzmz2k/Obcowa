@@ -11,6 +11,8 @@
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { FileQuestion } from 'lucide-svelte';
   import { toggleTaskMarkdown,  copyCodeBlock, toggleHeadingCollapse, COPY_ICON_SVG, CHECK_ICON_SVG } from './previewExtensions';
+  import { mountWidgets, unmountAllWidgets } from '../../features/Dashboard/DashboardManager';
+  import { onDestroy } from 'svelte';
 
 
   const dispatch = createEventDispatcher();
@@ -89,9 +91,8 @@
       };
   }
 
-  // marked のレンダラーカスタマイズ
+// marked のレンダラーカスタマイズ
   const customRenderer = {
-
       // 見出しの先頭にトグル用クリックエリアを挿入
       heading(this: MarkedRendererThis, textOrToken: any, levelArg?: number) {
           let text = '';
@@ -131,6 +132,13 @@
               isEscaped = !!escaped;
           }
 
+          // ★ 追加: ダッシュボード用の検索記法だった場合、Svelteコンポーネント用のプレースホルダーを返す
+          if (lang.startsWith('obcowa-search')) {
+              const match = lang.match(/obcowa-search\((.*?)\)/);
+              const query = match ? match[1] : '';
+              return `<div class="dashboard-widget" data-widget-type="search" data-query="${query}"></div>`;
+          }
+
           const matchedLang = lang.match(/\S*/)?.[0] || '';
           const escapedCode = isEscaped ? codeStr : codeStr.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
           return `
@@ -140,6 +148,7 @@
               </div>
           `;
       },
+      
       listitem(this: MarkedRendererThis, itemOrText: any, taskArg?: boolean, checkedArg?: boolean) {
           let text = '';
           let isTask = false;
@@ -200,8 +209,14 @@
       });
   }
 
+  onDestroy(() => {
+      unmountAllWidgets();
+  });
+
   async function checkAndRender(tab: any) {
-      // ★修正: ダッシュボードのパスだったら実在チェックをスキップする
+      // ★ 追加: 新しく描画する前に、古いWidgetを必ず破棄してメモリリークを防ぐ
+      unmountAllWidgets();
+
       if (tab.path && tab.path !== '__SEARCH__' && !tab.path.startsWith('__DASHBOARD__')) {
           fileExists = await invoke('check_file_exists', { path: tab.path });
       } else {
@@ -209,7 +224,6 @@
       }
 
       if (fileExists) {
-          // ★修正: tab.path が存在する場合のみ endsWith を呼ぶように安全対策
           if (tab.path && tab.path.endsWith('.txt')) {
               const safeText = tab.content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
               renderedHtml = DOMPurify.sanitize(safeText.replace(/\n/g, '<br>'));
@@ -220,13 +234,20 @@
                   ADD_TAGS: ['button', 'input'],
                   ADD_ATTR: [
                       'data-img-filename', 'data-primary-dirs', 'data-fallback-dir', 'data-cache-key',
-                      'data-task-index', 'type', 'checked', 'class'
+                      'data-task-index', 'type', 'checked', 'class',
+                      // ★ 変更: Dashboard用に data-widget-type と data-query を許可
+                      'data-widget-type', 'data-query'
                   ]
               });
           }
           await tick(); 
           loadImagesInDom(); 
-          assignTaskIndexes(); // ★ 追加: DOM構築完了後に確実にインデックスを割り当てる
+          assignTaskIndexes();
+          
+          // ★ 追加: DOMが画面に出た直後に、ダッシュボードならウィジェットをマウントする
+          if (tab.isDashboard && scrollContainer) {
+              mountWidgets(scrollContainer);
+          }
           
           dispatch('renderComplete'); 
       }
