@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::{self, BufRead, Write};
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use crate::VirtualNode;
 use crate::search_ops; // 💥 検索機能のロジックをインポート
 
@@ -13,6 +13,7 @@ pub struct Task {
     pub line_number: usize,
     pub text: String,
     pub original_text: String,
+    pub headings: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -66,7 +67,11 @@ pub async fn get_workspace_tasks(
 
 fn extract_tasks_from_file(file_path: &Path, tasks: &mut Vec<Task>) -> io::Result<()> {
     let file = File::open(file_path)?;
+    // readerがここで定義されます
     let reader = io::BufReader::new(file);
+
+    // 見出し階層を保持するためのスタック
+    let mut current_headings: Vec<String> = Vec::new();
 
     for (index, line_result) in reader.lines().enumerate() {
         let line = match line_result {
@@ -75,6 +80,28 @@ fn extract_tasks_from_file(file_path: &Path, tasks: &mut Vec<Task>) -> io::Resul
         };
 
         let trimmed = line.trim_start();
+
+        // 見出し行の判定とスタックの更新
+        if trimmed.starts_with('#') {
+            let hash_count = trimmed.chars().take_while(|&c| c == '#').count();
+            // H1〜H6のフォーマットとして正しいか（#の後にスペースがあるか）
+            if hash_count > 0 && hash_count <= 6 && trimmed[hash_count..].starts_with(' ') {
+                let heading_text = trimmed[hash_count..].trim().to_string();
+                let target_index = hash_count - 1;
+                
+                // 見出しレベルに合わせてスタックを調整（深い階層を切り捨てる）
+                if current_headings.len() > target_index {
+                    current_headings.truncate(target_index);
+                }
+                // 階層が飛んだ場合（H1がないのにH2が来た等）は空文字で埋める
+                while current_headings.len() < target_index {
+                    current_headings.push(String::new());
+                }
+                current_headings.push(heading_text);
+                continue; // 見出し行はタスクではないので次の行へ
+            }
+        }
+
         if trimmed.starts_with("- [ ] ") {
             let text_content = trimmed.trim_start_matches("- [ ] ").to_string();
             tasks.push(Task {
@@ -82,6 +109,7 @@ fn extract_tasks_from_file(file_path: &Path, tasks: &mut Vec<Task>) -> io::Resul
                 line_number: index,
                 text: text_content,
                 original_text: line.clone(),
+                headings: current_headings.clone(), // 修正: ここで headings を確実に付与
             });
         }
     }

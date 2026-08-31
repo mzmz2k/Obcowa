@@ -1,9 +1,9 @@
 <!-- 責務: ワークスペースの未完了タスク一覧を表示し、更新を管理する親コンポーネント -->
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { RefreshCw, CheckCircle2, FileText, EyeOff } from 'lucide-svelte';
+    import { RefreshCw, CheckCircle2, FileText, EyeOff, Hash } from 'lucide-svelte';
     import { invoke } from '@tauri-apps/api/core';
-    import { fetchWorkspaceTasks, completeTaskStatus, type Task } from '../../lib/task/taskService';
+    import { fetchWorkspaceTasks, completeTaskStatus, groupTasks, type Task, type GroupByOption } from '../../lib/task/taskService';
     import TaskItem from './TaskItem.svelte';
     import { workspacesStore, openTabs, switchTab, openFileInNewTab } from '../../lib/stores';
     import { getWorkspaceNodes } from '../../lib/workspace/treeUtils';
@@ -17,6 +17,8 @@
     let errorMessage = '';
     let updatingTasks = new Set<string>(); // 処理中のタスクを特定する用（filePath + lineNumber）
     let excludeLibrary = false;
+    let groupBy: GroupByOption = 'heading'; // デフォルトは見出しごと
+    let ignoreH1 = true; // デフォルトはH1無視
 
     // 💥 workspacesStoreから現在のツリーを生成し、リアクティブに監視する
     $: targetNodes = ($workspacesStore && $workspacesStore.length > workspaceIndex) 
@@ -31,18 +33,8 @@
         filePath: ''
     };
 
-    // 💥 ファイルごとにタスクをグループ化する（表示用）
-    $: groupedTasksArray = Object.entries(
-        tasks.reduce((acc, task) => {
-            if (!acc[task.filePath]) acc[task.filePath] = [];
-            acc[task.filePath].push(task);
-            return acc;
-        }, {} as Record<string, Task[]>)
-    ).map(([filePath, fileTasks]) => ({
-        filePath,
-        fileName: filePath.split(/[/\\]/).pop() || 'Unknown',
-        tasks: fileTasks
-    }));
+    // 💥 抽出した純粋関数を使ってタスクをグループ化する
+    $: groupedTasksArray = groupTasks(tasks, groupBy, ignoreH1);
 
     // 💥 ツリーが展開されて中身が更新されたら、自動でタスクを再取得する
     $: {
@@ -162,6 +154,25 @@
                 style="accent-color: var(--accent-color);"
             /> ライブラリを含めない
         </label>
+        
+        <!-- グループ化設定コントロール -->
+        <div class="flex items-center gap-4 text-sm" style="color: var(--text-color);">
+            <select 
+                bind:value={groupBy} 
+                class="bg-transparent border rounded p-1 cursor-pointer" 
+                style="border-color: color-mix(in srgb, var(--text-color) 30%, transparent); color: var(--text-color);"
+            >
+                <option value="heading">見出しでまとめる</option>
+                <option value="file">ファイルでまとめる</option>
+            </select>
+            
+            {#if groupBy === 'heading'}
+                <label class="flex items-center cursor-pointer select-none">
+                    <input type="checkbox" bind:checked={ignoreH1} class="mr-1" style="accent-color: var(--accent-color);" />
+                    H1を無視
+                </label>
+            {/if}
+        </div>
 
     </div>
 
@@ -175,18 +186,40 @@
         {:else if tasks.length === 0}
             <div class="empty-state">未完了タスクはありません</div>
         {:else}
-           {#each groupedTasksArray as group (group.filePath)}
+           {#each groupedTasksArray as group (group.id)}
                 <div class="task-group">
 
                     <div class="group-header">
-                        <button 
-                            type="button" 
-                            class="filename-btn" 
-                            on:click={() => openFile(group.filePath, group.fileName)}
-                            on:contextmenu|preventDefault={(e) => handleContextMenu(e, group.filePath)}
-                        >
-                            <FileText size={14} /> <span>{group.fileName}</span>
-                        </button>
+
+                        {#if groupBy === 'file'}
+                            {@const fileName = group.labelPath[0].split(/[/\\]/).pop() || 'Unknown'}
+                            <button 
+                                type="button" 
+                                class="filename-btn" 
+                                on:click={() => openFile(group.labelPath[0], fileName)}
+                                on:contextmenu|preventDefault={(e) => handleContextMenu(e, group.labelPath[0])}
+                            >
+                                <FileText size={14} /> <span>{fileName}</span>
+                            </button>
+                        {:else}
+                            <!-- 見出しごとの場合、階層構造をパンくずリスト風に表示 -->
+                            <div class="heading-path">
+                                {#if group.id === 'heading::__no_heading__'}
+                                    <Hash size={14} /> <span>{group.labelPath[0]}</span>
+                                {:else}
+                                    {#each group.labelPath as label, index}
+                                        <span class="heading-node">
+                                            {#if index === 0}<Hash size={12} class="mr-1 inline-block" />{/if}
+                                            {label}
+                                        </span>
+                                        {#if index < group.labelPath.length - 1}
+                                            <span class="separator">/</span>
+                                        {/if}
+                                    {/each}
+                                {/if}
+                            </div>
+                        {/if}
+
 
                     </div>
 
@@ -325,6 +358,24 @@
         border-bottom: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
     }
 
+    .heading-path {
+        display: inline-flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 4px;
+        font-size: 0.9em;
+        font-weight: 600;
+        color: var(--accent-color);
+        border-bottom: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
+    }
+
+    .heading-node {
+        display: inline-flex;
+        align-items: center;
+    }
+    .separator {
+        color: color-mix(in srgb, var(--text-color) 40%, transparent);
+    }
     .group-tasks {
         padding-left: 20px; /* インデントを追加 */
         display: flex;

@@ -412,7 +412,7 @@ A03_Obcowa/
   └── use/mod serde::{Deserialize, Serialize}
   └── use/mod std::fs::{self, File}
   └── use/mod std::io::{self, BufRead, Write}
-  └── use/mod std::path::{Path, PathBuf}
+  └── use/mod std::path::{Path}
   └── use/mod crate::VirtualNode
   └── use/mod crate::search_ops
 
@@ -606,6 +606,8 @@ A03_Obcowa/
 - `src/lib/task/taskService.test.ts` : taskServiceの単体テスト
 - `src/lib/task/taskService.ts` : 責務: Tauriと通信し、タスクの取得および完了処理を行うAPIサービス
   - `export interface Task`
+  - `export type GroupByOption`
+  - `export interface TaskGroup`
   - `export interface TaskScanOptions`
   - `export async function fetchWorkspaceTasks(nodes: any[], options?: TaskScanOptions)`
   - `export async function completeTaskStatus(task: Task, completed: boolean = true)`
