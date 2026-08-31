@@ -1,5 +1,7 @@
 // エディタの保存処理、競合ダイアログハンドリングの純粋・抽象化ロジック
 
+import { isSpecialPath } from '../utils/pathUtils';
+
 export interface SaveDependencies {
     saveFileContent: (path: string, content: string, lastModified: number, force: boolean) => Promise<number>;
     getModified: (path: string) => Promise<number>;
@@ -48,8 +50,8 @@ if (!targetTab.isDirty) {
         }
     }
 
-    // 既存のパスなしファイルのスキップ（ダッシュボードにはpathが無いので、分岐後に移動）
-    if (!targetTab.path || targetTab.path === '__SEARCH__') {
+    // 既存のパスなしファイルのスキップ
+    if (!targetTab.path || isSpecialPath(targetTab.path)) {
         return true;
     }
 

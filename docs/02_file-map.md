@@ -78,6 +78,7 @@ A03_Obcowa/
 │   │   │   ├── taskService.test.ts
 │   │   │   └── taskService.ts
 │   │   ├── utils
+│   │   │   ├── pathUtils.ts
 │   │   │   ├── tagUtils.test.ts
 │   │   │   └── tagUtils.ts
 │   │   └── workspace
@@ -148,6 +149,7 @@ A03_Obcowa/
   └── import ../../lib/editor/editorSave
   └── import ../../lib/editor/scrollSync
   └── import ../../features/Task/TaskList.svelte
+  └── import ../../lib/utils/pathUtils
 
 📄 `src/components/Editor/EditorHeader.svelte`
   └── import @tauri-apps/api/core
@@ -164,6 +166,7 @@ A03_Obcowa/
   └── import ../../features/Dashboard/DashboardManager
   └── import ./markdownSetup
   └── import dompurify
+  └── import ../../lib/utils/pathUtils
 
 📄 `src/components/Editor/EditorSearch.svelte`
   └── import @tauri-apps/api/core
@@ -179,6 +182,7 @@ A03_Obcowa/
   └── import ../../lib/workspace/menuUtils
   └── import ../../lib/utils/tagUtils
   └── import svelte
+  └── import ../../lib/utils/pathUtils
 
 📄 `src/components/Editor/markdownSetup.ts`
   └── import marked
@@ -315,6 +319,9 @@ A03_Obcowa/
   └── import vitest
   └── import ./editorSave
 
+📄 `src/lib/editor/editorSave.ts`
+  └── import ../utils/pathUtils
+
 📄 `src/lib/editor/imageViewer.test.ts`
   └── import vitest
   └── import ./imageViewer
@@ -386,6 +393,7 @@ A03_Obcowa/
   └── import @tauri-apps/api/event
   └── import ../features/launcher/LauncherWindow.svelte
   └── import ../lib/workspace/treeUtils
+  └── import ../lib/utils/pathUtils
 
 📄 `src-tauri/src/dashboard_ops.rs`
   └── use/mod std::fs
@@ -625,6 +633,10 @@ A03_Obcowa/
   - `export async function completeTaskStatus(task: Task, completed: boolean = true)`
 
 ### src/lib/utils/
+- `src/lib/utils/pathUtils.ts` : アプリ内の特殊なパス（仮想タブ）の判定を共通化する
+  - `export function isSpecialPath(path: string | undefined | null)`
+  - `export function isDashboardPath(path: string | undefined | null)`
+  - `export function getWorkspaceIdFromDashboardPath(path: string | undefined | null)`
 - `src/lib/utils/tagUtils.test.ts` : （説明未記載）
 - `src/lib/utils/tagUtils.ts` : タグの文字列処理など（純粋関数）
   - `export function extractTags(content: string)`

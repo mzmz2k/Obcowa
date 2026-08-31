@@ -23,6 +23,7 @@
   import { listen } from '@tauri-apps/api/event';
   import LauncherWindow from '../features/launcher/LauncherWindow.svelte';
   import { refreshTree } from '../lib/workspace/treeUtils';
+  import { isSpecialPath, isDashboardPath, getWorkspaceIdFromDashboardPath } from '../lib/utils/pathUtils';
 
 
   let isLauncherWindow = false;
@@ -241,10 +242,10 @@ workspaces[currentIndex].nodes = await refreshTree(workspaces[currentIndex].node
           
           if (tab.path) {
             // 💥 追加: ダッシュボードタブの復元処理分岐
-            if (tab.path.startsWith('__DASHBOARD__')) {
+            if (isDashboardPath(tab.path)) {
                isDashboard = true;
                // "__DASHBOARD__12345" から "12345" (workspaceId) を抽出
-               workspaceId = tab.path.replace('__DASHBOARD__', '');
+               workspaceId = getWorkspaceIdFromDashboardPath(tab.path) || '';
                try {
                  // ダッシュボード専用の読み込みコマンドを呼ぶ
                  content = await invoke('load_dashboard', { workspaceId });
@@ -253,7 +254,7 @@ workspaces[currentIndex].nodes = await refreshTree(workspaces[currentIndex].node
                }
             } 
             // 既存の通常ファイル復元処理
-            else if (tab.path !== '__SEARCH__') {
+            else if (!isSpecialPath(tab.path)) {
               try {
                 const bytes: number[] = await invoke('read_file_content', { path: tab.path });
                 const uint8Array = new Uint8Array(bytes);

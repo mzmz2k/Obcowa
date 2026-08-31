@@ -8,9 +8,9 @@
   import { FileQuestion } from 'lucide-svelte';
   import { toggleTaskMarkdown, copyCodeBlock, toggleHeadingCollapse, COPY_ICON_SVG, CHECK_ICON_SVG } from './previewExtensions';
   import { mountWidgets, unmountAllWidgets } from '../../features/Dashboard/DashboardManager';
-  // ★追加: 分離した設定ファイルをインポート
   import { parseMarkdown, sanitizeHtml } from './markdownSetup';
   import DOMPurify from 'dompurify'; // .txt用のシンプルなサニタイズ用に残す
+  import { isSpecialPath } from '../../lib/utils/pathUtils';
 
   const dispatch = createEventDispatcher();
 
@@ -39,8 +39,8 @@
   async function checkAndRender(tab: any) {
       unmountAllWidgets();
 
-      if (tab.path && tab.path !== '__SEARCH__' && !tab.path.startsWith('__DASHBOARD__')) {
-          fileExists = await invoke('check_file_exists', { path: tab.path });
+      if (tab.path && !isSpecialPath(tab.path)) {
+            fileExists = await invoke('check_file_exists', { path: tab.path });
       } else {
           fileExists = true;
       }

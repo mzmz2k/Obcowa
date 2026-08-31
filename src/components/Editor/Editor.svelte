@@ -8,7 +8,6 @@
     import { tick } from 'svelte';
     import { Inbox } from 'lucide-svelte';
     
-    // 独立させた子部品たちをインポート
     import EditorHeader from './EditorHeader.svelte';
     import TabBar from './TabBar.svelte';
     import EditorPreview from './EditorPreview.svelte';
@@ -17,6 +16,7 @@
     import { saveTabWithConflictCheck, type SaveDependencies } from '../../lib/editor/editorSave';
     import { calculateScrollRatio, calculateScrollTopFromRatio } from '../../lib/editor/scrollSync';
     import TaskList from '../../features/Task/TaskList.svelte';
+    import { isSpecialPath } from '../../lib/utils/pathUtils';
 
     $: activeTab = $openTabs.find(t => t.id === $activeTabId);
 
@@ -39,7 +39,7 @@
 
 
         // タブが開かれた時に、ファイルの最新日時を取得する
-    $: if (activeTab && activeTab.path && activeTab.path !== '__SEARCH__' && !activeTab.path.startsWith('__DASHBOARD__') && activeTab.lastModified === 0) {
+    $: if (activeTab && activeTab.path && !isSpecialPath(activeTab.path) && activeTab.lastModified === 0) {
         invoke('get_file_modified', { path: activeTab.path }).then((modified) => {
             openTabs.update(tabs => {
                 const t = tabs.find(t => t.id === activeTab!.id);
@@ -119,7 +119,7 @@
         }
 
         if (activeTab.isEditing && activeTab.path) { await saveCurrentTab(); } 
-        else if (!activeTab.isEditing && activeTab.path && activeTab.path !== '__SEARCH__' && !activeTab.isDirty) {
+        else if (!activeTab.isEditing && activeTab.path && !isSpecialPath(activeTab.path) && !activeTab.isDirty) {
             try {
                 const bytes: number[] = await invoke('read_file_content', { path: activeTab.path });
                 let latestContent = "";

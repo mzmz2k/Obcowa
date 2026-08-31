@@ -7,6 +7,7 @@
   import { buildCommonFileMenu, type MenuItem } from '../../lib/workspace/menuUtils';
   import { extractTags, updateTagsInContent } from '../../lib/utils/tagUtils';
   import { getContext } from 'svelte';
+  import { isSpecialPath } from '../../lib/utils/pathUtils';
 
   // 親(Editor.svelte)から関数をもらって実行する（親に依存しないための工夫）
   export let handleTabClick: (id: string) => void;
@@ -20,7 +21,7 @@
     // タブをダブルクリックした時の処理
   function handleTabDoubleClick(path: string) {
       // 検索タブなどの特殊なタブ以外なら、ツリー展開を要求する
-      if (path && path !== '__SEARCH__') {
+      if (path && !isSpecialPath(path)) {
           expandTreeRequest.set({ path, timestamp: Date.now() });
       }
   }
@@ -34,7 +35,7 @@
       let items: MenuItem[] = [];
       
       // 特殊なタブ（検索など）と通常のファイルでメニュー内容を変える
-      if (tab.path && tab.path !== '__SEARCH__' && tab.path !== '__TASK__') {
+      if (tab.path && !isSpecialPath(tab.path)) {
           const currentFileTags = extractTags(tab.content);
           items = buildCommonFileMenu({
               registeredTags: $registeredTags,
@@ -70,7 +71,7 @@
     // タブをクリックした時に最新のファイル内容を読み込む処理
   async function onTabClick(tab: any) {
       // 未保存状態ではなく、かつ検索タブなどの特殊なタブではない場合のみ最新化
-      if (!tab.isDirty && tab.path && tab.path !== '__SEARCH__'&& tab.path !== "__TASK__"&& !tab.path.startsWith('__DASHBOARD__')) {
+      if (!tab.isDirty && tab.path && !isSpecialPath(tab.path)) {
           try {
               const bytes: number[] = await invoke('read_file_content', { path: tab.path });
               const uint8Array = new Uint8Array(bytes);
