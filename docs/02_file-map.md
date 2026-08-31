@@ -51,6 +51,7 @@ A03_Obcowa/
 │   │   │   └── widgets
 │   │   │       └── SearchWidget.svelte
 │   │   ├── Task
+│   │   │   ├── TaskGroupNode.svelte
 │   │   │   ├── TaskItem.svelte
 │   │   │   └── TaskList.svelte
 │   │   ├── launcher
@@ -272,6 +273,12 @@ A03_Obcowa/
   └── import ../../../lib/workspace/treeUtils
   └── import lucide-svelte
 
+📄 `src/features/Task/TaskGroupNode.svelte`
+  └── import lucide-svelte
+  └── import ./TaskItem.svelte
+  └── import ../../lib/task/taskService
+  └── import svelte
+
 📄 `src/features/Task/TaskItem.svelte`
   └── import svelte
   └── import ../../lib/task/taskService
@@ -281,7 +288,7 @@ A03_Obcowa/
   └── import lucide-svelte
   └── import @tauri-apps/api/core
   └── import ../../lib/task/taskService
-  └── import ./TaskItem.svelte
+  └── import ./TaskGroupNode.svelte
   └── import ../../lib/stores
   └── import ../../lib/workspace/treeUtils
   └── import ../ContextMenu.svelte
@@ -530,6 +537,10 @@ A03_Obcowa/
   - `export let query`
 
 ### src/features/Task/
+- `src/features/Task/TaskGroupNode.svelte` : 責務: ワークスペースの未完了タスク一覧において、階層構造（ファイル・見出し）を再帰的に描画し、折りたたみ制御を行う
+  - `export let node`
+  - `export let groupBy`
+  - `export let isUpdatingTasks`
 - `src/features/Task/TaskItem.svelte` : タスク1件分のUI表示と、チェックボックス操作のイベント発火
   - `export let task`
   - `export let isUpdating`
@@ -607,7 +618,7 @@ A03_Obcowa/
 - `src/lib/task/taskService.ts` : 責務: Tauriと通信し、タスクの取得および完了処理を行うAPIサービス
   - `export interface Task`
   - `export type GroupByOption`
-  - `export interface TaskGroup`
+  - `export interface TaskTreeNode`
   - `export interface TaskScanOptions`
   - `export async function fetchWorkspaceTasks(nodes: any[], options?: TaskScanOptions)`
   - `export async function completeTaskStatus(task: Task, completed: boolean = true)`

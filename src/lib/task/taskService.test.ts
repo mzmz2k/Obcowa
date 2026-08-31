@@ -1,7 +1,7 @@
 // taskServiceの単体テスト
 
 import { describe, it, expect, vi } from 'vitest';
-import { fetchWorkspaceTasks, completeTaskStatus, groupTasks, type Task } from './taskService';
+import { fetchWorkspaceTasks, completeTaskStatus, buildTaskTree, type Task } from './taskService';
 
 // Tauri APIをモック化
 vi.mock('@tauri-apps/api/core', () => ({
@@ -46,7 +46,7 @@ describe('taskService', () => {
         await expect(completeTaskStatus(task)).rejects.toThrow(/タスクの更新に失敗しました/);
     });
     
-    describe('groupTasks', () => {
+    describe('buildTaskTree', () => {
         const mockTasks: Task[] = [
             { filePath: '/fileA.md', lineNumber: 1, text: 'Task 1', originalText: '', headings: ['H1', 'H2'] },
             { filePath: '/fileB.md', lineNumber: 2, text: 'Task 2', originalText: '', headings: ['H1', 'H2'] },
@@ -54,35 +54,38 @@ describe('taskService', () => {
         ];
 
         it('ファイル単位で正しくグループ化されること', () => {
-            const groups = groupTasks(mockTasks, 'file', false);
-            expect(groups.length).toBe(2);
+
+            const nodes = buildTaskTree(mockTasks, 'file', false);
+            expect(nodes.length).toBe(2);
             
-            const fileAGroup = groups.find(g => g.id === 'file::/fileA.md');
-            expect(fileAGroup?.tasks.length).toBe(2); // Task 1, Task 3
-            
-            const fileBGroup = groups.find(g => g.id === 'file::/fileB.md');
-            expect(fileBGroup?.tasks.length).toBe(1); // Task 2
+            const fileANode = nodes.find(n => n.id === 'file::/fileA.md');
+            expect(fileANode?.tasks.length).toBe(2);
+            expect(fileANode?.children.length).toBe(0);
+
         });
 
-        it('見出し単位で別ファイルの同じ階層がマージされること', () => {
-            const groups = groupTasks(mockTasks, 'heading', false);
-            expect(groups.length).toBe(2);
+        it('見出し単位で階層化され、マージされること', () => {
+            const nodes = buildTaskTree(mockTasks, 'heading', false);
+            expect(nodes.length).toBe(2); // "見出しなし" と "H1"
             
-            const headingGroup = groups.find(g => g.id === 'heading::H1::H2');
-            expect(headingGroup?.labelPath).toEqual(['H1', 'H2']);
-            expect(headingGroup?.tasks.length).toBe(2); // Task 1 (fileA), Task 2 (fileB)
+            const noHeadingNode = nodes.find(n => n.id === 'heading::__no_heading__');
+            expect(noHeadingNode?.tasks.length).toBe(1);
             
-            const noHeadingGroup = groups.find(g => g.id === 'heading::__no_heading__');
-            expect(noHeadingGroup?.labelPath).toEqual(['No Heading']);
-            expect(noHeadingGroup?.tasks.length).toBe(1); // Task 3
+            const h1Node = nodes.find(n => n.name === 'H1');
+            expect(h1Node?.children.length).toBe(1); // H2
+            
+            const h2Node = h1Node?.children[0];
+            expect(h2Node?.name).toBe('H2');
+            expect(h2Node?.tasks.length).toBe(2); // Task 1 (fileA), Task 2 (fileB)
+
         });
 
         it('H1を無視する設定が機能すること', () => {
-            const groups = groupTasks(mockTasks, 'heading', true);
+            const nodes = buildTaskTree(mockTasks, 'heading', true);
             
-            const headingGroup = groups.find(g => g.id === 'heading::H2');
-            expect(headingGroup?.labelPath).toEqual(['H2']); // H1が除去されている
-            expect(headingGroup?.tasks.length).toBe(2);
+            const h2Node = nodes.find(n => n.name === 'H2');
+            expect(h2Node).toBeDefined(); // H1が除去され、H2がルートにきている
+            expect(h2Node?.tasks.length).toBe(2);
         });
     });
 });

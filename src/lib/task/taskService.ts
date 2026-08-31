@@ -12,10 +12,12 @@ export interface Task {
 
 export type GroupByOption = 'file' | 'heading';
 
-export interface TaskGroup {
-    id: string;          // グループの一意なキー
-    labelPath: string[]; // 表示用の階層パス (例: ["準備", "ToDo"] や ["/path/to/file.md"])
-    tasks: Task[];
+export interface TaskTreeNode {
+    id: string;
+    name: string;        // 見出し名、またはファイル名
+    path: string;        // ファイルパス（ファイル単位のグループ化時のみ使用）
+     tasks: Task[];
+    children: TaskTreeNode[]; // 子階層
 }
 
 // 将来のフィルタリング拡張用
@@ -60,43 +62,68 @@ export async function completeTaskStatus(task: Task, completed: boolean = true) 
 /**
  * タスクのリストを、指定された条件（ファイル単位 / 見出し単位）でグループ化する純粋関数
  */
-export function groupTasks(
+export function buildTaskTree(
     tasks: Task[],
     groupBy: GroupByOption,
     ignoreH1: boolean
-): TaskGroup[] {
-    const groupMap = new Map<string, TaskGroup>();
+): TaskTreeNode[] {
+    const rootNodes: TaskTreeNode[] = [];
+
+    if (groupBy === 'file') {
+        const fileMap = new Map<string, TaskTreeNode>();
+        for (const task of tasks) {
+            if (!fileMap.has(task.filePath)) {
+                const fileName = task.filePath.split(/[/\\]/).pop() || 'Unknown';
+                const node: TaskTreeNode = { id: `file::${task.filePath}`, name: fileName, path: task.filePath, tasks: [], children: [] };
+                fileMap.set(task.filePath, node);
+                rootNodes.push(node);
+            }
+            fileMap.get(task.filePath)!.tasks.push(task);
+        }
+        return rootNodes;
+    }
+    
+    // 見出しごとの場合
+    const noHeadingNode: TaskTreeNode = { id: 'heading::__no_heading__', name: '見出しなし', path: '', tasks: [], children: [] };
 
     for (const task of tasks) {
-        let labelPath: string[] = [];
-        let id = '';
+        let headings = task.headings || [];
+        if (ignoreH1 && headings.length > 0) {
+            headings = headings.slice(1);
+        }
+        const validHeadings = headings.filter(h => h.trim().length > 0);
 
-        if (groupBy === 'file') {
-            labelPath = [task.filePath];
-            id = `file::${task.filePath}`;
-        } else {
-            let headings = task.headings || [];
-            // ignoreH1が有効な場合、インデックス0（H1相当）を除去
-            if (ignoreH1 && headings.length > 0) {
-                headings = headings.slice(1);
-            }
-            // 空文字（階層が飛んだ場合など）を除外
-            const validHeadings = headings.filter(h => h.trim().length > 0);
-
-            if (validHeadings.length === 0) {
-                labelPath = ['No Heading'];
-                id = 'heading::__no_heading__';
-            } else {
-                labelPath = validHeadings;
-                id = `heading::${validHeadings.join('::')}`;
-            }
+        if (validHeadings.length === 0) {
+            noHeadingNode.tasks.push(task);
+            continue;
         }
 
-        if (!groupMap.has(id)) {
-            groupMap.set(id, { id, labelPath, tasks: [] });
-        }
-        groupMap.get(id)!.tasks.push(task);
+        let currentLevelNodes = rootNodes;
+        let currentIdPath = 'heading';
+
+        for (let i = 0; i < validHeadings.length; i++) {
+            const h = validHeadings[i];
+            currentIdPath += `::${h}`;
+            
+            let node = currentLevelNodes.find(n => n.name === h);
+            if (!node) {
+                node = { id: currentIdPath, name: h, path: '', tasks: [], children: [] };
+                currentLevelNodes.push(node);
+
     }
+              
+            // 最後の見出し階層ならタスクを追加
+            if (i === validHeadings.length - 1) {
+                node.tasks.push(task);
+            }
+            
+            currentLevelNodes = node.children;
+        }
+    }
+        if (noHeadingNode.tasks.length > 0) {
+        rootNodes.unshift(noHeadingNode); // 見出しなしを先頭に追加
+        }
 
-    return Array.from(groupMap.values());
+    return rootNodes;
+
 }

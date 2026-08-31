@@ -1,10 +1,10 @@
 <!-- 責務: ワークスペースの未完了タスク一覧を表示し、更新を管理する親コンポーネント -->
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { RefreshCw, CheckCircle2, FileText, EyeOff, Hash } from 'lucide-svelte';
+    import { RefreshCw, CheckCircle2, EyeOff } from 'lucide-svelte';
     import { invoke } from '@tauri-apps/api/core';
-    import { fetchWorkspaceTasks, completeTaskStatus, groupTasks, type Task, type GroupByOption } from '../../lib/task/taskService';
-    import TaskItem from './TaskItem.svelte';
+    import { fetchWorkspaceTasks, completeTaskStatus, buildTaskTree, type Task, type GroupByOption } from '../../lib/task/taskService';
+    import TaskGroupNode from './TaskGroupNode.svelte';
     import { workspacesStore, openTabs, switchTab, openFileInNewTab } from '../../lib/stores';
     import { getWorkspaceNodes } from '../../lib/workspace/treeUtils';
     import ContextMenu from '../ContextMenu.svelte';
@@ -33,8 +33,8 @@
         filePath: ''
     };
 
-    // 💥 抽出した純粋関数を使ってタスクをグループ化する
-    $: groupedTasksArray = groupTasks(tasks, groupBy, ignoreH1);
+    // 💥 抽出した純粋関数を使ってタスクツリーを構築する
+    $: taskTreeNodes = buildTaskTree(tasks, groupBy, ignoreH1);
 
     // 💥 ツリーが展開されて中身が更新されたら、自動でタスクを再取得する
     $: {
@@ -186,55 +186,20 @@
         {:else if tasks.length === 0}
             <div class="empty-state">未完了タスクはありません</div>
         {:else}
-           {#each groupedTasksArray as group (group.id)}
-                <div class="task-group">
 
-                    <div class="group-header">
-
-                        {#if groupBy === 'file'}
-                            {@const fileName = group.labelPath[0].split(/[/\\]/).pop() || 'Unknown'}
-                            <button 
-                                type="button" 
-                                class="filename-btn" 
-                                on:click={() => openFile(group.labelPath[0], fileName)}
-                                on:contextmenu|preventDefault={(e) => handleContextMenu(e, group.labelPath[0])}
-                            >
-                                <FileText size={14} /> <span>{fileName}</span>
-                            </button>
-                        {:else}
-                            <!-- 見出しごとの場合、階層構造をパンくずリスト風に表示 -->
-                            <div class="heading-path">
-                                {#if group.id === 'heading::__no_heading__'}
-                                    <Hash size={14} /> <span>{group.labelPath[0]}</span>
-                                {:else}
-                                    {#each group.labelPath as label, index}
-                                        <span class="heading-node">
-                                            {#if index === 0}<Hash size={12} class="mr-1 inline-block" />{/if}
-                                            {label}
-                                        </span>
-                                        {#if index < group.labelPath.length - 1}
-                                            <span class="separator">/</span>
-                                        {/if}
-                                    {/each}
-                                {/if}
-                            </div>
-                        {/if}
-
-
-                    </div>
-
-                    <div class="group-tasks">
-                        {#each group.tasks as task (`${task.filePath}:${task.lineNumber}`)}
-                            <TaskItem 
-                                {task} 
-                                isUpdating={updatingTasks.has(`${task.filePath}:${task.lineNumber}`)}
-                                on:change={handleTaskChange}
-                            />
-                        {/each}
-                    </div>
-
-                </div>
-           {/each}
+           <div class="tree-container">
+               {#each taskTreeNodes as node (node.id)}
+                    <!-- 💥 新しく作った再帰コンポーネントにツリーのルートノードを渡す -->
+                    <TaskGroupNode 
+                        {node}
+                        {groupBy}
+                        isUpdatingTasks={updatingTasks}
+                        on:change={handleTaskChange}
+                        on:openFile={(e) => openFile(e.detail.path, e.detail.name)}
+                        on:contextMenu={(e) => handleContextMenu(e.detail.event, e.detail.path)}
+                    />
+               {/each}
+           </div>
 
         {/if}
     </div>
@@ -333,53 +298,10 @@
         font-size: 0.85em;
     }
 
-    .task-group {
-        margin-bottom: 12px;
-    }
-
-    .group-header {
-        display: flex;
-        align-items: center;
-        padding: 4px 8px;
-        margin-bottom: 4px;
-    }
-
-    .filename-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: transparent;
-        border: none;
-        padding: 0;
-        font-size: 0.9em;
-        font-weight: 600;
-        color: var(--accent-color);
-        cursor: pointer;
-        border-bottom: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
-    }
-
-    .heading-path {
-        display: inline-flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 4px;
-        font-size: 0.9em;
-        font-weight: 600;
-        color: var(--accent-color);
-        border-bottom: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
-    }
-
-    .heading-node {
-        display: inline-flex;
-        align-items: center;
-    }
-    .separator {
-        color: color-mix(in srgb, var(--text-color) 40%, transparent);
-    }
-    .group-tasks {
-        padding-left: 20px; /* インデントを追加 */
+    .tree-container {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 4px;
     }
+
 </style>
