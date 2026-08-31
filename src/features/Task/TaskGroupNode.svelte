@@ -98,7 +98,8 @@
         border-bottom: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
     }
     .sub-heading {
-        color: var(--text-color);
+        /* アクセントカラーを30%混ぜて、真っ白（文字色）すぎない少し色づいたテキストにする */
+        color: color-mix(in srgb, var(--accent-color) 70%, var(--text-color));
     }
 
     .icon-toggle {
