@@ -26,6 +26,7 @@ A03_Obcowa/
 │   │   │   ├── EditorPreview.svelte
 │   │   │   ├── EditorSearch.svelte
 │   │   │   ├── TabBar.svelte
+│   │   │   ├── markdownSetup.ts
 │   │   │   ├── previewExtensions.test.ts
 │   │   │   └── previewExtensions.ts
 │   │   ├── Modals
@@ -153,8 +154,6 @@ A03_Obcowa/
 
 📄 `src/components/Editor/EditorPreview.svelte`
   └── import @tauri-apps/api/core
-  └── import marked
-  └── import dompurify
   └── import svelte
   └── import ../../lib/stores
   └── import ../../lib/editor/imageViewer
@@ -162,7 +161,8 @@ A03_Obcowa/
   └── import lucide-svelte
   └── import ./previewExtensions
   └── import ../../features/Dashboard/DashboardManager
-  └── import svelte
+  └── import ./markdownSetup
+  └── import dompurify
 
 📄 `src/components/Editor/EditorSearch.svelte`
   └── import @tauri-apps/api/core
@@ -178,6 +178,14 @@ A03_Obcowa/
   └── import ../../lib/workspace/menuUtils
   └── import ../../lib/utils/tagUtils
   └── import svelte
+
+📄 `src/components/Editor/markdownSetup.ts`
+  └── import marked
+  └── import dompurify
+  └── import svelte/store
+  └── import ../../lib/stores
+  └── import ../../lib/editor/imageViewer
+  └── import ./previewExtensions
 
 📄 `src/components/Editor/previewExtensions.test.ts`
   └── import vitest
@@ -436,6 +444,10 @@ A03_Obcowa/
 - `src/components/Editor/TabBar.svelte` : --- START OF src/components/Editor/TabBar.svelte ---
   - `export let handleTabClick`
   - `export let handleTabClose`
+- `src/components/Editor/markdownSetup.ts` : Markdown文字列を安全なHTMLに変換し、独自記法(マークや画像、ダッシュボード拡張)を適用する
+  - `export function removeFrontmatter(content: string)`
+  - `export function sanitizeHtml(rawHtml: string)`
+  - `export function parseMarkdown(content: string, tabPath: string)`
 - `src/components/Editor/previewExtensions.test.ts` : 前後のコード明確化: src/features/previewExtensions/previewExtensions.test.ts
 - `src/components/Editor/previewExtensions.ts` : プレビュー表示拡張機能（タスク切り替え、コードコピー、見出し折りたたみ）のロジックとDOM操作
   - `export const COPY_ICON_SVG`

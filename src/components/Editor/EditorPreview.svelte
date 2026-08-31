@@ -1,206 +1,33 @@
 <!-- Markdownを綺麗に表示し、ユーザーがクリックしたイベントを外に教える -->
-
-<!-- --- START OF src/components/Editor/EditorPreview.svelte --- -->
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
-  import { marked } from 'marked';
-  import DOMPurify from 'dompurify';
-  import { tick, createEventDispatcher } from 'svelte';
-  import { editorFont, workspacesStore, currentWorkspaceIndex } from '../../lib/stores';
-  import { generateImageHtml, loadImagesInDom } from '../../lib/editor/imageViewer';
+  import { tick, createEventDispatcher, onDestroy } from 'svelte';
+  import { editorFont } from '../../lib/stores';
+  import { loadImagesInDom } from '../../lib/editor/imageViewer';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { FileQuestion } from 'lucide-svelte';
-  import { toggleTaskMarkdown,  copyCodeBlock, toggleHeadingCollapse, COPY_ICON_SVG, CHECK_ICON_SVG } from './previewExtensions';
+  import { toggleTaskMarkdown, copyCodeBlock, toggleHeadingCollapse, COPY_ICON_SVG, CHECK_ICON_SVG } from './previewExtensions';
   import { mountWidgets, unmountAllWidgets } from '../../features/Dashboard/DashboardManager';
-  import { onDestroy } from 'svelte';
-
+  // ★追加: 分離した設定ファイルをインポート
+  import { parseMarkdown, sanitizeHtml } from './markdownSetup';
+  import DOMPurify from 'dompurify'; // .txt用のシンプルなサニタイズ用に残す
 
   const dispatch = createEventDispatcher();
 
-  // Markdownを解析する「直前」に、< だけを無害な文字にすり替える
-  const hooks = {
-      preprocess(src: string) {
-          // これにより、ライブラリがHTMLタグだと勘違いして解析を放棄するのを防ぎます
-          // >（引用記号）は置換しないため、Markdownの引用機能は壊れません
-          return src.replace(/</g, "&lt;");
-      }
-  };
-
-
   export let activeTab: any;
-  // 親(Editor.svelte)にスクロール位置を復元させるための変数をバインド(双方向通信)する
   export let scrollContainer: HTMLDivElement | undefined = undefined;
-
-
-  //  ==ハイライト== を認識させるための拡張ルール
-  const highlightExtension = {
-      name: 'highlight',
-      level: 'inline',                                 // 行内（インライン）のルールとして定義
-      start(src: string) { return src.match(/==/)?.index; }, // どこに == があるか探す
-      tokenizer(src: string, tokens: any) {
-          const rule = /^==([\s\S]+?)==/;              // == で囲まれた部分を見つける正規表現
-          const match = rule.exec(src);
-          if (match) {
-              return {
-                  type: 'highlight',
-                  raw: match[0],
-                  text: match[1],
-                  // ハイライトの中にある太字(**)なども処理できるようにする
-                  tokens: this.lexer.inlineTokens(match[1]) 
-              };
-          }
-      },
-      renderer(token: any) {
-          // <mark> タグに変換して出力
-          return `<mark class="obsidian-highlight">${this.parser.parseInline(token.tokens)}</mark>`;
-      }
-  };
-
-   // Obsidian互換の画像記法（![[...]]）をMarkdownのルールとして認識させる
-  const obsidianImageExtension = {
-      name: 'obsidianImage',
-      level: 'inline',
-      start(src: string) { return src.match(/!\[\[/)?.index; },
-      tokenizer(src: string, tokens: any) {
-          const rule = /^!\[\[([\s\S]+?)\]\]/;
-          const match = rule.exec(src);
-          if (match) {
-              return {
-                  type: 'obsidianImage',
-                  raw: match[0],
-                  filename: match[1]
-              };
-          }
-      },
-      renderer(token: any) {
-          const currentWs = $workspacesStore[$currentWorkspaceIndex];
-          const folders = currentWs?.image_folders || [];
-          // コンポーネント内の現在のタブパスを使って画像タグを生成
-          return generateImageHtml(token.filename, activeTab?.path || '', folders);
-      }
-  };
-
-
-  // marked のレンダラーカスタマイズ
-  let taskCounter = 0;
-
-  // marked レンダラーの this 型定義
-  interface MarkedRendererThis {
-      parser?: {
-          parse(tokens: unknown[]): string;
-      };
-  }
-
-// marked のレンダラーカスタマイズ
-  const customRenderer = {
-      // 見出しの先頭にトグル用クリックエリアを挿入
-      heading(this: MarkedRendererThis, textOrToken: any, levelArg?: number) {
-          let text = '';
-          let level = 1;
-
-          if (typeof textOrToken === 'object' && textOrToken !== null) {
-              level = textOrToken.depth || 1;
-              if (textOrToken.tokens && this.parser) {
-                  try {
-                      text = this.parser.parseInline(textOrToken.tokens);
-                  } catch {
-                      text = textOrToken.text || '';
-                  }
-              } else {
-                  text = textOrToken.text || '';
-              }
-          } else {
-              text = String(textOrToken || '');
-              level = levelArg || 1;
-          }
-
-          return `<h${level}><span class="heading-toggle" title="折りたたみ"></span>${text}</h${level}>\n`;
-      },
-
-      code(codeOrToken: any, infostring?: string, escaped?: boolean) {
-          let codeStr = '';
-          let lang = '';
-          let isEscaped = false;
-
-          if (typeof codeOrToken === 'object' && codeOrToken !== null) {
-              codeStr = codeOrToken.text || '';
-              lang = codeOrToken.lang || '';
-              isEscaped = !!codeOrToken.escaped;
-          } else {
-              codeStr = String(codeOrToken || '');
-              lang = infostring || '';
-              isEscaped = !!escaped;
-          }
-
-          // ★ 追加: ダッシュボード用の検索記法だった場合、Svelteコンポーネント用のプレースホルダーを返す
-          if (lang.startsWith('obcowa-search')) {
-              const match = lang.match(/obcowa-search\((.*?)\)/);
-              const query = match ? match[1] : '';
-              return `<div class="dashboard-widget" data-widget-type="search" data-query="${query}"></div>`;
-          }
-
-          const matchedLang = lang.match(/\S*/)?.[0] || '';
-          const escapedCode = isEscaped ? codeStr : codeStr.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          return `
-              <div class="code-block-wrapper">
-                  <button type="button" class="code-copy-btn" title="コードをコピー">${COPY_ICON_SVG}</button>
-                  <pre><code class="language-${matchedLang}">${escapedCode}</code></pre>
-              </div>
-          `;
-      },
-      
-      listitem(this: MarkedRendererThis, itemOrText: any, taskArg?: boolean, checkedArg?: boolean) {
-          let text = '';
-          let isTask = false;
-          let isChecked = false;
-
-          if (typeof itemOrText === 'object' && itemOrText !== null) {
-              isTask = !!itemOrText.task;
-              isChecked = !!itemOrText.checked;
-              if (itemOrText.tokens && this.parser) {
-                  try {
-                      text = this.parser.parse(itemOrText.tokens);
-                  } catch (e) {
-                      text = itemOrText.text || '';
-                  }
-              } else {
-                  text = itemOrText.text || '';
-              }
-          } else {
-              text = String(itemOrText || '');
-              isTask = !!taskArg;
-              isChecked = !!checkedArg;
-          }
-
-          if (isTask) {
-              const cleanText = text
-                  .replace(/^<p>/, '')
-                  .replace(/<\/p>\n?$/, '')
-                  .replace(/^<input[^>]*>\s*/, '')
-                  .replace(/^\[[ xX]\]\s*/, '');
-              const checkedAttr = isChecked ? 'checked' : '';
-              return `<li class="task-list-item"><input type="checkbox" class="task-checkbox" ${checkedAttr} /><span class="task-content">${cleanText}</span></li>\n`;
-          }
-          return `<li>${text}</li>\n`;
-      }
-  };
-
-  marked.use({ 
-      breaks: true, 
-      hooks, 
-      extensions: [highlightExtension, obsidianImageExtension],
-      renderer: customRenderer
-  });
 
   let fileExists = true;
   let renderedHtml = '';
 
-    // タブの情報が変わるたびに実行される
   $: if (activeTab) {
       checkAndRender(activeTab);
   }
 
-  // DOM上に生成されたすべてのチェックボックスへ上から順に0, 1, 2...とインデックスを付与する
+  onDestroy(() => {
+      unmountAllWidgets();
+  });
+
   function assignTaskIndexes() {
       if (!scrollContainer) return;
       const checkboxes = scrollContainer.querySelectorAll<HTMLInputElement>('.task-checkbox');
@@ -209,12 +36,7 @@
       });
   }
 
-  onDestroy(() => {
-      unmountAllWidgets();
-  });
-
   async function checkAndRender(tab: any) {
-      // ★ 追加: 新しく描画する前に、古いWidgetを必ず破棄してメモリリークを防ぐ
       unmountAllWidgets();
 
       if (tab.path && tab.path !== '__SEARCH__' && !tab.path.startsWith('__DASHBOARD__')) {
@@ -228,80 +50,55 @@
               const safeText = tab.content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
               renderedHtml = DOMPurify.sanitize(safeText.replace(/\n/g, '<br>'));
           } else {
-              const rawHtml = marked(removeFrontmatter(tab.content));
-              
-              renderedHtml = DOMPurify.sanitize(rawHtml as string, {
-                  ADD_TAGS: ['button', 'input'],
-                  ADD_ATTR: [
-                      'data-img-filename', 'data-primary-dirs', 'data-fallback-dir', 'data-cache-key',
-                      'data-task-index', 'type', 'checked', 'class',
-                      // ★ 変更: Dashboard用に data-widget-type と data-query を許可
-                      'data-widget-type', 'data-query'
-                  ]
-              });
+              // ★変更: markdownSetup に切り出した純粋関数を呼び出すだけ！
+              const rawHtml = parseMarkdown(tab.content, tab.path || '');
+              renderedHtml = sanitizeHtml(rawHtml);
           }
+          
           await tick(); 
           loadImagesInDom(); 
           assignTaskIndexes();
           
-          // ★ 追加: DOMが画面に出た直後に、ダッシュボードならウィジェットをマウントする
           if (tab.isDashboard && scrollContainer) {
               mountWidgets(scrollContainer);
           }
-          
           dispatch('renderComplete'); 
       }
-  }
-
-  function removeFrontmatter(content: string) {
-      // BOM(\uFEFF) や Windows改行(\r\n)・Unix改行(\n)の双方に対応
-      return content.replace(/^\uFEFF?---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
   }
 
   async function handlePreviewClick(event: MouseEvent) {
       const target = event.target as HTMLElement;
 
-      // 1. タスクチェックボックスのクリックハンドリング
       const taskInput = target.closest<HTMLInputElement>('.task-checkbox');
       if (taskInput) {
           const indexAttr = taskInput.getAttribute('data-task-index');
           if (indexAttr !== null && activeTab) {
               const targetIndex = parseInt(indexAttr, 10);
               const updatedContent = toggleTaskMarkdown(activeTab.content, targetIndex);
-              
               activeTab.content = updatedContent;
-              
-              // 親(Editor.svelte)へコンテンツの変更を通知する（保存は親の saveCurrentTab が実行）
               dispatch('contentChange', { path: activeTab.path, content: updatedContent });
           }
           return;
       }
 
-      // 2. コードコピーボタンのクリックハンドリング
       const copyBtn = target.closest<HTMLButtonElement>('.code-copy-btn');
       if (copyBtn) {
           event.preventDefault();
           const success = await copyCodeBlock(copyBtn);
           if (success) {
               copyBtn.innerHTML = CHECK_ICON_SVG;
-              setTimeout(() => {
-                  copyBtn.innerHTML = COPY_ICON_SVG;
-              }, 1500);
+              setTimeout(() => { copyBtn.innerHTML = COPY_ICON_SVG; }, 1500);
           }
           return;
       }
 
-      // 3. 見出しの矢印アイコンクリックハンドリング（★ .heading-toggle のみで反応）
       const headingToggle = target.closest<HTMLElement>('.heading-toggle');
       if (headingToggle) {
           const headingEl = headingToggle.closest<HTMLElement>('h1, h2, h3, h4, h5, h6');
-          if (headingEl) {
-              toggleHeadingCollapse(headingEl);
-          }
+          if (headingEl) toggleHeadingCollapse(headingEl);
           return;
       }
 
-      // 4. 既存の外部リンククリックハンドリング
       const anchor = target.closest('a');
       if (anchor && anchor.href) {
           event.preventDefault();
@@ -311,18 +108,13 @@
 </script>
 
 {#if !fileExists}
-  <!-- 💥 追加: ファイルが見つからないときのエラー表示 -->
   <div class="flex-1 flex flex-col items-center justify-center opacity-60 h-full" style="color: var(--text-color);">
       <FileQuestion size={48} class="mb-4 text-red-400" />
       <div class="text-sm">ファイルが存在しません</div>
       <div class="text-xs mt-2 opacity-70">移動または削除された可能性があります</div>
   </div>
 {:else}
- <div 
-      class="flex-1 overflow-y-auto p-6" 
-      bind:this={scrollContainer} 
-      style="font-family: var(--editor-font, {$editorFont});"
-  >
+  <div class="flex-1 overflow-y-auto p-6" bind:this={scrollContainer} style="font-family: var(--editor-font, {$editorFont});">
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->
       <div class="prose max-w-none select-text cursor-text editor-preview" style="color: var(--text-color);" on:click={handlePreviewClick}>
@@ -330,4 +122,3 @@
       </div>
   </div>
 {/if}
-<!-- --- END OF src/components/Editor/EditorPreview.svelte --- -->
