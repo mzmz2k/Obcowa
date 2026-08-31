@@ -2,6 +2,7 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { BookOpen, Pencil, ExternalLink } from 'lucide-svelte';
+  import { isSpecialPath } from '../../lib/utils/pathUtils';
 
   export let activeTab: any;
   export let toggleEditMode: () => void;
@@ -31,7 +32,7 @@
 
   function handleFileNameContextMenu(e: MouseEvent) {
     e.preventDefault();
-    if (!activeTab || !activeTab.path) return;
+    if (!activeTab || !activeTab.path || isSpecialPath(activeTab.path)) return;
     showMenu = true;
     menuX = e.clientX;
     menuY = e.clientY;
@@ -62,7 +63,7 @@
 
       <div 
       class="pointer-events-auto px-3 py-1 rounded-full transition-all duration-300 opacity-0 hover:!opacity-100 hover:bg-[var(--bg-color)] hover:bg-opacity-10 truncate text-xs cursor-pointer font-bold w-fit shrink-0" 
-      title="右クリックでメニュー表示"
+      
       on:contextmenu={handleFileNameContextMenu}
     >
           {activeTab.title}

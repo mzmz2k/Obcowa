@@ -154,6 +154,7 @@ A03_Obcowa/
 📄 `src/components/Editor/EditorHeader.svelte`
   └── import @tauri-apps/api/core
   └── import lucide-svelte
+  └── import ../../lib/utils/pathUtils
 
 📄 `src/components/Editor/EditorPreview.svelte`
   └── import @tauri-apps/api/core
@@ -195,6 +196,12 @@ A03_Obcowa/
 📄 `src/components/Editor/previewExtensions.test.ts`
   └── import vitest
   └── import ./previewExtensions
+
+📄 `src/components/Editor/previewExtensions.ts`
+  └── import svelte/store
+  └── import @tauri-apps/api/core
+  └── import ../../lib/stores
+  └── import ../../lib/workspace/treeUtils
 
 📄 `src/components/Modals/NewFileModal.svelte`
   └── import @tauri-apps/api/core
@@ -470,6 +477,7 @@ A03_Obcowa/
   - `export function toggleTaskMarkdown(content: string, targetIndex: number)`
   - `export async function copyCodeBlock(buttonEl: HTMLElement)`
   - `export function toggleHeadingCollapse(headingEl: HTMLElement)`
+  - `export async function handleWikiLinkClick(targetEl: HTMLElement)`
 
 ### src/components/Modals/
 - `src/components/Modals/NewFileModal.svelte` : --- START OF src/components/Modals/NewFileModal.svelte ---
@@ -650,6 +658,7 @@ A03_Obcowa/
 - `src/lib/workspace/treeUtils.test.ts` : 責務: treeUtils関数の単体テスト
 - `src/lib/workspace/treeUtils.ts` : ワークスペースのノードツリー最新化およびスマートフォルダ評価、ワークスペースのファイル一覧取得
   - `export async function refreshTree(nodes: any[], workspaceNodes: any[])`
+  - `export function findNodesByBaseName(nodes: any[], baseName: string)`
 
 ### src/routes/
 - `src/routes/+layout.svelte` : （説明未記載）

@@ -76,6 +76,29 @@ function initMarked() {
         }
     };
 
+        // 3.5. [[Wikiリンク]] 記法 (エイリアス対応: [[リンク先|表示名]])
+    const wikiLinkExtension = {
+        name: 'wikiLink',
+        level: 'inline',
+        start(src: string) { return src.match(/\[\[/)?.index; },
+        tokenizer(src: string, tokens: any) {
+            const rule = /^\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/;
+            const match = rule.exec(src);
+            if (match) {
+                return {
+                    type: 'wikiLink',
+                    raw: match[0],
+                    target: match[1], // リンク先のファイル名
+                    text: match[2] || match[1] // エイリアスがあればそれを使用
+                };
+            }
+        },
+        renderer(token: any) {
+            return `<a href="#" class="obsidian-wiki-link" data-wiki-target="${token.target}">${token.text}</a>`;
+        }
+    };
+
+
     // 4. 標準要素のカスタマイズ
     const customRenderer = {
         heading(this: MarkedRendererThis, textOrToken: any, levelArg?: number) {
@@ -164,7 +187,7 @@ function initMarked() {
     marked.use({ 
         breaks: true, 
         hooks, 
-        extensions: [highlightExtension, obsidianImageExtension],
+        extensions: [highlightExtension, obsidianImageExtension, wikiLinkExtension],
         renderer: customRenderer
     });
 
@@ -187,7 +210,7 @@ export function sanitizeHtml(rawHtml: string): string {
         ADD_ATTR: [
             'data-img-filename', 'data-primary-dirs', 'data-fallback-dir', 'data-cache-key',
             'data-task-index', 'type', 'checked', 'class',
-            'data-widget-type', 'data-query'
+            'data-widget-type', 'data-query', 'data-wiki-target'
         ]
     });
 }

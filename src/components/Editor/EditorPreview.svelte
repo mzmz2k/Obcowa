@@ -6,7 +6,7 @@
   import { loadImagesInDom } from '../../lib/editor/imageViewer';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { FileQuestion } from 'lucide-svelte';
-  import { toggleTaskMarkdown, copyCodeBlock, toggleHeadingCollapse, COPY_ICON_SVG, CHECK_ICON_SVG } from './previewExtensions';
+  import { toggleTaskMarkdown, copyCodeBlock, toggleHeadingCollapse, handleWikiLinkClick, COPY_ICON_SVG, CHECK_ICON_SVG } from './previewExtensions';
   import { mountWidgets, unmountAllWidgets } from '../../features/Dashboard/DashboardManager';
   import { parseMarkdown, sanitizeHtml } from './markdownSetup';
   import DOMPurify from 'dompurify'; // .txt用のシンプルなサニタイズ用に残す
@@ -68,6 +68,14 @@
 
   async function handlePreviewClick(event: MouseEvent) {
       const target = event.target as HTMLElement;
+
+        // Wikiリンクのクリック検知
+        const wikiLinkEl = target.closest('.obsidian-wiki-link') as HTMLElement | null;
+        if (wikiLinkEl) {
+            event.preventDefault();
+            handleWikiLinkClick(wikiLinkEl);
+            return;
+        }
 
       const taskInput = target.closest<HTMLInputElement>('.task-checkbox');
       if (taskInput) {
