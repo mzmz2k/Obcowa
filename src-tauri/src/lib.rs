@@ -7,6 +7,7 @@ pub mod models;
 pub mod search_ops;
 pub mod file_ops;
 pub mod task_ops;
+mod dashboard_ops;
 
 pub use models::*;
 use std::fs;
@@ -338,6 +339,8 @@ pub fn run() {
             file_ops::check_file_exists,
             task_ops::get_workspace_tasks,
             task_ops::complete_task,
+            dashboard_ops::load_dashboard,
+            dashboard_ops::save_dashboard 
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

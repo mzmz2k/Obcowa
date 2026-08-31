@@ -98,6 +98,7 @@ A03_Obcowa/
 │   │       ├── desktop-schema.json
 │   │       └── windows-schema.json
 │   ├── src
+│   │   ├── dashboard_ops.rs
 │   │   ├── file_ops.rs
 │   │   ├── lib.rs
 │   │   ├── main.rs
@@ -231,6 +232,7 @@ A03_Obcowa/
 📄 `src/components/Sidebar/SidebarTree.svelte`
   └── import ../TreeNode.svelte
   └── import lucide-svelte
+  └── import ../../lib/stores
 
 📄 `src/components/TreeNode.svelte`
   └── import @tauri-apps/api/core
@@ -306,6 +308,7 @@ A03_Obcowa/
 
 📄 `src/lib/stores.ts`
   └── import svelte/store
+  └── import @tauri-apps/api/core
 
 📄 `src/lib/task/taskService.test.ts`
   └── import vitest
@@ -352,6 +355,12 @@ A03_Obcowa/
   └── import ../features/launcher/LauncherWindow.svelte
   └── import ../lib/workspace/treeUtils
 
+📄 `src-tauri/src/dashboard_ops.rs`
+  └── use/mod std::fs
+  └── use/mod std::path::PathBuf
+  └── use/mod tauri::{AppHandle, Manager}
+  └── use/mod crate::file_ops::atomic_write
+
 📄 `src-tauri/src/file_ops.rs`
   └── use/mod std::fs
   └── use/mod std::io::Write
@@ -361,6 +370,7 @@ A03_Obcowa/
     use super::*
 
 📄 `src-tauri/src/lib.rs`
+  └── use/mod dashboard_ops
   └── use/mod std::fs
   └── use/mod tauri::Manager
   └── use/mod std::collections::HashMap
@@ -542,6 +552,7 @@ A03_Obcowa/
   - `export function createNewTab()`
   - `export function closeTab(idToClose: string)`
   - `export const showLauncherOnStartup`
+  - `export async function openDashboardTab(workspaceId: string, workspaceName: string)`
 
 ### src/lib/settings/
 - `src/lib/settings/theme.tet.ts` : （説明未記載）
@@ -586,6 +597,9 @@ A03_Obcowa/
 - `src-tauri/build.rs` : （説明未記載）
 
 ### src-tauri/src/
+- `src-tauri/src/dashboard_ops.rs` : アプリ設定ディレクトリ内でのダッシュボード専用ファイルの読み込みと、アトミック保存を行う
+  - `pub fn load_dashboard(app: AppHandle, workspace_id: String) -> Result<String, String>`
+  - `pub fn save_dashboard(app: AppHandle, workspace_id: String, content: String) -> Result<(), String>`
 - `src-tauri/src/file_ops.rs` : ファイル保存、読み込み関係。
   - `pub fn atomic_write(path: &std::path::Path, content: &[u8]) -> Result<(), String>`
   - `pub fn get_file_modified(path: String) -> Result<u64, String>`

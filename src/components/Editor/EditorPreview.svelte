@@ -201,14 +201,16 @@
   }
 
   async function checkAndRender(tab: any) {
-      if (tab.path && tab.path !== '__SEARCH__') {
+      // ★修正: ダッシュボードのパスだったら実在チェックをスキップする
+      if (tab.path && tab.path !== '__SEARCH__' && !tab.path.startsWith('__DASHBOARD__')) {
           fileExists = await invoke('check_file_exists', { path: tab.path });
       } else {
           fileExists = true;
       }
 
       if (fileExists) {
-          if (tab.path.endsWith('.txt')) {
+          // ★修正: tab.path が存在する場合のみ endsWith を呼ぶように安全対策
+          if (tab.path && tab.path.endsWith('.txt')) {
               const safeText = tab.content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
               renderedHtml = DOMPurify.sanitize(safeText.replace(/\n/g, '<br>'));
           } else {

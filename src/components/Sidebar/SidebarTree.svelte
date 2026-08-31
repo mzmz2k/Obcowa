@@ -2,7 +2,8 @@
 
 <script lang="ts">
   import TreeNode from '../TreeNode.svelte';
-  import { Pin, X } from 'lucide-svelte';
+  import { Pin, X, LayoutDashboard } from 'lucide-svelte';
+  import { openDashboardTab } from '../../lib/stores'; 
 
   // 親から受け取るデータと関数
   export let workspaces: any[];
@@ -65,6 +66,21 @@
 </script>
 
 <div class="flex-1 p-2 overflow-auto">
+
+  <!-- ---  ダッシュボードボタン --- -->
+  {#if workspaces.length > 0 && workspaces[currentIndex]}
+    <div class="mb-2">
+      <button 
+        on:click={() => openDashboardTab(workspaces[currentIndex].id, workspaces[currentIndex].name)}
+        class="w-full flex items-center p-1.5 rounded hover:bg-[var(--active-highlight-bg)] text-[var(--text-color)] group transition-colors"
+      >
+        <LayoutDashboard size={16} class="mr-2 text-[var(--accent-color)]" />
+        <span class="text-sm font-medium">ダッシュボード</span>
+      </button>
+    </div>
+    <hr class="border-gray-700 border-dashed mb-2 opacity-30">
+  {/if}
+
   <!-- ピン留めエリア -->
   {#if workspaces[currentIndex]?.pinned && workspaces[currentIndex].pinned.length > 0}
     <div class="mb-2">

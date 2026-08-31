@@ -5,6 +5,7 @@ export interface SaveDependencies {
     getModified: (path: string) => Promise<number>;
     readFileContentBytes: (path: string) => Promise<number[]>;
     confirmDialog: (message: string, options: { title: string; kind: 'warning' | 'info' }) => Promise<boolean>;
+    saveDashboard?: (workspaceId: string, content: string) => Promise<void>;
 }
 
 export interface BaseTabData {
@@ -14,6 +15,8 @@ export interface BaseTabData {
     isDirty: boolean;
     lastModified?: number;
     isConflict?: boolean;
+    isDashboard?: boolean;
+    workspaceId?: string;
 }
 
 /**
@@ -25,7 +28,28 @@ export async function saveTabWithConflictCheck<T extends BaseTabData>(
     updateTab: (updater: (tab: T) => T) => void,
     onDialogStateChange?: (showing: boolean) => void
 ): Promise<boolean> {
-    if (!targetTab.isDirty || !targetTab.path || targetTab.path === '__SEARCH__') {
+if (!targetTab.isDirty) {
+        return true;
+    }
+
+    if (targetTab.isDashboard && targetTab.workspaceId) {
+        if (!deps.saveDashboard) return false;
+        try {
+            await deps.saveDashboard(targetTab.workspaceId, targetTab.content);
+            updateTab(t => ({
+                ...t,
+                isDirty: false,
+                isConflict: false
+            }));
+            return true;
+        } catch (e) {
+            console.error("Failed to save dashboard", e);
+            return false;
+        }
+    }
+
+    // 既存のパスなしファイルのスキップ（ダッシュボードにはpathが無いので、分岐後に移動）
+    if (!targetTab.path || targetTab.path === '__SEARCH__') {
         return true;
     }
 

@@ -31,12 +31,15 @@
         saveFileContent: (path, content, lastModified, force) => invoke('save_file_content', { path, content, lastModified, force }),
         getModified: (path) => invoke('get_file_modified', { path }),
         readFileContentBytes: (path) => invoke('read_file_content', { path }),
-        confirmDialog: (message, options) => tauriConfirm(message, options)
+        confirmDialog: (message, options) => tauriConfirm(message, options),
+        saveDashboard: async (workspaceId, content) => {
+            await invoke('save_dashboard', { workspaceId, content });
+        }
     };
 
 
         // タブが開かれた時に、ファイルの最新日時を取得する
-    $: if (activeTab && activeTab.path && activeTab.path !== '__SEARCH__' && activeTab.lastModified === 0) {
+    $: if (activeTab && activeTab.path && activeTab.path !== '__SEARCH__' && !activeTab.path.startsWith('__DASHBOARD__') && activeTab.lastModified === 0) {
         invoke('get_file_modified', { path: activeTab.path }).then((modified) => {
             openTabs.update(tabs => {
                 const t = tabs.find(t => t.id === activeTab!.id);

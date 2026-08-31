@@ -1,6 +1,7 @@
 //Svelte Store（タブの状態、ワークスペース一覧などをグローバル管理）
 
 import { writable, get } from 'svelte/store';
+import { invoke } from '@tauri-apps/api/core';
 
 export interface TabData {
     id: string;      // タブごとのユニークなID
@@ -11,6 +12,8 @@ export interface TabData {
     isDirty: boolean;
     lastModified?: number; // ファイルの最終更新日時
     isConflict?: boolean; // 競合発生中で保留しているかどうかのフラグ
+    isDashboard?: boolean; // ダッシュボードかどうかの判定フラグ
+    workspaceId?: string;  // 保存時にバックエンドへ送るためのID
 }
 
 export const workspacesStore = writable<any[]>([]);
@@ -155,3 +158,37 @@ export function closeTab(idToClose: string) {
 
 //  ランチャー（ワークスペース一覧）を起動時に開くかどうかの設定
 export const showLauncherOnStartup = writable<boolean>(false);
+
+export async function openDashboardTab(workspaceId: string, workspaceName: string) {
+    const dashboardTabId = `dashboard-${workspaceId}`;
+    const tabs = get(openTabs);
+
+    // すでにダッシュボードが開いている場合は、そのタブをアクティブにするだけ（競合防止）
+    if (tabs.some(tab => tab.id === dashboardTabId)) {
+        switchTab(dashboardTabId);
+        return;
+    }
+
+    try {
+        // Tauriからダッシュボードの内容を読み込む
+        const content = await invoke<string>('load_dashboard', { workspaceId });
+        
+        const newTab = {
+            id: dashboardTabId,
+            title: `Dashboard: ${workspaceName}`,
+            content: content,
+            isDirty: false, // isUnsaved ではなく isDirty
+            path: `__DASHBOARD__${workspaceId}`, // filePath ではなく path。他と被らない名前
+            lastModified: Date.now(),
+            isDashboard: true,
+            workspaceId: workspaceId
+        };
+
+        // as any で型の警告を一時的に回避（既存の型定義に影響を与えないため）
+        openTabs.update(t => [...t, newTab as any]);
+        activeTabId.set(newTab.id);
+    } catch (error) {
+        console.error("Failed to load dashboard:", error);
+        // エラーハンドリングが必要ならここに追記
+    }
+}
