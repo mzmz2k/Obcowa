@@ -8,6 +8,7 @@
     export let node: TaskTreeNode;
     export let groupBy: 'file' | 'heading';
     export let isUpdatingTasks: Set<string>;
+    export let depth: number = 0; // 現在の階層の深さ（0がルート）
     
     const dispatch = createEventDispatcher();
     
@@ -41,8 +42,8 @@
                 <FileText size={14} /> <span>{node.name}</span>
             </button>
         {:else}
-            <div class="heading-title">
-                <Hash size={14} class="hash-icon" /> <span>{node.name}</span>
+            <div class="heading-title {depth === 0 ? 'root-heading' : 'sub-heading'}">
+                 <span>{node.name}</span>
             </div>
         {/if}
     </div>
@@ -68,6 +69,7 @@
                     node={child} 
                     {groupBy} 
                     {isUpdatingTasks}
+                    depth={depth + 1}
                     on:change
                     on:openFile
                     on:contextMenu
@@ -88,14 +90,17 @@
         gap: 4px;
         padding: 4px 0;
         cursor: pointer;
-        color: var(--accent-color);
         user-select: none;
     }
-    .header:hover {
-        background-color: var(--active-highlight-bg);
-        border-radius: 4px;
+
+    .root-heading {
+        color: var(--accent-color);
+        border-bottom: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
     }
-    
+    .sub-heading {
+        color: var(--text-color);
+    }
+
     .icon-toggle {
         display: flex;
         align-items: center;
@@ -117,16 +122,12 @@
         cursor: pointer;
         border-bottom: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
     }
-    .filename-btn:hover {
-        background-color: var(--active-highlight-bg);
-        border-radius: 4px;
-    }
     
     .heading-title {
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        font-size: 0.9em;
+        font-size: 1em;
         font-weight: 600;
     }
     :global(.hash-icon) {
@@ -134,23 +135,21 @@
     }
     
     .children {
-        /* 階層が下がるごとにインデントをつけ、左側にガイド線を引く */
-        margin-left: 9px;
-        padding-left: 14px;
-        border-left: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
+        /* 階層が下がるごとにインデントをつける（線を消し、幅を狭く調整） */
+        margin-left: 20px;
         display: flex;
         flex-direction: column;
+        border-left: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
         gap: 2px;
     }
     
     .no-indent {
-        /* ファイル一覧モードの時は、それ以上階層が深まらないのでインデント線を消す */
-        border-left: none;
-        margin-left: 20px;
-        padding-left: 4px;
+        /* ファイル一覧モードの時はインデントを少し広げる（従来の見た目に合わせるため） */
+        margin-left: 24px;
     }
     
     .tasks {
+        margin-left: 16px; /* タスクを見出しよりもさらに字下げする */
         display: flex;
         flex-direction: column;
         gap: 2px;

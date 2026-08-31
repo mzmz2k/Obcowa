@@ -1,7 +1,7 @@
 <!-- 責務: ワークスペースの未完了タスク一覧を表示し、更新を管理する親コンポーネント -->
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { RefreshCw, CheckCircle2, EyeOff } from 'lucide-svelte';
+    import { RefreshCw, CheckCircle2, EyeOff, Library, FileText, Heading1 } from 'lucide-svelte';
     import { invoke } from '@tauri-apps/api/core';
     import { fetchWorkspaceTasks, completeTaskStatus, buildTaskTree, type Task, type GroupByOption } from '../../lib/task/taskService';
     import TaskGroupNode from './TaskGroupNode.svelte';
@@ -142,36 +142,42 @@
                 <CheckCircle2 size={16} />
                 未完了タスク: {tasks.length}件
             </h3>
-            <button class="icon-btn" on:click={loadTasks} title="更新" disabled={isLoading}>
-                <RefreshCw size={16} class={isLoading ? 'spinning' : ''} />
-            </button>
-        </div>
-        <label class="flex items-center text-sm cursor-pointer select-none" style="color: var(--text-color);">
-            <input 
-                type="checkbox" 
-                bind:checked={excludeLibrary} 
-                class="mr-2" 
-                style="accent-color: var(--accent-color);"
-            /> ライブラリを含めない
-        </label>
-        
-        <!-- グループ化設定コントロール -->
-        <div class="flex items-center gap-4 text-sm" style="color: var(--text-color);">
-            <select 
-                bind:value={groupBy} 
-                class="bg-transparent border rounded p-1 cursor-pointer" 
-                style="border-color: color-mix(in srgb, var(--text-color) 30%, transparent); color: var(--text-color);"
-            >
-                <option value="heading">見出しでまとめる</option>
-                <option value="file">ファイルでまとめる</option>
-            </select>
-            
-            {#if groupBy === 'heading'}
-                <label class="flex items-center cursor-pointer select-none">
-                    <input type="checkbox" bind:checked={ignoreH1} class="mr-1" style="accent-color: var(--accent-color);" />
-                    H1を無視
-                </label>
-            {/if}
+
+            <div class="actions">
+                <!-- ライブラリを含める(ON) / 含めない(OFF) -->
+                <button 
+                    class="icon-btn {!excludeLibrary ? 'active' : ''}" 
+                    on:click={() => excludeLibrary = !excludeLibrary} 
+                    title={!excludeLibrary ? "ライブラリを含める" : "ライブラリを含めない"}
+                >
+                    <Library size={16} />
+                </button>
+
+                <!-- ファイルでまとめる(ON) / 見出しでまとめる(OFF) -->
+                <button 
+                    class="icon-btn {groupBy === 'file' ? 'active' : ''}" 
+                    on:click={() => groupBy = groupBy === 'file' ? 'heading' : 'file'} 
+                    title={groupBy === 'file' ? "ファイルごとにまとめる" : "見出しごとにまとめる"}
+                >
+                    <FileText size={16} />
+                </button>
+
+                <!-- H1を表示する(ON) / H1を無視する(OFF) -->
+                <button 
+                    class="icon-btn {!ignoreH1 ? 'active' : ''}" 
+                    on:click={() => ignoreH1 = !ignoreH1} 
+                    title={!ignoreH1 ? "H1を表示する" : "H1を無視する"}
+                >
+                    <Heading1 size={16} />
+                </button>
+
+                <div class="separator-v"></div>
+
+                <button class="icon-btn" on:click={loadTasks} title="リストを再スキャン" disabled={isLoading}>
+                    <RefreshCw size={16} class={isLoading ? 'spinning' : ''} />
+                </button>
+            </div>
+
         </div>
 
     </div>
@@ -246,6 +252,12 @@
         font-weight: 600;
     }
 
+    .actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
     .icon-btn {
         background: transparent;
         border: none;
@@ -258,6 +270,15 @@
         justify-content: center;
     }
 
+    .icon-btn.active {
+        color: var(--accent-color);
+        background-color: color-mix(in srgb, var(--accent-color) 15%, transparent);
+    }
+
+    .icon-btn.active:hover {
+        background-color: color-mix(in srgb, var(--accent-color) 25%, transparent);
+    }
+
     .icon-btn:hover {
         background-color: var(--active-highlight-bg);
         color: var(--text-color);
@@ -266,6 +287,12 @@
     .icon-btn:disabled {
         opacity: 0.5;
         cursor: not-allowed;
+    }
+    .separator-v {
+        width: 1px;
+        height: 16px;
+        background-color: color-mix(in srgb, var(--text-color) 20%, transparent);
+        margin: 0 4px;
     }
 
     :global(.spinning) {

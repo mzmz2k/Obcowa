@@ -541,6 +541,7 @@ A03_Obcowa/
   - `export let node`
   - `export let groupBy`
   - `export let isUpdatingTasks`
+  - `export let depth`
 - `src/features/Task/TaskItem.svelte` : タスク1件分のUI表示と、チェックボックス操作のイベント発火
   - `export let task`
   - `export let isUpdating`
