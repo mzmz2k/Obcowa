@@ -64,3 +64,25 @@ export function getWorkspaceNodes(
 
     return targetNodes;
 }
+
+/**
+ * 拡張子を除いたファイル名でノードを検索する
+ */
+export function findNodesByBaseName(nodes: any[], baseName: string): any[] {
+    let results: any[] = [];
+    for (const node of nodes) {
+        if (node.type !== 'Folder' && node.name) {
+            // 拡張子があれば除去して比較 (例: "test.md" -> "test")
+            const dotIndex = node.name.lastIndexOf('.');
+            const nodeBaseName = dotIndex !== -1 ? node.name.substring(0, dotIndex) : node.name;
+            if (nodeBaseName === baseName) {
+                results.push(node);
+            }
+        }
+        // 子階層も再帰的に探索
+        if (node.children) {
+            results = results.concat(findNodesByBaseName(node.children, baseName));
+        }
+    }
+    return results;
+}
