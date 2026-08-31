@@ -230,23 +230,45 @@ workspaces[currentIndex].nodes = await refreshTree(workspaces[currentIndex].node
         if(firstActive !== -1) currentIndex = firstActive;
       }
 
-      // ツリーの最新化を待たずに、保存されていた状態ですぐにタブを復元する
+// ツリーの最新化を待たずに、保存されていた状態ですぐにタブを復元する
       const ws = workspaces[currentIndex];
       if (ws && ws.saved_tabs && ws.saved_tabs.length > 0) {
         const restored = [];
         for (const tab of ws.saved_tabs) {
           let content = "";
+          let isDashboard = false;
+          let workspaceId = "";
+          
           if (tab.path) {
-            try {
-              const bytes: number[] = await invoke('read_file_content', { path: tab.path });
-              const uint8Array = new Uint8Array(bytes);
-              try { content = new TextDecoder('utf-8', { fatal: true }).decode(uint8Array); } 
-              catch { content = new TextDecoder('shift-jis').decode(uint8Array); }
-            } catch(e) {}
+            // 💥 追加: ダッシュボードタブの復元処理分岐
+            if (tab.path.startsWith('__DASHBOARD__')) {
+               isDashboard = true;
+               // "__DASHBOARD__12345" から "12345" (workspaceId) を抽出
+               workspaceId = tab.path.replace('__DASHBOARD__', '');
+               try {
+                 // ダッシュボード専用の読み込みコマンドを呼ぶ
+                 content = await invoke('load_dashboard', { workspaceId });
+               } catch (e) {
+                 console.error("Failed to restore dashboard content", e);
+               }
+            } 
+            // 既存の通常ファイル復元処理
+            else if (tab.path !== '__SEARCH__') {
+              try {
+                const bytes: number[] = await invoke('read_file_content', { path: tab.path });
+                const uint8Array = new Uint8Array(bytes);
+                try { content = new TextDecoder('utf-8', { fatal: true }).decode(uint8Array); } 
+                catch { content = new TextDecoder('shift-jis').decode(uint8Array); }
+              } catch(e) {}
+            }
           }
+          
           restored.push({ 
             id: tab.id, path: tab.path, title: tab.title, content, 
-            isEditing: tab.isEditing, isDirty: false, lastModified: 0 
+            isEditing: tab.isEditing, isDirty: false, lastModified: 0,
+            // 💥 追加: 復元時にもダッシュボードフラグとIDを持たせる
+            isDashboard,
+            workspaceId
           });
         }
         openTabs.set(restored);

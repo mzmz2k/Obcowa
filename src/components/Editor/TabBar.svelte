@@ -70,7 +70,7 @@
     // タブをクリックした時に最新のファイル内容を読み込む処理
   async function onTabClick(tab: any) {
       // 未保存状態ではなく、かつ検索タブなどの特殊なタブではない場合のみ最新化
-      if (!tab.isDirty && tab.path && tab.path !== '__SEARCH__'&& tab.path !== "__TASK__") {
+      if (!tab.isDirty && tab.path && tab.path !== '__SEARCH__'&& tab.path !== "__TASK__"&& !tab.path.startsWith('__DASHBOARD__')) {
           try {
               const bytes: number[] = await invoke('read_file_content', { path: tab.path });
               const uint8Array = new Uint8Array(bytes);
