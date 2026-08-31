@@ -27,13 +27,13 @@
 <svelte:window on:click={closeMenu} />
 
 {#if links && links.length > 0}
-  <div class="border-t border-gray-700 flex flex-col shrink-0 relative">
+  <div class="border-t flex flex-col shrink-0 relative" style="border-color: color-mix(in srgb, var(--text-color) 20%, transparent);">
     <div class="p-2 overflow-y-auto space-y-1 max-h-[150px]">
       {#each links as link (link.id)}
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div 
-          class="text-sm text-blue-400 hover:text-blue-300 hover:underline cursor-pointer truncate pl-1" 
+          class="text-sm hover:underline cursor-pointer truncate pl-1" style="color: color-mix(in srgb, var(--accent-color) 80%, var(--text-color));"
           on:click={() => openUrl(link.url)} 
           on:contextmenu={(e) => handleContextMenu(e, link.id)}
         >
