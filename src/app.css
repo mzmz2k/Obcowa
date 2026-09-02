@@ -120,7 +120,7 @@ html, body {
 
 /* Obsidian互換のハイライト記法（== ==）のスタイル */
 .editor-preview .obsidian-highlight {
-    background-color: var(--selection-bg) !important;
+    background-color: color-mix(in srgb, var(--selection-bg) 90%, var(--text-color)) !important;
     color: inherit !important;     /* 文字色はそのまま維持する */
     padding: 0.1em 0.3em;
     border-radius: 0.25rem;
