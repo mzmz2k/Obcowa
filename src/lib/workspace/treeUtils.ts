@@ -15,7 +15,11 @@ export async function refreshTree(nodes: any[], workspaceNodes: any[]): Promise<
         } catch {}
       } else {
         try {
-          let freshChildren: any[] = await invoke('read_directory', { path: node.original_path });
+          let freshChildren: any[] = await invoke('read_directory', { 
+              path: node.original_path,
+              sortBy: node.sort_by,
+              sortOrder: node.sort_order
+          });
           const oldFolders = new Map();
           if (node.children) {
             for (const c of node.children) {

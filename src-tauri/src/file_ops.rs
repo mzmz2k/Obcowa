@@ -143,7 +143,11 @@ pub fn read_file_content(path: String) -> Result<String, String> {
     }
 }
 #[tauri::command]
-pub fn read_directory(path: String) -> Result<Vec<VirtualNode>, String> {
+pub fn read_directory(
+    path: String,
+    sort_by: Option<String>,
+    sort_order: Option<String>
+) -> Result<Vec<VirtualNode>, String> {
     let mut nodes = Vec::new();
     let entries = fs::read_dir(path).map_err(|e| e.to_string())?;
 
@@ -174,10 +178,37 @@ pub fn read_directory(path: String) -> Result<Vec<VirtualNode>, String> {
         }
     }
 
+    let by = sort_by.unwrap_or_else(|| "name".to_string());
+    let is_asc = sort_order.unwrap_or_else(|| "asc".to_string()) == "asc";
+
     nodes.sort_by(|a, b| {
         let is_dir_a = matches!(a, VirtualNode::Folder { .. });
         let is_dir_b = matches!(b, VirtualNode::Folder { .. });
-        is_dir_b.cmp(&is_dir_a) 
+                
+        // フォルダは常に上に配置する
+        if is_dir_a != is_dir_b {
+            return is_dir_b.cmp(&is_dir_a);
+        }
+        
+        let cmp_result = match by.as_str() {
+            "created" => {
+                let t_a = match a { VirtualNode::File { created, .. } => *created, _ => 0 };
+                let t_b = match b { VirtualNode::File { created, .. } => *created, _ => 0 };
+                t_a.cmp(&t_b)
+            },
+            "modified" => {
+                let t_a = match a { VirtualNode::File { modified, .. } => *modified, _ => 0 };
+                let t_b = match b { VirtualNode::File { modified, .. } => *modified, _ => 0 };
+                t_a.cmp(&t_b)
+            },
+            _ => {
+                let n_a = match a { VirtualNode::Folder { name, .. } | VirtualNode::File { name, .. } => name };
+                let n_b = match b { VirtualNode::Folder { name, .. } | VirtualNode::File { name, .. } => name };
+                n_a.to_lowercase().cmp(&n_b.to_lowercase())
+            }
+        };
+
+        if is_asc { cmp_result } else { cmp_result.reverse() }
     });
 
     Ok(nodes)

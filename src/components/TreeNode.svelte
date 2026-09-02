@@ -91,6 +91,7 @@
   $: sortBy = node.sort_by || globalSort.by;
   $: sortOrder = node.sort_order || globalSort.order;
 
+  // 💥 高速化したソート処理（localeCompare を廃止し、シンプルな比較に差し替え）
   $: sortedChildren = [...(node.children || [])].sort((a, b) => {
     const isDirA = a.type === 'Folder';
     const isDirB = b.type === 'Folder';
@@ -99,7 +100,11 @@
     let comp = 0;
     if (sortBy === 'created') comp = (a.created || 0) - (b.created || 0);
     else if (sortBy === 'modified') comp = (a.modified || 0) - (b.modified || 0);
-    else comp = a.name.localeCompare(b.name);
+    else {
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      comp = nameA < nameB ? -1 : (nameA > nameB ? 1 : 0);
+    }
     
     return sortOrder === 'asc' ? comp : -comp;
   });
@@ -110,7 +115,11 @@
       // 💥 変更: !node.smart_rules を追加し、スマートフォルダの場合はこの処理をスキップさせる
       if (isOpen && node.children && node.children.length === 0 && node.original_path && !node.smart_rules) {
         try {
-          node.children = await invoke('read_directory', { path: node.original_path });
+          node.children = await invoke('read_directory', { 
+              path: node.original_path,
+              sortBy,
+              sortOrder
+          });
         } catch (e) {
           console.error("フォルダ読み込み失敗:", e);
         }

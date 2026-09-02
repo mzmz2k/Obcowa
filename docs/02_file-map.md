@@ -682,7 +682,7 @@ A03_Obcowa/
   - `pub fn load_workspaces(app: AppHandle) -> Result<Vec<Workspace>, String>`
   - `pub fn save_file_content(path: String, content: String, last_modified: u64, force: bool) -> Result<u64, String>`
   - `pub fn read_file_content(path: String) -> Result<String, String>`
-  - `pub fn read_directory(path: String) -> Result<Vec<VirtualNode>, String>`
+  - `pub fn read_directory( path: String, sort_by: Option<String>, sort_order: Option<String> ) -> Result<Vec<VirtualNode>, String>`
   - `pub fn create_new_file(dir_path: String, file_name: String, insert_tag: String) -> Result<(), String>`
   - `pub fn open_folder(path: String) -> Result<(), String>`
   - `pub async fn find_image_file(dir_path: String, file_name: String) -> Result<Option<String>, String>`
