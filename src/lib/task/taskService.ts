@@ -1,6 +1,7 @@
 // 責務: Tauriと通信し、タスクの取得および完了処理を行うAPIサービス
 
 import { invoke } from '@tauri-apps/api/core';
+import { extractFilePaths } from '../workspace/treeUtils';
 
 export interface Task {
     filePath: string;
@@ -30,9 +31,11 @@ export interface TaskScanOptions {
  * ワークスペース内の未完了タスクを取得する
  */
 export async function fetchWorkspaceTasks(nodes: any[], options?: TaskScanOptions): Promise<Task[]> {
+    // 巨大なツリーオブジェクトの送信をやめ、ファイルパスだけを抽出して送付する
+    const filePaths = extractFilePaths(nodes);
     try {
         const tasks = await invoke<Task[]>('get_workspace_tasks', { 
-            nodes,
+            filePaths,
             options: options || null 
         });
         return tasks;

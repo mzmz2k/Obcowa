@@ -1,8 +1,8 @@
 // 画面上の仮想ツリー（VirtualNode）を対象とした高速ファイル検索コマンドおよび関連処理
 
 use std::fs;
+use std::path::Path;
 use serde::Serialize;
-use crate::models::VirtualNode;
 
 // 検索結果用の構造体
 #[derive(Debug, Serialize, Clone)]
@@ -12,27 +12,10 @@ pub struct SearchResultItem {
     pub snippet: String,
 }
 
-/// VirtualNode ツリーから実在するファイル（名前, パス）を再帰的に抽出する共通関数
-pub fn extract_files_from_nodes(nodes: &[VirtualNode]) -> Vec<(String, String)> {
-    fn collect(nodes: &[VirtualNode], files: &mut Vec<(String, String)>) {
-        for node in nodes {
-            match node {
-                VirtualNode::Folder { children, .. } => collect(children, files),
-                VirtualNode::File { name, path, .. } => files.push((name.clone(), path.clone())),
-            }
-        }
-    }
-    let mut files = Vec::new();
-    collect(nodes, &mut files);
-    files.sort_by(|a, b| a.1.cmp(&b.1));
-    files.dedup_by(|a, b| a.1 == b.1);
-    files
-}
-
 // バックエンドでの高速な検索処理
 #[tauri::command]
 pub async fn search_files(
-    nodes: Vec<VirtualNode>,
+    file_paths: Vec<String>,
     search_by_filename: bool, 
     query: String,
 ) -> Result<Vec<SearchResultItem>, String> {
@@ -40,16 +23,21 @@ pub async fn search_files(
         return Ok(Vec::new());
     }
 
-    let files = extract_files_from_nodes(&nodes);
     let mut results = Vec::new();
     let query_lower = query.to_lowercase();
 
-    for (name, path) in files {
+    for path in file_paths {
+        let file_name = Path::new(&path)
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+
         if search_by_filename {
-            if name.to_lowercase().contains(&query_lower) {
+            if file_name.to_lowercase().contains(&query_lower) {
                 results.push(SearchResultItem {
                     path,
-                    name,
+                    name: file_name,
                     snippet: "(ファイル名に一致)".to_string(),
                 });
             }
@@ -67,7 +55,7 @@ pub async fn search_files(
 
                         results.push(SearchResultItem {
                             path,
-                            name,
+                            name: file_name,
                             snippet,
                         });
                         break;

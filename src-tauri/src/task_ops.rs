@@ -3,8 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::{self, BufRead, Write};
 use std::path::{Path};
-use crate::VirtualNode;
-use crate::search_ops; // 💥 検索機能のロジックをインポート
+
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -43,18 +42,14 @@ fn should_scan_file(path: &Path, options: &ScanOptions) -> bool {
 
 #[tauri::command]
 pub async fn get_workspace_tasks(
-    nodes: Vec<VirtualNode>,
+    file_paths: Vec<String>,
     options: Option<ScanOptions>
 ) -> Result<Vec<Task>, String> {
     let mut tasks = Vec::new();
     let opts = options.unwrap_or_default();
 
-
-    // 💥 検索機能と全く同じ関数を使ってパス一覧を取得する（返り値は (ファイル名, パス) のタプル配列）
-    let files = search_ops::extract_files_from_nodes(&nodes);
-
     // 集めたファイル群から未完了タスクを探す
-    for (_, file_path) in files {
+    for file_path in file_paths {
         let path = Path::new(&file_path);
         if should_scan_file(path, &opts) {
             let _ = extract_tasks_from_file(path, &mut tasks);

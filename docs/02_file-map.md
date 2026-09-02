@@ -362,6 +362,7 @@ A03_Obcowa/
 
 📄 `src/lib/task/taskService.ts`
   └── import @tauri-apps/api/core
+  └── import ../workspace/treeUtils
 
 📄 `src/lib/utils/tagUtils.test.ts`
   └── import vitest
@@ -428,16 +429,14 @@ A03_Obcowa/
 
 📄 `src-tauri/src/search_ops.rs`
   └── use/mod std::fs
+  └── use/mod std::path::Path
   └── use/mod serde::Serialize
-  └── use/mod crate::models::VirtualNode
 
 📄 `src-tauri/src/task_ops.rs`
   └── use/mod serde::{Deserialize, Serialize}
   └── use/mod std::fs::{self, File}
   └── use/mod std::io::{self, BufRead, Write}
   └── use/mod std::path::{Path}
-  └── use/mod crate::VirtualNode
-  └── use/mod crate::search_ops
 
 📄 `svelte.config.js`
   └── import @sveltejs/adapter-static
@@ -661,6 +660,7 @@ A03_Obcowa/
   - `export async function refreshTree(nodes: any[], workspaceNodes: any[])`
   - `export function buildFilenameIndex(nodes: any[])`
   - `export function searchFilesByName(nodes: any[], query: string)`
+  - `export function extractFilePaths(nodes: any[])`
 
 ### src/routes/
 - `src/routes/+layout.svelte` : （説明未記載）
@@ -700,12 +700,11 @@ A03_Obcowa/
   - `pub struct Workspace`
 - `src-tauri/src/search_ops.rs` : 画面上の仮想ツリー（VirtualNode）を対象とした高速ファイル検索コマンドおよび関連処理
   - `pub struct SearchResultItem`
-  - `pub fn extract_files_from_nodes(nodes: &[VirtualNode]) -> Vec<(String, String)>`
-  - `pub async fn search_files( nodes: Vec<VirtualNode>, search_by_filename: bool, query: String, ) -> Result<Vec<SearchResultItem>, String>`
+  - `pub async fn search_files( file_paths: Vec<String>, search_by_filename: bool, query: String, ) -> Result<Vec<SearchResultItem>, String>`
 - `src-tauri/src/task_ops.rs` : 責務: ワークスペース内のタスク検索と、タスク状態の安全な更新処理
   - `pub struct Task`
   - `pub struct ScanOptions`
-  - `pub async fn get_workspace_tasks( nodes: Vec<VirtualNode>, options: Option<ScanOptions> ) -> Result<Vec<Task>, String>`
+  - `pub async fn get_workspace_tasks( file_paths: Vec<String>, options: Option<ScanOptions> ) -> Result<Vec<Task>, String>`
   - `pub fn complete_task( file_path: String, line_number: usize, original_text: String, completed: Option<bool>, ) -> Result<(), String>`
 
 - `svelte.config.js` : Tauri doesn't have a Node.js server to do proper SSR

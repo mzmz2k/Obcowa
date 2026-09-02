@@ -117,3 +117,24 @@ export function searchFilesByName(nodes: any[], query: string): any[] {
     traverse(nodes);
     return results;
 }
+
+/**
+ * ノードツリーからファイルのパスのみを抽出し、フラットな文字列配列を生成します。
+ * 巨大なツリーオブジェクト全体をRustへ送るIPC通信のオーバーヘッドを削減するために使用します。
+ */
+export function extractFilePaths(nodes: any[]): string[] {
+    const paths = new Set<string>(); // 重複排除のためにSetを使用
+    
+    function traverse(nodeList: any[]) {
+        for (const node of nodeList) {
+            if (node.type === 'File' && (node.path || node.original_path)) {
+                paths.add(node.path || node.original_path);
+            } else if (node.type === 'Folder' && node.children) {
+                traverse(node.children);
+            }
+        }
+    }
+    
+    traverse(nodes);
+    return Array.from(paths);
+}

@@ -3,7 +3,7 @@
 <script lang="ts">
     import { invoke } from '@tauri-apps/api/core';
     import { openTabs, currentWorkspaceIndex, workspacesStore, switchTab, openFileInNewTab, searchState } from '../../lib/stores';
-    import { getWorkspaceNodes } from '../../lib/workspace/treeUtils';
+    import { getWorkspaceNodes, extractFilePaths } from '../../lib/workspace/treeUtils';
     import { FileText } from 'lucide-svelte';
 
     let isSearching = false;
@@ -17,10 +17,10 @@
 
        try {
         const targetNodes = getWorkspaceNodes($workspacesStore, $currentWorkspaceIndex, !excludeLibrary);
+        const filePaths = extractFilePaths(targetNodes);
 
-               // 画面上の最新ツリー(targetNodes)を直接渡す
             $searchState.results = await invoke('search_files', { 
-                nodes: targetNodes, 
+                filePaths, 
                 searchByFilename: $searchState.searchByFilename, 
                 query: $searchState.query 
             }); 
