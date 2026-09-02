@@ -1,6 +1,6 @@
 <!-- --- START OF src/components/Modals/WorkspaceManager.svelte --- -->
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, tick } from 'svelte';
   import { confirm as tauriConfirm } from '@tauri-apps/plugin-dialog';
   import { openTabs, activeTabId } from '../../lib/stores';
 
@@ -56,6 +56,10 @@
       workspaces = [...workspaces];
       if (currentIndex >= workspaces.length) currentIndex = Math.max(0, workspaces.length - 1);
       isManageModalOpen = false;
+      
+      // Svelteのバインディングが親コンポーネントに伝播するのを待つ
+      await tick();
+      
       dispatch('save', { force: true });
     }
   }

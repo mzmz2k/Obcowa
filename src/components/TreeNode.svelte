@@ -1,7 +1,7 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { openFileInCurrentTab, openFileInNewTab, activeTabId, openTabs, switchTab, registeredTags, expandTreeRequest } from '../lib/stores'; 
-  import { getContext } from 'svelte';
+  import { getContext, tick } from 'svelte';
   import { ChevronDown, ChevronRight, Library, FolderOpen, Folder, FileText, Tag, Pin, PinOff, Search, Pencil, ArrowUpDown, ExternalLink } from 'lucide-svelte';
 
   import { extractTags, updateTagsInContent } from '../lib/utils/tagUtils';
@@ -310,10 +310,11 @@ async function loadFileContent(path: string): Promise<string> {
     return await invoke<string>('read_file_content', { path });
 }
 
-  function renameFolder() {
+  async function renameFolder() {
     const newName = prompt("リストに表示する名前を入力してください（実フォルダ名は変わりません）", node.name);
     if (newName && newName.trim() !== '') {
       node.name = newName;
+      await tick();
       saveWorkspace();
     }
   }
@@ -322,6 +323,7 @@ async function loadFileContent(path: string): Promise<string> {
     openNewFileModal(node.original_path, async () => {
       isOpen = true;
       node.children = await invoke('read_directory', { path: node.original_path });
+      await tick();
       saveWorkspace();
     });
   }
