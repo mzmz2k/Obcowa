@@ -64,3 +64,56 @@ export function getWorkspaceNodes(
 
     return targetNodes;
 }
+
+/**
+ * ワークスペースのノード群から、「ファイル名(小文字・拡張子なし) → ノードの配列」の辞書を作成します。
+ * 将来の Wikiリンク や 引用(![[...]]) の解決を O(1) で高速に行うためのインデックスです。
+ */
+export function buildFilenameIndex(nodes: any[]): Map<string, any[]> {
+    const map = new Map<string, any[]>();
+    
+    function traverse(nodeList: any[]) {
+        for (const node of nodeList) {
+            if (node.type === 'File') {
+                const name = node.name || node.title || node.path?.split(/[/\\]/).pop() || '';
+                const dotIndex = name.lastIndexOf('.');
+                const baseName = dotIndex !== -1 ? name.substring(0, dotIndex) : name;
+                const key = baseName.trim().toLowerCase();
+
+                if (!map.has(key)) map.set(key, []);
+                map.get(key)!.push(node);
+            } else if (node.type === 'Folder' && node.children) {
+                traverse(node.children);
+            }
+        }
+    }
+    
+    traverse(nodes);
+    return map;
+}
+
+/**
+ * JS側で完結する高速なファイル名部分一致検索。
+ * Rustに巨大なJSONを送らずに、検索タブ用の結果配列を生成します。
+ */
+export function searchFilesByName(nodes: any[], query: string): any[] {
+    const results: any[] = [];
+    const queryLower = query.trim().toLowerCase();
+    if (!queryLower) return results;
+
+    function traverse(nodeList: any[]) {
+        for (const node of nodeList) {
+            if (node.type === 'File') {
+                const name = node.name || node.title || node.path?.split(/[/\\]/).pop() || '';
+                if (name.toLowerCase().includes(queryLower)) {
+                    results.push({ path: node.path || node.original_path, name, snippet: "(ファイル名に一致)" });
+                }
+            } else if (node.type === 'Folder' && node.children) {
+                traverse(node.children);
+            }
+        }
+    }
+    
+    traverse(nodes);
+    return results;
+}

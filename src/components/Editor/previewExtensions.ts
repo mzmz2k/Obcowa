@@ -3,7 +3,7 @@
 import { get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
 import { workspacesStore, currentWorkspaceIndex, openSearchTab, searchState, openFileInCurrentTab, openFileInNewTab, openTabs, switchTab } from '../../lib/stores';
-import { getWorkspaceNodes } from '../../lib/workspace/treeUtils';
+import { getWorkspaceNodes, buildFilenameIndex, searchFilesByName } from '../../lib/workspace/treeUtils';
 
 export const COPY_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
 export const CHECK_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
@@ -130,23 +130,11 @@ export async function handleWikiLinkClick(targetEl: HTMLElement) {
     const targetNodes = getWorkspaceNodes(wsList, wsIndex, true);
 
     try {
-        // Tauriの既存の検索処理(search_files)を呼び出して検索する
-        const searchResults: any[] = await invoke('search_files', {
-            nodes: targetNodes,
-            searchByFilename: true,
-            query: targetName
-        });
-
-        // 大文字小文字の揺れを防ぐため、検索結果の中から「完全一致」するファイルだけを絞り込む
-        const exactMatches = searchResults.filter(res => {
-            // パスや名前から拡張子抜きのファイル名を取り出す
-            const resName = res.name || res.title || res.path.split(/[/\\]/).pop() || '';
-            const dotIndex = resName.lastIndexOf('.');
-            const resBase = dotIndex !== -1 ? resName.substring(0, dotIndex) : resName;
-            return resBase.trim().toLowerCase() === targetName.trim().toLowerCase();
-        });
+        // 1. Rustへの送信をやめ、フロント側の辞書で完全一致を O(1) で探す
+        const index = buildFilenameIndex(targetNodes);
+        const exactMatches = index.get(targetName.trim().toLowerCase()) || [];
         
-        console.log(`[WikiLink] search results: ${searchResults.length}, exact matches: ${exactMatches.length}`);
+        console.log(`[WikiLink] exact matches: ${exactMatches.length}`);
 
         if (exactMatches.length === 1) {
             // 完全一致が1件ならそのファイルを開く
@@ -173,7 +161,9 @@ export async function handleWikiLinkClick(targetEl: HTMLElement) {
             }
 
         } else {
-            // 0件、または2件以上の完全一致があった場合は検索タブを開く
+            // 0件、または2件以上の完全一致があった場合は、部分一致検索をJSで行って検索タブに渡す
+            const searchResults = searchFilesByName(targetNodes, targetName);
+            
             openSearchTab();
             searchState.update(state => ({
                 ...state,

@@ -659,6 +659,8 @@ A03_Obcowa/
 - `src/lib/workspace/treeUtils.test.ts` : 責務: treeUtils関数の単体テスト
 - `src/lib/workspace/treeUtils.ts` : ワークスペースのノードツリー最新化およびスマートフォルダ評価、ワークスペースのファイル一覧取得
   - `export async function refreshTree(nodes: any[], workspaceNodes: any[])`
+  - `export function buildFilenameIndex(nodes: any[])`
+  - `export function searchFilesByName(nodes: any[], query: string)`
 
 ### src/routes/
 - `src/routes/+layout.svelte` : （説明未記載）
