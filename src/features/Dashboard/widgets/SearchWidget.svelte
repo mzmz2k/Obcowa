@@ -4,7 +4,7 @@
     import { invoke } from '@tauri-apps/api/core';
     import { onMount } from 'svelte';
     import { openTabs, currentWorkspaceIndex, workspacesStore, switchTab, openFileInNewTab } from '../../../lib/stores';
-    import { getWorkspaceNodes } from '../../../lib/workspace/treeUtils';
+    import { getWorkspaceNodes, extractFilePaths } from '../../../lib/workspace/treeUtils';
     import { FileText, Search, Loader2 } from 'lucide-svelte';
 
     export let query: string = ''; // DashboardManagerから渡される
@@ -25,8 +25,9 @@
         try {
             // 現在のワークスペースのノードを取得（ライブラリも含める）
             const targetNodes = getWorkspaceNodes($workspacesStore, $currentWorkspaceIndex, true);
+            const filePaths = extractFilePaths(targetNodes);
             results = await invoke('search_files', { 
-                nodes: targetNodes, 
+                filePaths, 
                 searchByFilename: false, // 埋め込みは全文検索をデフォルトとする
                 query: query 
             }); 
