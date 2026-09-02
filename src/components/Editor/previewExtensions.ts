@@ -3,7 +3,7 @@
 import { get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
 import { workspaces, currentWorkspaceIndex, openSearchTab, searchState, openFileInCurrentTab } from '../../lib/stores';
-import { findNodesByBaseName, getWorkspaceNodes } from '../../lib/workspace/treeUtils';
+import { getWorkspaceNodes } from '../../lib/workspace/treeUtils';
 
 export const COPY_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
 export const CHECK_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
@@ -129,28 +129,48 @@ export async function handleWikiLinkClick(targetEl: HTMLElement) {
     const wsIndex = get(currentWorkspaceIndex);
     const targetNodes = getWorkspaceNodes(wsList, wsIndex, true);
 
-    const matchedNodes = findNodesByBaseName(targetNodes, targetName);
+    try {
+        // Tauriの既存の検索処理(search_files)を呼び出して検索する
+        const searchResults: any[] = await invoke('search_files', {
+            nodes: targetNodes,
+            searchByFilename: true,
+            query: targetName
+        });
 
-    if (matchedNodes.length === 1) {
-        const node = matchedNodes[0];
-        const filePath = node.original_path || node.path;
-        try {
+        // 大文字小文字の揺れを防ぐため、検索結果の中から「完全一致」するファイルだけを絞り込む
+        const exactMatches = searchResults.filter(res => {
+            // パスや名前から拡張子抜きのファイル名を取り出す
+            const resName = res.name || res.title || res.path.split(/[/\\]/).pop() || '';
+            const dotIndex = resName.lastIndexOf('.');
+            const resBase = dotIndex !== -1 ? resName.substring(0, dotIndex) : resName;
+            return resBase.trim().toLowerCase() === targetName.trim().toLowerCase();
+        });
+        
+        console.log(`[WikiLink] search results: ${searchResults.length}, exact matches: ${exactMatches.length}`);
+
+        if (exactMatches.length === 1) {
+            // 完全一致が1件ならそのファイルを開く
+            const node = exactMatches[0];
+            const filePath = node.path || node.original_path;
+            
             // ファイルの中身を読み込んでタブで開く
             const contentBytes: number[] = await invoke('read_file_content', { path: filePath });
             const contentStr = new TextDecoder().decode(new Uint8Array(contentBytes));
             // ※ ワークスペース設定による新規タブ/現在タブの切り替え処理があれば、ここを修正してください
-            openFileInCurrentTab(filePath, node.name, contentStr);
-        } catch (e) {
-            console.error("Failed to read file", e);
+
+            openFileInCurrentTab(filePath, node.name || targetName, contentStr);
+        } else {
+            // 0件、または2件以上の完全一致があった場合は検索タブを開く
+            openSearchTab();
+            searchState.update(state => ({
+                ...state,
+                query: targetName,
+                searchByFilename: true,
+                results: searchResults, // すでに検索した結果をストアに直接渡す！
+                hasSearched: true       // 検索済みフラグを立てて結果を表示させる！
+            }));
         }
-    } else {
-        // 0件または2件以上の場合は検索タブを開き、ファイル名検索を実行
-        openSearchTab();
-        searchState.update(state => ({
-            ...state,
-            query: targetName,
-            searchByFilename: true,
-            hasSearched: false // ウィジェットに検索を促す
-        }));
+    } catch (e) {
+        console.error("[WikiLink] Search failed:", e);
     }
 }
