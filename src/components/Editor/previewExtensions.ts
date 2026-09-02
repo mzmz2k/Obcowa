@@ -2,7 +2,7 @@
 
 import { get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
-import { workspacesStore, currentWorkspaceIndex, openSearchTab, searchState, openFileInCurrentTab } from '../../lib/stores';
+import { workspacesStore, currentWorkspaceIndex, openSearchTab, searchState, openFileInCurrentTab, openFileInNewTab, openTabs, switchTab } from '../../lib/stores';
 import { getWorkspaceNodes } from '../../lib/workspace/treeUtils';
 
 export const COPY_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
@@ -153,12 +153,25 @@ export async function handleWikiLinkClick(targetEl: HTMLElement) {
             const node = exactMatches[0];
             const filePath = node.path || node.original_path;
             
-            // ファイルの中身を読み込んでタブで開く
-            const contentBytes: number[] = await invoke('read_file_content', { path: filePath });
-            const contentStr = new TextDecoder().decode(new Uint8Array(contentBytes));
-            // ※ ワークスペース設定による新規タブ/現在タブの切り替え処理があれば、ここを修正してください
+            // すでに開いているタブがあればそこに切り替える
+            const tabs = get(openTabs);
+            const existingTab = tabs.find(t => t.path === filePath);
+            
+            if (existingTab) {
+                switchTab(existingTab.id);
+            } else {
+                // 文字列として直接受け取る
+                const contentStr: string = await invoke('read_file_content', { path: filePath });
+                
+                // ワークスペース設定（新規タブで開くか）を取得
+                const currentWs = wsList[wsIndex];
+                if (currentWs?.open_in_new_tab) {
+                    openFileInNewTab(filePath, node.name || targetName, contentStr);
+                } else {
+                    openFileInCurrentTab(filePath, node.name || targetName, contentStr);
+                }
+            }
 
-            openFileInCurrentTab(filePath, node.name || targetName, contentStr);
         } else {
             // 0件、または2件以上の完全一致があった場合は検索タブを開く
             openSearchTab();
