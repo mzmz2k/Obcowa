@@ -297,18 +297,9 @@
     showMenu = false;
   }
 
-  // ファイルをバイト列として読み込み、文字コードを判定してデコードする
-  async function loadFileContent(path: string): Promise<string> {
-    const bytes: number[] = await invoke('read_file_content', { path });
-    const uint8Array = new Uint8Array(bytes);
-    try {
-      // まずUTF-8として厳密にデコード
-      return new TextDecoder('utf-8', { fatal: true }).decode(uint8Array);
-    } catch (e) {
-      // 失敗した場合はShift-JISとしてデコード（Windowsのメモ帳などで作成されたファイル対策）
-      return new TextDecoder('shift-jis').decode(uint8Array);
-    }
-  }
+async function loadFileContent(path: string): Promise<string> {
+    return await invoke<string>('read_file_content', { path });
+}
 
   function renameFolder() {
     const newName = prompt("リストに表示する名前を入力してください（実フォルダ名は変わりません）", node.name);

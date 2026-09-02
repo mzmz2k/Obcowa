@@ -5,7 +5,7 @@ import { isSpecialPath } from '../utils/pathUtils';
 export interface SaveDependencies {
     saveFileContent: (path: string, content: string, lastModified: number, force: boolean) => Promise<number>;
     getModified: (path: string) => Promise<number>;
-    readFileContentBytes: (path: string) => Promise<number[]>;
+    readFileContent: (path: string) => Promise<string>; 
     confirmDialog: (message: string, options: { title: string; kind: 'warning' | 'info' }) => Promise<boolean>;
     saveDashboard?: (workspaceId: string, content: string) => Promise<void>;
 }
@@ -105,14 +105,8 @@ if (!targetTab.isDirty) {
 
                 if (reload) {
                     try {
-                        const bytes = await deps.readFileContentBytes(targetTab.path);
-                        let latestContent = "";
-                        try {
-                            latestContent = new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes));
-                        } catch {
-                            latestContent = new TextDecoder('shift-jis').decode(new Uint8Array(bytes));
-                        }
-                        const newModified = await deps.getModified(targetTab.path);
+                            const latestContent = await deps.readFileContent(targetTab.path);
+                            const newModified = await deps.getModified(targetTab.path);
 
                         updateTab(t => ({
                             ...t,

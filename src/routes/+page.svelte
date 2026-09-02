@@ -256,10 +256,7 @@ workspaces[currentIndex].nodes = await refreshTree(workspaces[currentIndex].node
             // 既存の通常ファイル復元処理
             else if (!isSpecialPath(tab.path)) {
               try {
-                const bytes: number[] = await invoke('read_file_content', { path: tab.path });
-                const uint8Array = new Uint8Array(bytes);
-                try { content = new TextDecoder('utf-8', { fatal: true }).decode(uint8Array); } 
-                catch { content = new TextDecoder('shift-jis').decode(uint8Array); }
+                content = await invoke('read_file_content', { path: tab.path });
               } catch(e) {}
             }
           }

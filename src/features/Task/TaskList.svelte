@@ -77,23 +77,17 @@
     }
     // 💥 ファイルを新しいタブで開く
     async function openFile(filePath: string, fileName: string) {
-        const existingTab = $openTabs.find(t => t.path === filePath);
-        if (existingTab) { 
-            switchTab(existingTab.id); 
-            return; 
-        }
-        try {
-            const bytes: number[] = await invoke('read_file_content', { path: filePath });
-            let content = "";
-            try { 
-                content = new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes)); 
-            } catch (e) { 
-                content = new TextDecoder('shift-jis').decode(new Uint8Array(bytes)); 
-            }
-            openFileInNewTab(filePath, fileName, content);
-        } catch(e) {
-            console.error(e);
-        }
+    const existingTab = $openTabs.find(t => t.path === filePath);
+    if (existingTab) { 
+        switchTab(existingTab.id); 
+        return; 
+    }
+    try {
+        const content = await invoke<string>('read_file_content', { path: filePath });
+        openFileInNewTab(filePath, fileName, content);
+    } catch(e) {
+        console.error(e);
+      }
     }
     
     // 💥 タスク一覧からファイルを除外し、ワークスペース設定を保存する

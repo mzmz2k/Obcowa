@@ -413,6 +413,7 @@ A03_Obcowa/
   └── use/mod std::io::Write
   └── use/mod tauri::{AppHandle, Manager}
   └── use/mod crate::{Workspace, VirtualNode}
+  └── use/mod encoding_rs::{UTF_8, SHIFT_JIS}
   └── use/mod tests {
     use super::*
 
@@ -679,7 +680,7 @@ A03_Obcowa/
   - `pub fn save_workspaces(app: AppHandle, workspaces: Vec<Workspace>) -> Result<(), String>`
   - `pub fn load_workspaces(app: AppHandle) -> Result<Vec<Workspace>, String>`
   - `pub fn save_file_content(path: String, content: String, last_modified: u64, force: bool) -> Result<u64, String>`
-  - `pub fn read_file_content(path: String) -> Result<Vec<u8>, String>`
+  - `pub fn read_file_content(path: String) -> Result<String, String>`
   - `pub fn read_directory(path: String) -> Result<Vec<VirtualNode>, String>`
   - `pub fn create_new_file(dir_path: String, file_name: String, insert_tag: String) -> Result<(), String>`
   - `pub fn open_folder(path: String) -> Result<(), String>`

@@ -39,13 +39,7 @@
             }
         }
         try {
-            const bytes: number[] = await invoke('read_file_content', { path });
-            let content = "";
-            try { 
-                content = new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes)); 
-            } catch (e) { 
-                content = new TextDecoder('shift-jis').decode(new Uint8Array(bytes)); 
-            }
+            const content: string = await invoke('read_file_content', { path });
             openFileInNewTab(path, name, content);
         } catch(e) {
             console.error(e);

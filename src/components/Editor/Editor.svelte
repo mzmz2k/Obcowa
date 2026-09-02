@@ -30,7 +30,7 @@
     const saveDeps: SaveDependencies = {
         saveFileContent: (path, content, lastModified, force) => invoke('save_file_content', { path, content, lastModified, force }),
         getModified: (path) => invoke('get_file_modified', { path }),
-        readFileContentBytes: (path) => invoke('read_file_content', { path }),
+        readFileContent: (path) => invoke('read_file_content', { path }),
         confirmDialog: (message, options) => tauriConfirm(message, options),
         saveDashboard: async (workspaceId, content) => {
             await invoke('save_dashboard', { workspaceId, content });
@@ -121,11 +121,8 @@
         if (activeTab.isEditing && activeTab.path) { await saveCurrentTab(); } 
         else if (!activeTab.isEditing && activeTab.path && !isSpecialPath(activeTab.path) && !activeTab.isDirty) {
             try {
-                const bytes: number[] = await invoke('read_file_content', { path: activeTab.path });
-                let latestContent = "";
-                try { latestContent = new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes)); } 
-                catch (e) { latestContent = new TextDecoder('shift-jis').decode(new Uint8Array(bytes)); }
-                activeTab.content = latestContent; 
+                const latestContent: string = await invoke('read_file_content', { path: activeTab.path });
+                activeTab.content = latestContent;
                 
                 // 💥 閲覧モードから編集モードに戻す/読み込む際にも最新の更新日時を取得する
                 const modified = (await invoke('get_file_modified', { path: activeTab.path })) as number;

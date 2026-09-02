@@ -73,11 +73,7 @@
       // 未保存状態ではなく、かつ検索タブなどの特殊なタブではない場合のみ最新化
       if (!tab.isDirty && tab.path && !isSpecialPath(tab.path)) {
           try {
-              const bytes: number[] = await invoke('read_file_content', { path: tab.path });
-              const uint8Array = new Uint8Array(bytes);
-              let content = "";
-              try { content = new TextDecoder('utf-8', { fatal: true }).decode(uint8Array); } 
-              catch { content = new TextDecoder('shift-jis').decode(uint8Array); }
+              const content: string = await invoke('read_file_content', { path: tab.path });
 
               // 💥 最新の更新日時も取得する
               const modified = (await invoke('get_file_modified', { path: tab.path })) as number;

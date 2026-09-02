@@ -124,11 +124,24 @@ pub fn save_file_content(path: String, content: String, last_modified: u64, forc
     }
 }
 
-#[tauri::command]
-pub fn read_file_content(path: String) -> Result<Vec<u8>, String> {
-    fs::read(path).map_err(|e| e.to_string())
-}
+use encoding_rs::{UTF_8, SHIFT_JIS}; 
 
+#[tauri::command]
+pub fn read_file_content(path: String) -> Result<String, String> {
+    let bytes = fs::read(&path).map_err(|e| format!("Failed to read file: {}", e))?;
+    
+    // 1. まずUTF-8としてデコードを試みる
+    let (cow, _encoding_used, had_errors) = UTF_8.decode(&bytes);
+    
+    if !had_errors {
+        // UTF-8で問題なく読めた場合
+        Ok(cow.into_owned())
+    } else {
+        // 2. UTF-8でエラーが出た場合はShift-JISとしてデコードする
+        let (cow_sjis, _, _) = SHIFT_JIS.decode(&bytes);
+        Ok(cow_sjis.into_owned())
+    }
+}
 #[tauri::command]
 pub fn read_directory(path: String) -> Result<Vec<VirtualNode>, String> {
     let mut nodes = Vec::new();
