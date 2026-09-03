@@ -1,7 +1,7 @@
 <!-- アプリのメイン画面（ガワ）。全体のデータとモーダル状態を管理。 -->
 
 <script lang="ts">
-  import { onMount, setContext } from 'svelte';
+  import { setContext, onMount, onDestroy, tick } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { open as openDialog, confirm as tauriConfirm } from '@tauri-apps/plugin-dialog';
   import { openUrl } from '@tauri-apps/plugin-opener';
@@ -70,7 +70,7 @@
   function getNodePath(node: any) { return node.type === 'Folder' ? node.original_path : node.path; }
 
   setContext('workspaceActions', {
-    removeNode: (targetNode: any, ownerId: string) => {
+    removeNode: async (targetNode: any, ownerId: string) => {
       const wsIndex = workspaces.findIndex(w => w.id === ownerId);
       if (wsIndex === -1) return;
 
@@ -81,8 +81,11 @@
         });
       }
       workspaces[wsIndex].nodes = filterOutNode(workspaces[wsIndex].nodes);
-      // 💥 変更: saveData(true) に変更
-      workspaces = [...workspaces]; saveData(true);
+      workspaces = [...workspaces]; 
+      
+      // 💥 Svelteの変数更新が内部に浸透するのを待ってから保存
+      await tick();
+      saveData(true);
     },
     pinNode: (targetNode: any) => {
       const ws = workspaces[currentIndex];
@@ -96,7 +99,10 @@
     unpinNode: (targetNode: any) => unpin(getNodePath(targetNode)),
     checkIsPinned: (targetNode: any) => workspaces[currentIndex]?.pinned?.some((p:any) => p.path === getNodePath(targetNode)),
     getClickBehavior: () => workspaces[currentIndex]?.open_in_new_tab || false,
-    saveWorkspace: () => saveData(true),
+    saveWorkspace: async () => {
+      await tick();
+      saveData(true);
+    },
     // 💥 新規追加: ツリーから編集モードを呼び出す
     editSmartFolder: (node: any) => {
       editingSmartNode = node;
