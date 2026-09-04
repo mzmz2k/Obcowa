@@ -15,7 +15,8 @@ A03_Obcowa/
 ├── package.json
 ├── scripts
 │   ├── generate_filemap.js
-│   └── generate_filemap.test.js
+│   ├── generate_filemap.test.js
+│   └── generate_licenses.js
 ├── src
 │   ├── app.css
 │   ├── app.html
@@ -136,6 +137,10 @@ A03_Obcowa/
   └── import ./generate_filemap.js
   └── import $lib/components
   └── import lucide-svelte
+
+📄 `scripts/generate_licenses.js`
+  └── import fs
+  └── import path
 
 📄 `src/components/Editor/Editor.svelte`
   └── import $lib/stores
@@ -462,6 +467,8 @@ A03_Obcowa/
 - `scripts/generate_filemap.js` : （説明未記載）
   - `export const Extractor`
 - `scripts/generate_filemap.test.js` : （説明未記載）
+- `scripts/generate_licenses.js` : 依存ライブラリのライセンス全文を収集し、THIRD_PARTY_LICENSES.txt を自動生成するスクリプト
+  - `export function generateThirdPartyLicenses()`
 
 ### src/components/Editor/
 - `src/components/Editor/Editor.svelte` : エディタ画面を統括する親部品
