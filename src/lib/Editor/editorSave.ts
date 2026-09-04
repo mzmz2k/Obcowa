@@ -6,7 +6,7 @@ export interface SaveDependencies {
     saveFileContent: (path: string, content: string, lastModified: number, force: boolean) => Promise<number>;
     getModified: (path: string) => Promise<number>;
     readFileContent: (path: string) => Promise<string>; 
-    confirmDialog: (message: string, options: { title: string; kind: 'warning' | 'info' }) => Promise<boolean>;
+    askConflictResolution: (path: string) => Promise<'overwrite' | 'reload' | 'cancel'>;
     saveDashboard?: (workspaceId: string, content: string) => Promise<void>;
 }
 
@@ -72,12 +72,10 @@ if (!targetTab.isDirty) {
     } catch (e) {
         if (e === 'CONFLICT') {
             onDialogStateChange?.(true);
-            const overwrite = await deps.confirmDialog(
-                "このファイルは他のアプリによって外部で変更されています。\nこの編集内容で上書き保存しますか？",
-                { title: "ファイルの競合", kind: "warning" }
-            );
 
-            if (overwrite) {
+            const resolution = await deps.askConflictResolution(targetTab.path);
+
+            if (resolution === 'overwrite') {
                 try {
                     const newModified = await deps.saveFileContent(
                         targetTab.path,
@@ -97,13 +95,8 @@ if (!targetTab.isDirty) {
                     onDialogStateChange?.(false);
                     return false;
                 }
-            } else {
-                const reload = await deps.confirmDialog(
-                    "この変更を破棄して最新の外部ファイルを読み込みますか？",
-                    { title: "再読み込みの確認", kind: "info" }
-                );
 
-                if (reload) {
+             } else if (resolution === 'reload') {
                     try {
                             const latestContent = await deps.readFileContent(targetTab.path);
                             const newModified = await deps.getModified(targetTab.path);
@@ -116,11 +109,13 @@ if (!targetTab.isDirty) {
                             isConflict: false
                         }));
                     } catch (err) {}
-                } else {
-                    updateTab(t => ({ ...t, isConflict: true }));
-                }
                 onDialogStateChange?.(false);
                 return false;
+            } else {
+                // cancel（保留）の場合
+                    updateTab(t => ({ ...t, isConflict: true }));
+                    onDialogStateChange?.(false);
+                   return false;
             }
         }
         return false;

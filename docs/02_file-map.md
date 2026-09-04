@@ -30,6 +30,7 @@ A03_Obcowa/
 │   │   │   ├── previewExtensions.test.ts
 │   │   │   └── previewExtensions.ts
 │   │   ├── Modals
+│   │   │   ├── ConflictDialog.svelte
 │   │   │   ├── NewFileModal.svelte
 │   │   │   ├── SmartFolderModal.svelte
 │   │   │   └── WorkspaceManager.svelte
@@ -150,6 +151,7 @@ A03_Obcowa/
   └── import ../../lib/editor/scrollSync
   └── import ../../features/Task/TaskList.svelte
   └── import ../../lib/utils/pathUtils
+  └── import ../Modals/ConflictDialog.svelte
 
 📄 `src/components/Editor/EditorHeader.svelte`
   └── import @tauri-apps/api/core
@@ -480,6 +482,10 @@ A03_Obcowa/
   - `export async function handleWikiLinkClick(targetEl: HTMLElement)`
 
 ### src/components/Modals/
+- `src/components/Modals/ConflictDialog.svelte` : ファイル競合時に「上書き」「再読み込み」「保留」を選択させるダイアログ
+  - `export let isOpen`
+  - `export let filePath`
+  - `export let onResolve`
 - `src/components/Modals/NewFileModal.svelte` : --- START OF src/components/Modals/NewFileModal.svelte ---
   - `export let isOpen`
   - `export let targetDir`

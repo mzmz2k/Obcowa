@@ -17,6 +17,7 @@
     import { calculateScrollRatio, calculateScrollTopFromRatio } from '../../lib/editor/scrollSync';
     import TaskList from '../../features/Task/TaskList.svelte';
     import { isSpecialPath } from '../../lib/utils/pathUtils';
+    import ConflictDialog from '../Modals/ConflictDialog.svelte';
 
     $: activeTab = $openTabs.find(t => t.id === $activeTabId);
 
@@ -27,11 +28,28 @@
     let editArea: HTMLTextAreaElement;
     let scrollRatio = 0;
 
+       // 💥 競合ダイアログ用の状態管理
+   let conflictDialogOpen = false;
+   let conflictFilePath = "";
+   let conflictResolve: ((res: 'overwrite' | 'reload' | 'cancel') => void) | null = null;
+ 
+   // ダイアログを開き、ユーザーの選択を待つPromiseを返す
+   const askConflictResolution = (path: string): Promise<'overwrite' | 'reload' | 'cancel'> => {
+       return new Promise((resolve) => {
+           conflictFilePath = path;
+           conflictDialogOpen = true;
+           conflictResolve = (res) => {
+               conflictDialogOpen = false;
+               resolve(res);
+           };
+       });
+   };
+
     const saveDeps: SaveDependencies = {
         saveFileContent: (path, content, lastModified, force) => invoke('save_file_content', { path, content, lastModified, force }),
         getModified: (path) => invoke('get_file_modified', { path }),
         readFileContent: (path) => invoke('read_file_content', { path }),
-        confirmDialog: (message, options) => tauriConfirm(message, options),
+        askConflictResolution,
         saveDashboard: async (workspaceId, content) => {
             await invoke('save_dashboard', { workspaceId, content });
         }
@@ -227,4 +245,10 @@
         </div>
     {/if}
 </div>
+
+ <ConflictDialog 
+     isOpen={conflictDialogOpen} 
+     filePath={conflictFilePath} 
+     onResolve={conflictResolve} 
+ />
 <!-- --- END OF src/components/Editor.svelte --- -->
