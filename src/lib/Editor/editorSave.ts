@@ -6,7 +6,7 @@ export interface SaveDependencies {
     saveFileContent: (path: string, content: string, lastModified: number, force: boolean) => Promise<number>;
     getModified: (path: string) => Promise<number>;
     readFileContent: (path: string) => Promise<string>; 
-    askConflictResolution: (path: string) => Promise<'overwrite' | 'reload' | 'cancel'>;
+    askConflictResolution: (path: string, localContent: string, remoteContent: string) => Promise<'overwrite' | 'reload' | 'cancel'>;
     saveDashboard?: (workspaceId: string, content: string) => Promise<void>;
 }
 
@@ -73,7 +73,15 @@ if (!targetTab.isDirty) {
         if (e === 'CONFLICT') {
             onDialogStateChange?.(true);
 
-            const resolution = await deps.askConflictResolution(targetTab.path);
+            // ダイアログでの差分表示用に最新の外部データを取得する
+            let remoteContent = "";
+            try {
+                remoteContent = await deps.readFileContent(targetTab.path);
+            } catch (err) {
+                remoteContent = "（外部ファイルの読み込みに失敗しました）";
+            }
+
+            const resolution = await deps.askConflictResolution(targetTab.path, targetTab.content, remoteContent);
 
             if (resolution === 'overwrite') {
                 try {

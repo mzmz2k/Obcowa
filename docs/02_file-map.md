@@ -63,6 +63,7 @@ A03_Obcowa/
 │   │       └── styleStore.ts
 │   ├── lib
 │   │   ├── editor
+│   │   │   ├── diffUtils.ts
 │   │   │   ├── editorSave.test.ts
 │   │   │   ├── editorSave.ts
 │   │   │   ├── imageViewer.test.ts
@@ -205,6 +206,9 @@ A03_Obcowa/
   └── import ../../lib/stores
   └── import ../../lib/workspace/treeUtils
 
+📄 `src/components/Modals/ConflictDialog.svelte`
+  └── import ../../lib/editor/diffUtils
+
 📄 `src/components/Modals/NewFileModal.svelte`
   └── import @tauri-apps/api/core
   └── import svelte
@@ -323,6 +327,9 @@ A03_Obcowa/
 📄 `src/features/styleSettings/styleStore.ts`
   └── import svelte/store
   └── import ../../lib/stores
+
+📄 `src/lib/editor/diffUtils.ts`
+  └── import diff
 
 📄 `src/lib/editor/editorSave.test.ts`
   └── import vitest
@@ -482,9 +489,11 @@ A03_Obcowa/
   - `export async function handleWikiLinkClick(targetEl: HTMLElement)`
 
 ### src/components/Modals/
-- `src/components/Modals/ConflictDialog.svelte` : ファイル競合時に「上書き」「再読み込み」「保留」を選択させるダイアログ
+- `src/components/Modals/ConflictDialog.svelte` : 責務：ファイル競合時にローカルとリモートの差分を表示し、「上書き」「再読み込み」「保留」を選択させるダイアログ
   - `export let isOpen`
   - `export let filePath`
+  - `export let localContent`
+  - `export let remoteContent`
   - `export let onResolve`
 - `src/components/Modals/NewFileModal.svelte` : --- START OF src/components/Modals/NewFileModal.svelte ---
   - `export let isOpen`
@@ -587,6 +596,9 @@ A03_Obcowa/
   - `export function initStyles()`
 
 ### src/lib/editor/
+- `src/lib/editor/diffUtils.ts` : 外部ファイルとローカルエディタ間のテキスト差分を計算し、Side-by-side表示用のブロック配列を生成する
+  - `export interface DiffBlock`
+  - `export function computeSideBySideDiff(remoteText: string, localText: string)`
 - `src/lib/editor/editorSave.test.ts` : editorSave関数の単体テスト
 - `src/lib/editor/editorSave.ts` : エディタの保存処理、競合ダイアログハンドリングの純粋・抽象化ロジック
   - `export interface SaveDependencies`

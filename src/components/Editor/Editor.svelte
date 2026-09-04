@@ -31,12 +31,16 @@
        // 💥 競合ダイアログ用の状態管理
    let conflictDialogOpen = false;
    let conflictFilePath = "";
+   let conflictLocalContent = "";
+   let conflictRemoteContent = "";
    let conflictResolve: ((res: 'overwrite' | 'reload' | 'cancel') => void) | null = null;
  
    // ダイアログを開き、ユーザーの選択を待つPromiseを返す
-   const askConflictResolution = (path: string): Promise<'overwrite' | 'reload' | 'cancel'> => {
+   const askConflictResolution = (path: string, localContent: string, remoteContent: string): Promise<'overwrite' | 'reload' | 'cancel'> => {
        return new Promise((resolve) => {
            conflictFilePath = path;
+           conflictLocalContent = localContent;
+           conflictRemoteContent = remoteContent;
            conflictDialogOpen = true;
            conflictResolve = (res) => {
                conflictDialogOpen = false;
@@ -249,6 +253,8 @@
  <ConflictDialog 
      isOpen={conflictDialogOpen} 
      filePath={conflictFilePath} 
+     localContent={conflictLocalContent}
+     remoteContent={conflictRemoteContent}
      onResolve={conflictResolve} 
  />
 <!-- --- END OF src/components/Editor.svelte --- -->
