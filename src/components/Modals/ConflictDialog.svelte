@@ -81,19 +81,27 @@
 
             <!-- アクションボタンエリア -->
             <div class="p-6 pt-4 border-t border-[var(--menu-bg)] flex justify-end gap-3 shrink-0 bg-[var(--bg-color)] rounded-b-lg">
-                <button class="px-4 py-2 rounded text-[var(--text-color)] hover:bg-[var(--active-highlight-bg)] transition-colors"
-                        on:click={() => onResolve?.('cancel')}>
-                    保留（あとで決める）
-                </button>
-                <button class="px-4 py-2 rounded border border-[var(--text-color)] text-[var(--text-color)] hover:bg-[var(--active-highlight-bg)] transition-colors"
+
+                <!-- 1. 外部データで上書き（うっすら赤） -->
+                <button class="px-4 py-2 rounded text-[var(--text-color)] transition-opacity hover:opacity-80"
+                        style="background-color: color-mix(in srgb, var(--bg-color) 85%, #ef4444); border: 1px solid color-mix(in srgb, var(--bg-color) 70%, #ef4444);"
                         on:click={() => onResolve?.('reload')}>
                     外部データで上書き
                 </button>
-                <button class="px-4 py-2 rounded text-[var(--bg-color)] font-bold transition-opacity hover:opacity-80"
-                        style="background-color: var(--accent-color);"
+
+                <!-- 2. エディタの内容で強制上書き（うっすら緑） -->
+                <button class="px-4 py-2 rounded text-[var(--text-color)] font-bold transition-opacity hover:opacity-80"
+                        style="background-color: color-mix(in srgb, var(--bg-color) 85%, #22c55e); border: 1px solid color-mix(in srgb, var(--bg-color) 70%, #22c55e);"
                         on:click={() => onResolve?.('overwrite')}>
                     エディタの内容で強制上書き
                 </button>
+
+                <!-- 3. 保留（色なしベース） -->
+                <button class="px-4 py-2 rounded text-[var(--text-color)] bg-[var(--menu-bg)] hover:bg-[var(--active-highlight-bg)] transition-colors"
+                        on:click={() => onResolve?.('cancel')}>
+                    保留（あとで決める）
+                </button>
+
             </div>
 
         </div>
