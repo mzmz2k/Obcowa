@@ -2,7 +2,7 @@
 
 <script lang="ts">
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
-  import { Menu, SquarePen, Settings } from 'lucide-svelte';
+  import { SquarePen, Settings, SlidersHorizontal } from 'lucide-svelte';
 
   // 親から受け取る変数（モーダル開閉フラグなどは双方向バインディングで親と共有します）
   export let workspaces: any[];
@@ -13,7 +13,7 @@
   export let openSettings: () => void;
 
   // メニューの開閉状態はここで自己管理する
-  let isListMenuOpen = false;
+  let isSettingsMenuOpen = false;
 
   // 💥 親ファイルから移動：新しいウィンドウでリストを開く処理
   function changeWorkspace(e: Event) {
@@ -41,7 +41,7 @@
 </script>
 
 <!-- 画面のどこかをクリックしたらメニューを閉じる処理（この部品限定） -->
-<svelte:window on:click={() => { isListMenuOpen = false; }} />
+<svelte:window on:click={() => { isSettingsMenuOpen = false; }} />
 
 <div class="p-2 border-t border-black/10 flex items-center gap-1 relative" style="background-color: var(--menu-bg);">
   <select class="w-32 text-xs rounded py-1 px-1 outline-none border border-black/20" style="background-color: var(--bg-color); color: var(--text-color);" value={currentIndex} on:change={changeWorkspace}>
@@ -50,19 +50,28 @@
     {/each}
   </select>
   
-  <button on:click|stopPropagation={() => isListMenuOpen = !isListMenuOpen} class="flex items-center justify-center w-7 h-7 hover:opacity-70 rounded transition"><Menu size={16} /></button>
-
-  {#if isListMenuOpen}
-    <div class="absolute bottom-10 left-36 border border-black/20 rounded shadow-xl z-50 py-1 w-48 text-sm" style="background-color: var(--menu-bg); color: var(--text-color);">
-      <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isListMenuOpen = false; isCreateModalOpen = true; }}><SquarePen size={14} class="mr-2" /> リスト作成</button>
-      <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isListMenuOpen = false; editingListIndex = currentIndex; isManageModalOpen = true; }}><Settings size={14} class="mr-2" /> リスト管理</button>
-    </div>
-  {/if}
   <div class="flex-1"></div>
+
   <button 
-    on:click|stopPropagation={openSettings} 
+    on:click|stopPropagation={() => isSettingsMenuOpen = !isSettingsMenuOpen} 
     class="flex items-center justify-center w-7 h-7 opacity-70 hover:opacity-100 transition relative z-10"
   >
     <Settings size={16} />
   </button>
+  
+
+  {#if isSettingsMenuOpen}
+    <div class="absolute bottom-10 right-2 border border-black/20 rounded shadow-xl z-50 py-1 w-44 text-sm" style="background-color: var(--menu-bg); color: var(--text-color);">
+      <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isSettingsMenuOpen = false; isCreateModalOpen = true; }}>
+        <SquarePen size={14} class="mr-2" /> リスト作成
+      </button>
+      <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isSettingsMenuOpen = false; editingListIndex = currentIndex; isManageModalOpen = true; }}>
+        <SlidersHorizontal size={14} class="mr-2" /> リスト管理
+      </button>
+      <div class="border-t border-black/10 my-1"></div>
+      <button class="flex items-center w-full text-left px-4 py-2 hover:bg-black/10 transition" on:click={() => { isSettingsMenuOpen = false; openSettings(); }}>
+        <Settings size={14} class="mr-2" /> 設定
+      </button>
+    </div>
+  {/if}
 </div>
