@@ -19,7 +19,6 @@
   import { activeTheme, initTheme, applyThemeToRoot } from '../lib/settings/theme';
   import { initStyles } from '../features/styleSettings/styleStore'; 
   import { editorFont, openTabs, activeTabId, currentWorkspaceIndex, openSearchTab, registeredTags, showLauncherOnStartup, workspacesStore } from '../lib/stores';
-  import { cloneNodeAsIndependent } from '../lib/library';
   import { listen } from '@tauri-apps/api/event';
   import LauncherWindow from '../features/launcher/LauncherWindow.svelte';
   import { refreshTree } from '../lib/workspace/treeUtils';
@@ -49,7 +48,7 @@
   }
 
   // --- メニューとモーダルの状態 ---
-  let isCreateModalOpen = false, isManageModalOpen = false, isImportLibraryModalOpen = false;
+  let isCreateModalOpen = false, isManageModalOpen = false;
   // 💥フォルダ追加メニューとスマートフォルダ関連
   let isAddFolderMenuOpen = false, isSmartFolderModalOpen = false;
   let editingSmartNode: any = null;
@@ -128,31 +127,6 @@
       saveData(true);
     },
 
-    // 💥 追加: ライブラリ取得と追加の処理
-    getLibraries: () => workspaces.filter(w => w.category === 'Library'),
-    addNodeToLibrary: async (node: any, libId: string) => {
-      let targetLib = workspaces.find(w => w.id === libId);
-      
-      // 新規作成の場合
-      if (libId === 'new') {
-        const newName = prompt("新しいライブラリの名前を入力してください");
-        if (!newName) return;
-        targetLib = { 
-          id: Date.now().toString(), name: newName, category: 'Library', 
-          nodes: [], links: [], pinned: [], linked_libraries: [], is_flat: false,
-          editor_font: workspaces[currentIndex]?.editor_font || 'sans-serif'
-        };
-        workspaces.push(targetLib);
-      }
-      if (!targetLib) return;
-      
-      // テスト済みの関数で完全に独立したデータを作ってから放り込む
-      const clonedNode = cloneNodeAsIndependent(node);
-      targetLib.nodes.push(clonedNode);
-      workspaces = [...workspaces];
-      await saveData(true);
-      alert(`ライブラリ「${targetLib.name}」に登録しました`);
-    }
 
   });
 
@@ -410,7 +384,6 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
       bind:editingListIndex
       bind:isCreateModalOpen
       bind:isManageModalOpen
-      bind:isImportLibraryModalOpen
       {openSettings}
     />
   </div>
@@ -430,7 +403,6 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   bind:editingListIndex
   bind:isCreateModalOpen
   bind:isManageModalOpen
-  bind:isImportLibraryModalOpen
   on:save={(e) => saveData(e.detail?.force || false)}
 />
 

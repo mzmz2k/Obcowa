@@ -7,7 +7,6 @@
     import { FileText } from 'lucide-svelte';
 
     let isSearching = false;
-    let excludeLibrary = false;
 
    // 検索の実行
     async function executeSearch() {
@@ -16,7 +15,7 @@
         $searchState.hasSearched = true;
 
        try {
-        const targetNodes = getWorkspaceNodes($workspacesStore, $currentWorkspaceIndex, !excludeLibrary);
+        const targetNodes = getWorkspaceNodes($workspacesStore, $currentWorkspaceIndex);
         const filePaths = extractFilePaths(targetNodes);
 
             $searchState.results = await invoke('search_files', { 
@@ -62,11 +61,7 @@
             placeholder="検索キーワードを入力... (Enterで検索)"
         >
 
-       <label class="flex items-center text-sm cursor-pointer select-none" style="color: var(--text-color);">
-           <input type="checkbox" bind:checked={excludeLibrary} class="mr-2"> ライブラリを含めない
-       </label>
        
-        
         <!-- 💥 bind:checked を $searchState.searchByFilename に変更 -->
         <label class="flex items-center text-sm cursor-pointer select-none" style="color: var(--text-color);">
             <input type="checkbox" bind:checked={$searchState.searchByFilename} class="mr-2"> ファイル名のみ検索

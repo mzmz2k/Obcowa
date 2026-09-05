@@ -30,7 +30,7 @@ export const registeredTags = writable<string[]>([]);
 // 検索タブの状態を保持するためのストア
 export const searchState = writable({
     query: '',
-    includeLibrary: false,
+
     searchByFilename: false, // 先ほど追加したファイル名検索フラグ
     results: [] as any[],
     hasSearched: false

@@ -50,21 +50,12 @@ export async function refreshTree(nodes: any[], workspaceNodes: any[]): Promise<
 export function getWorkspaceNodes(
     workspaces: any[],
     workspaceIndex: number,
-    includeLibrary: boolean = true
+
 ): any[] {
     const currentWs = workspaces[workspaceIndex];
     if (!currentWs) return [];
 
     let targetNodes = [...(currentWs.nodes || [])];
-
-    if (includeLibrary && currentWs.linked_libraries) {
-        for (const libId of currentWs.linked_libraries) {
-            const lib = workspaces.find((w: any) => w.id === libId);
-            if (lib && lib.nodes) {
-                targetNodes = targetNodes.concat(lib.nodes);
-            }
-        }
-    }
 
     return targetNodes;
 }

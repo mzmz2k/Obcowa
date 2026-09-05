@@ -32,16 +32,6 @@
     let realNode = findNode(ws.nodes);
     if (realNode) return realNode;
 
-    // 見つからなければリンクされたライブラリの中も探す
-    if (ws.linked_libraries) {
-      for (const libId of ws.linked_libraries) {
-        const lib = workspaces.find(w => w.id === libId);
-        if (lib) {
-          realNode = findNode(lib.nodes);
-          if (realNode) return realNode;
-        }
-      }
-    }
     // どこにもなければ、とりあえず空のダミーを作って返す
     return { type: pin.item_type, name: pin.name, path: pin.path, original_path: pin.path, children: [] };
   }
@@ -89,7 +79,7 @@
         <div class="flex items-center justify-between group">
           <div class="flex-1 overflow-hidden">
             <!-- 💥 修正: isReadonlyではなくownerIdを渡すように修正 -->
-            <TreeNode node={getPinnedNode(pin)} ownerId={workspaces[currentIndex].id} isLibraryNode={false} />
+            <TreeNode node={getPinnedNode(pin)} ownerId={workspaces[currentIndex].id} />
           </div>
           <button on:click={() => unpin(pin.path)} class="flex items-center justify-center brightness-60 hover:text-red-400 opacity-0 group-hover:opacity-100 p-1">
             <X size={12} />
@@ -104,25 +94,9 @@
   <div>
     {#if workspaces.length > 0 && workspaces[currentIndex]}
       {#each getSortedNodes(workspaces[currentIndex].nodes, workspaces[currentIndex].sort_by, workspaces[currentIndex].sort_order) as node}
-         <TreeNode {node} ownerId={workspaces[currentIndex].id} isLibraryNode={false} />
+         <TreeNode {node} ownerId={workspaces[currentIndex].id} />
       {/each}
     {/if}
   </div>
 
-  <!-- 参照されているライブラリを一括表示 -->
-  {#if workspaces[currentIndex]?.linked_libraries?.length > 0}
-    {#each workspaces[currentIndex].linked_libraries as libId}
-      {@const lib = workspaces.find(w => w.id === libId)}
-      {#if lib}
-        {#if lib.is_flat}
-          {#each getSortedNodes(lib.nodes, lib.sort_by, lib.sort_order) as node}
-            <TreeNode node={node} ownerId={lib.id} isLibraryNode={true} />
-          {/each}
-        {:else}
-          <!-- ライブラリのガワ(is_virtual_wrapper)として保護する -->
-          <TreeNode node={{ type: 'Folder', name: lib.name, original_path: null, children: lib.nodes, is_virtual_wrapper: true }} ownerId={lib.id} isLibraryNode={true} />
-        {/if}
-      {/if}
-    {/each}
-  {/if}
 </div>

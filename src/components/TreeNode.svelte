@@ -9,12 +9,11 @@
   import { buildCommonFileMenu, type MenuItem } from '../lib/workspace/menuUtils';
 
     // コンテキストアクションから新しい関数も受け取る
-  const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior, saveWorkspace, editSmartFolder, openNewFileModal, getGlobalSort, setNodeSort, getLibraries, addNodeToLibrary } = getContext('workspaceActions') as any;
+  const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior, saveWorkspace, editSmartFolder, openNewFileModal, getGlobalSort, setNodeSort } = getContext('workspaceActions') as any;
 
   export let node: any;
   // isReadonly を削除し、親から引き継ぐ情報に変更
   export let ownerId: string;
-  export let isLibraryNode = false;
   let isOpen = false;
 
   $: activeTab = $openTabs.find(t => t.id === $activeTabId);
@@ -222,25 +221,9 @@
     }
     
     if (!node.is_virtual_wrapper) {
-      if (!isLibraryNode) {
-        const libs = getLibraries();
-        items.push({
-          label: 'ライブラリに登録',
-          icon: Library,
-          submenu: [
-            { label: '＋ 新しいライブラリを作成', bold: true, action: () => addNodeToLibrary(node, 'new') },
-            { divider: true },
-            ...(libs.length > 0 ? libs.map((lib: any) => ({
-              label: lib.name,
-              action: () => addNodeToLibrary(node, lib.id)
-            })) : [{ label: '既存ライブラリなし', disabled: true }])
-          ]
-        });
-        items.push({ divider: true });
-      }
 
       items.push({
-        label: isLibraryNode ? 'ライブラリ登録解除' : 'リストから削除',
+        label: 'リストから削除',
         danger: true,
         action: () => removeNode(node, ownerId)
       });
@@ -383,7 +366,7 @@ async function loadFileContent(path: string): Promise<string> {
   {#if isOpen && sortedChildren && sortedChildren.length > 0}
     <div class="border-l border-black/10 ml-2 pl-1">
       {#each sortedChildren as childNode}
-        <svelte:self node={childNode} {ownerId} {isLibraryNode} />
+        <svelte:self node={childNode} {ownerId} />
       {/each}
     </div>
   {/if}

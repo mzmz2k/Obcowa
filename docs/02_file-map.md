@@ -71,8 +71,6 @@ A03_Obcowa/
 │   │   │   ├── imageViewer.ts
 │   │   │   ├── scrollSync.test.ts
 │   │   │   └── scrollSync.ts
-│   │   ├── library.test.ts
-│   │   ├── library.ts
 │   │   ├── settings
 │   │   │   ├── theme.tet.ts
 │   │   │   └── theme.ts
@@ -354,10 +352,6 @@ A03_Obcowa/
   └── import vitest
   └── import ./scrollSync
 
-📄 `src/lib/library.test.ts`
-  └── import vitest
-  └── import ./library
-
 📄 `src/lib/settings/theme.tet.ts`
   └── import vitest
   └── import svelte/store
@@ -411,7 +405,6 @@ A03_Obcowa/
   └── import ../lib/settings/theme
   └── import ../features/styleSettings/styleStore
   └── import ../lib/stores
-  └── import ../lib/library
   └── import @tauri-apps/api/event
   └── import ../features/launcher/LauncherWindow.svelte
   └── import ../lib/workspace/treeUtils
@@ -515,7 +508,6 @@ A03_Obcowa/
   - `export let editingListIndex`
   - `export let isCreateModalOpen`
   - `export let isManageModalOpen`
-  - `export let isImportLibraryModalOpen`
 
 ### src/components/Settings/
 - `src/components/Settings/SettingsModal.svelte` : --- START OF src/components/SettingsModal.svelte ---
@@ -538,7 +530,6 @@ A03_Obcowa/
   - `export let editingListIndex`
   - `export let isCreateModalOpen`
   - `export let isManageModalOpen`
-  - `export let isImportLibraryModalOpen`
   - `export let openSettings`
 - `src/components/Sidebar/SidebarHeader.svelte` : サイドバー上部の新規追加ボタン等
   - `export let workspaces`
@@ -555,7 +546,6 @@ A03_Obcowa/
 - `src/components/TreeNode.svelte` : （説明未記載）
   - `export let node`
   - `export let ownerId`
-  - `export let isLibraryNode`
 
 ### src/features/
 - `src/features/ContextMenu.svelte` : 右クリックメニューのUI。画面外をクリックしたら自動で閉じる
@@ -619,10 +609,17 @@ A03_Obcowa/
   - `export function calculateScrollRatio(scrollTop: number, scrollHeight: number)`
   - `export function calculateScrollTopFromRatio(ratio: number, scrollHeight: number)`
 
+### src/lib/settings/
+- `src/lib/settings/theme.tet.ts` : （説明未記載）
+- `src/lib/settings/theme.ts` : テーマ設定のプリセット、起動時テーマ復元処理、テーマ適用
+  - `export interface Theme`
+  - `export const defaultThemes`
+  - `export const activeTheme`
+  - `export const customThemes`
+  - `export function initTheme()`
+  - `export function applyThemeToRoot(theme: Theme)`
+
 ### src/lib/
-- `src/lib/library.test.ts` : --- START OF src/lib/library.test.ts ---
-- `src/lib/library.ts` : --- START OF src/lib/library.ts ---
-  - `export function cloneNodeAsIndependent(node: any)`
 - `src/lib/stores.ts` : Svelte Store（タブの状態、ワークスペース一覧などをグローバル管理）
   - `export interface TabData`
   - `export const workspacesStore`
@@ -644,16 +641,6 @@ A03_Obcowa/
   - `export function closeTab(idToClose: string)`
   - `export const showLauncherOnStartup`
   - `export async function openDashboardTab(workspaceId: string, workspaceName: string)`
-
-### src/lib/settings/
-- `src/lib/settings/theme.tet.ts` : （説明未記載）
-- `src/lib/settings/theme.ts` : テーマ設定のプリセット、起動時テーマ復元処理、テーマ適用
-  - `export interface Theme`
-  - `export const defaultThemes`
-  - `export const activeTheme`
-  - `export const customThemes`
-  - `export function initTheme()`
-  - `export function applyThemeToRoot(theme: Theme)`
 
 ### src/lib/task/
 - `src/lib/task/taskService.test.ts` : taskServiceの単体テスト

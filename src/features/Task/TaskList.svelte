@@ -16,13 +16,12 @@
     let isLoading = false;
     let errorMessage = '';
     let updatingTasks = new Set<string>(); // 処理中のタスクを特定する用（filePath + lineNumber）
-    let excludeLibrary = false;
     let groupBy: GroupByOption = 'heading'; // デフォルトは見出しごと
     let ignoreH1 = true; // デフォルトはH1無視
 
     // 💥 workspacesStoreから現在のツリーを生成し、リアクティブに監視する
     $: targetNodes = ($workspacesStore && $workspacesStore.length > workspaceIndex) 
-        ? getWorkspaceNodes($workspacesStore, workspaceIndex, !excludeLibrary)
+        ? getWorkspaceNodes($workspacesStore, workspaceIndex)
         : [];
 
     // コンテキストメニューの状態管理
@@ -138,14 +137,6 @@
             </h3>
 
             <div class="actions">
-                <!-- ライブラリを含める(ON) / 含めない(OFF) -->
-                <button 
-                    class="icon-btn {!excludeLibrary ? 'active' : ''}" 
-                    on:click={() => excludeLibrary = !excludeLibrary} 
-                    title={!excludeLibrary ? "ライブラリを含める" : "ライブラリを含めない"}
-                >
-                    <Library size={16} />
-                </button>
 
                 <!-- ファイルでまとめる(ON) / 見出しでまとめる(OFF) -->
                 <button 
