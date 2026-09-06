@@ -90,61 +90,71 @@
 </script>
 
 {#if isOpen}
-<div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
-    <div class="p-6 rounded shadow-lg border border-black/20 w-[550px] max-h-[90vh] overflow-y-auto" style="background-color: var(--menu-bg); color: var(--text-color);">
+
+<div 
+  class="fixed inset-0 z-50 flex items-center justify-center" 
+  style="background-color: color-mix(in srgb, var(--text-color) 45%, transparent);"
+>
+    <div 
+      class="p-6 rounded shadow-lg border w-[550px] max-h-[90vh] overflow-y-auto" 
+      style="background-color: var(--menu-bg); color: var(--text-color); border-color: color-mix(in srgb, var(--text-color) 20%, transparent);"
+    >
+
       <h2 class="text-lg font-bold mb-4">{editingSmartNode ? '条件を編集' : '条件で抽出'}</h2>
       
       <div class="mb-4 space-y-2">
-        <input type="text" class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm outline-none" bind:value={sfName} placeholder="リストに表示する名前" />
+        <input type="text" class="input-theme w-full p-2" bind:value={sfName} placeholder="リストに表示する名前" />
         <div class="flex gap-2">
-          <input type="text" class="flex-1 bg-black/5 border border-black/20 rounded p-2 text-sm opacity-70" value={sfTarget} readonly placeholder="抽出元のフォルダ" />
-          <button on:click={selectSfTarget} class="px-3 bg-black/10 hover:bg-black/20 rounded text-sm border border-black/20 transition">選択</button>
+
+          <input type="text" class="input-theme flex-1 p-2 opacity-70" value={sfTarget} readonly placeholder="抽出元のフォルダ" />
+          <button on:click={selectSfTarget} class="btn-sub px-3">選択</button>
+
         </div>
         <label class="flex items-center text-sm cursor-pointer mt-2">
           <input type="checkbox" bind:checked={sfTargetWorkspace} class="mr-2 accent-[var(--accent-color)]"> このワークスペースから抽出する
         </label>
       </div>
 
-      <div class="bg-black/5 p-4 rounded border border-black/10 mb-4">
+      <div class="p-4 rounded border mb-4" style="background-color: color-mix(in srgb, var(--text-color) 4%, transparent); border-color: color-mix(in srgb, var(--text-color) 12%, transparent);">
         <div class="flex justify-between items-center mb-3">
-          <select class="bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={sfMatch}>
+          <select class="input-theme p-1" bind:value={sfMatch}>
             <option value="AND">すべての条件を満たす (AND)</option>
             <option value="OR">いずれかの条件を満たす (OR)</option>
           </select>
-          <button class="text-sm px-2 py-1 bg-black/10 hover:bg-black/20 rounded transition" on:click={addCondition} disabled={sfConds.length >= 5}>＋ 条件を追加</button>
+          <button class="btn-sub px-2 py-1" on:click={addCondition} disabled={sfConds.length >= 5}>＋ 条件を追加</button>
         </div>
 
         <div class="space-y-3">
           {#each sfConds as cond, i}
-            <div class="flex flex-col gap-2 p-3 bg-black/5 border border-black/10 rounded relative">
-             <button class="absolute top-2 right-2 text-red-400 hover:text-red-300 text-xs" on:click={() => removeCondition(i)}>✕</button>
-              
-              <select class="w-48 bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" value={cond.cond_type} on:change={(e) => changeCondType(i, e.target.value)}>
+
+            <div class="flex flex-col gap-2 p-3 rounded border relative" style="background-color: color-mix(in srgb, var(--text-color) 4%, transparent); border-color: color-mix(in srgb, var(--text-color) 12%, transparent);">
+             <button class="del-btn absolute top-2 right-2 text-xs" on:click={() => removeCondition(i)}>✕</button>
+              <select class="input-theme w-48 p-1" value={cond.cond_type} on:change={(e) => changeCondType(i, e.target.value)}>
                 <option value="Tag">タグ</option>
                 <option value="Date">作成日 / 更新日</option>
               </select>
 
               {#if cond.cond_type === 'Tag'}
                 <div class="flex items-center gap-2">
-                  <input type="text" class="flex-1 bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" bind:value={cond.tag} placeholder="タグ名 (例: memo)" />
-                  <select class="w-24 bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={cond.match_mode}>
+                  <input type="text" class="input-theme flex-1 p-1" bind:value={cond.tag} placeholder="タグ名 (例: memo)" />
+                  <select class="input-theme w-24 p-1" bind:value={cond.match_mode}>
                     <option value="contains">部分一致</option>
                     <option value="exact">完全一致</option>
                     <option value="starts">前方一致</option>
                     <option value="ends">後方一致</option>
                   </select>
-                  <select class="w-20 bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={cond.is_exclude}>
+                  <select class="input-theme w-20 p-1" bind:value={cond.is_exclude}>
                     <option value={false}>がある</option><option value={true}>がない</option>
                   </select>
                 </div>
                 <label class="flex items-center text-xs opacity-70 cursor-pointer"><input type="checkbox" bind:checked={cond.include_inline} class="mr-2 accent-[var(--accent-color)]">本文中のタグも含める</label>
               {:else}
                 <div class="flex items-center gap-2">
-                  <select class="bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={cond.date_type}>
+                  <select class="input-theme p-1" bind:value={cond.date_type}>
                     <option value="created">作成日</option><option value="updated">更新日</option>
                   </select>
                   <span class="text-sm">が新しいもの</span>
-                  <input type="number" class="w-16 bg-black/10 border border-black/20 rounded p-1 text-sm outline-none" bind:value={cond.limit} min="1" max="100" />
+                  <input type="number" class="input-theme w-16 p-1" bind:value={cond.limit} min="1" max="100" />
                   <span class="text-sm">件</span>
                 </div>
               {/if}
@@ -159,10 +169,56 @@
       </label>
 
       <div class="flex justify-end gap-2">
-        <button class="px-4 py-2 bg-black/10 hover:bg-black/20 rounded text-sm transition" on:click={() => isOpen = false}>キャンセル</button>
-        <button class="px-4 py-2 bg-[var(--accent-color)] text-white hover:brightness-110 rounded text-sm shadow transition" on:click={saveSmartFolder}>{editingSmartNode ? '保存して更新' : '抽出して追加'}</button>
+        <button class="btn-sub px-4 py-2" on:click={() => isOpen = false}>キャンセル</button>
+        <button class="px-4 py-2 rounded text-sm shadow transition hover:brightness-110" style="background-color: var(--accent-color); color: var(--text-color);" on:click={saveSmartFolder}>
+          {editingSmartNode ? '保存して更新' : '抽出して追加'}
+        </button>
       </div>
     </div>
   </div>
 {/if}
+
+
+<style>
+  .input-theme {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid color-mix(in srgb, var(--text-color) 20%, transparent);
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    outline: none;
+  }
+
+  .input-theme:focus {
+    border-color: var(--accent-color);
+  }
+
+  .btn-sub {
+    background-color: color-mix(in srgb, var(--text-color) 8%, transparent);
+    color: var(--text-color);
+    border: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    transition: background-color 0.15s ease;
+  }
+
+  .btn-sub:hover:not(:disabled) {
+    background-color: var(--active-highlight-bg);
+  }
+
+  .btn-sub:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .del-btn {
+    color: color-mix(in srgb, #ef4444 80%, var(--text-color));
+    transition: color 0.15s ease, opacity 0.15s ease;
+  }
+
+  .del-btn:hover {
+    color: #ef4444;
+    opacity: 0.8;
+  }
+</style>
 <!-- --- END OF src/components/Modals/SmartFolderModal.svelte --- -->
