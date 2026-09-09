@@ -23,6 +23,7 @@ pub struct Task {
 pub struct ScanOptions {
     pub exclude_paths: Option<Vec<String>>,
     pub include_paths: Option<Vec<String>>,
+    pub exclude_headings: Option<Vec<String>>,
 }
 
 // 拡張子判定
@@ -55,7 +56,7 @@ pub async fn get_workspace_tasks(
     for file_path in file_paths {
         let path = Path::new(&file_path);
         if should_scan_file(path, &opts) {
-            let _ = extract_tasks_from_file(path, &mut tasks);
+            let _ = extract_tasks_from_file(path, &mut tasks, &opts);
         }
     }
 
@@ -63,7 +64,7 @@ pub async fn get_workspace_tasks(
 }
 
 
-fn extract_tasks_from_file(file_path: &Path, tasks: &mut Vec<Task>) -> io::Result<()> {
+fn extract_tasks_from_file(file_path: &Path, tasks: &mut Vec<Task>, options: &ScanOptions) -> io::Result<()> {
          // ファイルの更新日・作成日を取得（OSによって作成日が取れない場合は更新日でフォールバック）
     let meta = metadata(file_path)?;
     let file_modified = meta.modified()
@@ -118,6 +119,14 @@ fn extract_tasks_from_file(file_path: &Path, tasks: &mut Vec<Task>) -> io::Resul
         }
 
         if trimmed.starts_with("- [ ] ") {
+                        
+            // 💥 除外対象の見出しが含まれている場合はスキップ
+            if let Some(exclude_headings) = &options.exclude_headings {
+                if current_headings.iter().any(|h| exclude_headings.contains(h)) {
+                    continue; // このタスクは無視して次の行へ
+                }
+            }
+
             let text_content = trimmed.trim_start_matches("- [ ] ").to_string();
             tasks.push(Task {
                 file_path: file_path.to_string_lossy().to_string(),

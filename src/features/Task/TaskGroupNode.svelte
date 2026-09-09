@@ -37,12 +37,14 @@
         {#if groupBy === 'file'}
             <button class="filename-btn" 
                 on:click|stopPropagation={() => dispatch('openFile', { path: node.path, name: node.name })}
-                on:contextmenu|preventDefault|stopPropagation={(e) => dispatch('contextMenu', { event: e, path: node.path })}
+                on:contextmenu|preventDefault|stopPropagation={(e) => dispatch('contextMenu', { event: e, type: 'file', value: node.path })}
             >
                 <FileText size={14} /> <span>{node.name}</span>
             </button>
         {:else}
-            <div class="heading-title {depth === 0 ? 'root-heading' : 'sub-heading'}">
+            <div class="heading-title {depth === 0 ? 'root-heading' : 'sub-heading'}"
+                 on:contextmenu|preventDefault|stopPropagation={(e) => dispatch('contextMenu', { event: e, type: 'heading', value: node.name })}
+            >
                  <span>{node.name}</span>
             </div>
         {/if}

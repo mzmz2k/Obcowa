@@ -30,7 +30,8 @@
         isOpen: false,
         x: 0,
         y: 0,
-        filePath: ''
+        targetType: '', // 'file' か 'heading'
+        targetValue: '' // ファイルパス か 見出し名
     };
 
     // 💥 抽出した純粋関数を使ってタスクツリーを構築する
@@ -50,7 +51,11 @@
         errorMessage = '';
         try {
             const excludes = $workspacesStore[workspaceIndex]?.task_exclude_paths || [];
-            tasks = await fetchWorkspaceTasks(targetNodes, { excludePaths: excludes });
+            const excludeHeadings = $workspacesStore[workspaceIndex]?.task_exclude_headings || [];
+            tasks = await fetchWorkspaceTasks(targetNodes, { 
+                excludePaths: excludes, 
+                excludeHeadings: excludeHeadings 
+            });
         } catch (error: any) {
             errorMessage = error.message;
         } finally {
@@ -109,24 +114,45 @@
         loadTasks(); // リストを再取得して画面から消す
     }
 
+    // 💥 見出しを除外する処理
+    async function excludeHeadingFromTasks(heading: string) {
+        workspacesStore.update(wsList => {
+            const currentWs = wsList[workspaceIndex];
+            if (!currentWs) return wsList;
+            
+            if (!currentWs.task_exclude_headings) currentWs.task_exclude_headings = [];
+            if (!currentWs.task_exclude_headings.includes(heading)) {
+                currentWs.task_exclude_headings.push(heading);
+            }
+            return wsList;
+        });
+
+        await invoke('save_workspaces', { workspaces: $workspacesStore });
+        loadTasks();
+    }
+
+
     // 右クリックメニューの表示
-    function handleContextMenu(e: MouseEvent, filePath: string) {
+    function handleContextMenu(e: MouseEvent, type: 'file' | 'heading', value: string) {
         contextMenu = {
             isOpen: true,
             x: e.clientX,
             y: e.clientY,
-            filePath
+            targetType: type,
+            targetValue: value
         };
     }
 
     // メニューの中身
-    $: menuItems = [
-        {
-            label: "タスク一覧から除外",
-            icon: EyeOff,
-            action: () => excludeFileFromTasks(contextMenu.filePath)
-        }
-    ] as MenuItem[];
+    $: menuItems = (contextMenu.targetType === 'file'
+        ? [{
+              label: "ファイルを除外", icon: EyeOff,
+              action: () => excludeFileFromTasks(contextMenu.targetValue)
+          }]
+        : [{
+              label: "見出しを除外", icon: EyeOff,
+              action: () => excludeHeadingFromTasks(contextMenu.targetValue)
+          }]) as MenuItem[];
 </script>
 
 <div class="task-list-container">
@@ -197,7 +223,8 @@
                         isUpdatingTasks={updatingTasks}
                         on:change={handleTaskChange}
                         on:openFile={(e) => openFile(e.detail.path, e.detail.name)}
-                        on:contextMenu={(e) => handleContextMenu(e.detail.event, e.detail.path)}
+                        
+                        on:contextMenu={(e) => handleContextMenu(e.detail.event, e.detail.type, e.detail.value)}
                     />
                {/each}
            </div>

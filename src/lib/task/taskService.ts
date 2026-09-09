@@ -30,6 +30,7 @@ export interface TaskTreeNode {
 export interface TaskScanOptions {
     excludePaths?: string[];
     includePaths?: string[];
+    excludeHeadings?: string[]; 
 }
 
 /**
