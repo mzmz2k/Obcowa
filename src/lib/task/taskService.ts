@@ -1,4 +1,4 @@
-// 責務: Tauriと通信し、タスクの取得および完了処理を行うAPIサービス
+// Tauriと通信し、タスクの取得および完了処理を行うAPIサービス
 
 import { invoke } from '@tauri-apps/api/core';
 import { extractFilePaths } from '../workspace/treeUtils';
@@ -9,9 +9,14 @@ export interface Task {
     text: string;
     originalText: string;
     headings: string[];
+    indentLevel?: number;
+    fileCreated?: number;
+    fileModified?: number;
+    subTasks?: Task[]; // 将来のインデント（再帰表示）用
 }
 
 export type GroupByOption = 'file' | 'heading';
+export type SortOption = 'none' | 'text' | 'created' | 'modified';
 
 export interface TaskTreeNode {
     id: string;
@@ -129,4 +134,77 @@ export function buildTaskTree(
 
     return rootNodes;
 
+}
+
+//  ソートとネスト解決を行う純粋関数 ---
+export function sortTaskTreeNodes(nodes: any[], sortOption: SortOption): any[] {
+    if (sortOption === 'none') return nodes;
+
+    return nodes.map(node => {
+        const newNode = { ...node };
+        
+        // 1. ノード内のタスクをソート
+        if (newNode.tasks && newNode.tasks.length > 0) {
+            newNode.tasks = processTaskSorting(newNode.tasks, sortOption);
+        }
+        
+        // 2. 子グループがある場合は再帰的に処理
+        if (newNode.children && newNode.children.length > 0) {
+            newNode.children = sortTaskTreeNodes(newNode.children, sortOption);
+        }
+        return newNode;
+    });
+}
+
+function processTaskSorting(tasks: Task[], sortOption: SortOption): Task[] {
+    // 1. インデントレベルに基づくネスト（親子）の解決
+    const rootTasks: Task[] = [];
+    const stack: { task: Task; indent: number }[] = [];
+
+    const clonedTasks = tasks.map(t => ({ ...t, subTasks: [] as Task[] }));
+
+    for (const task of clonedTasks) {
+        const currentIndent = task.indentLevel || 0;
+        
+        // 自分より浅い階層の親が見つかるまでスタックを戻す
+        while (stack.length > 0 && stack[stack.length - 1].indent >= currentIndent) {
+            stack.pop();
+        }
+
+        if (stack.length === 0) {
+            rootTasks.push(task);
+        } else {
+            // 親の subTasks に自身を紐付ける
+            stack[stack.length - 1].task.subTasks!.push(task);
+        }
+        stack.push({ task, indent: currentIndent });
+    }
+
+    // 2. 親タスクのみをソート（子は親の中に入っているので追従する）
+    rootTasks.sort((a, b) => {
+        if (sortOption === 'text') {
+            return a.text.localeCompare(b.text);
+        }
+        if (sortOption === 'created') {
+            return (b.fileCreated || 0) - (a.fileCreated || 0);
+        }
+        if (sortOption === 'modified') {
+            return (b.fileModified || 0) - (a.fileModified || 0);
+        }
+        return 0;
+    });
+
+    // 3. 既存UIを壊さないよう、フラットな一次元配列に展開して返す
+    const flattenTasks = (nodeList: Task[]): Task[] => {
+        const flat: Task[] = [];
+        for (const node of nodeList) {
+            flat.push(node);
+            if (node.subTasks && node.subTasks.length > 0) {
+                flat.push(...flattenTasks(node.subTasks));
+            }
+        }
+        return flat;
+    };
+
+    return flattenTasks(rootTasks);
 }

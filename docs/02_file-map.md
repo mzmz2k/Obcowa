@@ -441,7 +441,7 @@ A03_Obcowa/
 
 📄 `src-tauri/src/task_ops.rs`
   └── use/mod serde::{Deserialize, Serialize}
-  └── use/mod std::fs::{self, File}
+  └── use/mod std::fs::{self, File, metadata}
   └── use/mod std::io::{self, BufRead, Write}
   └── use/mod std::path::{Path}
 
@@ -644,13 +644,15 @@ A03_Obcowa/
 
 ### src/lib/task/
 - `src/lib/task/taskService.test.ts` : taskServiceの単体テスト
-- `src/lib/task/taskService.ts` : 責務: Tauriと通信し、タスクの取得および完了処理を行うAPIサービス
+- `src/lib/task/taskService.ts` : Tauriと通信し、タスクの取得および完了処理を行うAPIサービス
   - `export interface Task`
   - `export type GroupByOption`
+  - `export type SortOption`
   - `export interface TaskTreeNode`
   - `export interface TaskScanOptions`
   - `export async function fetchWorkspaceTasks(nodes: any[], options?: TaskScanOptions)`
   - `export async function completeTaskStatus(task: Task, completed: boolean = true)`
+  - `export function sortTaskTreeNodes(nodes: any[], sortOption: SortOption)`
 
 ### src/lib/utils/
 - `src/lib/utils/pathUtils.ts` : アプリ内の特殊なパス（仮想タブ）の判定を共通化する

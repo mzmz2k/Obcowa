@@ -1,7 +1,7 @@
 // taskServiceの単体テスト
 
 import { describe, it, expect, vi } from 'vitest';
-import { fetchWorkspaceTasks, completeTaskStatus, buildTaskTree, type Task } from './taskService';
+import { fetchWorkspaceTasks, completeTaskStatus, buildTaskTree, sortTaskTreeNodes, type Task } from './taskService';
 
 // Tauri APIをモック化
 vi.mock('@tauri-apps/api/core', () => ({
@@ -87,5 +87,25 @@ describe('taskService', () => {
             expect(h2Node).toBeDefined(); // H1が除去され、H2がルートにきている
             expect(h2Node?.tasks.length).toBe(2);
         });
+    });
+});
+
+describe('Task Sorting and Nesting', () => {
+    it('ソート時、子タスクが親タスクに追従して正しくフラット化されること', () => {
+        const mockTasks: Task[] = [
+            { text: 'B 親タスク', indentLevel: 0, fileCreated: 1, headings: [], filePath: '', lineNumber: 1, originalText: '' },
+            { text: 'Bの子タスク', indentLevel: 4, fileCreated: 1, headings: [], filePath: '', lineNumber: 2, originalText: '' },
+            { text: 'A 親タスク', indentLevel: 0, fileCreated: 2, headings: [], filePath: '', lineNumber: 3, originalText: '' },
+        ];
+
+        const mockTreeNodes = [{ id: 'group1', tasks: mockTasks, children: [] }];
+
+        // 文言順（text）でソート（A -> B の順になるはず）
+        const result = sortTaskTreeNodes(mockTreeNodes, 'text');
+        const sortedTasks = result[0].tasks;
+
+        expect(sortedTasks[0].text).toBe('A 親タスク');
+        expect(sortedTasks[1].text).toBe('B 親タスク');
+        expect(sortedTasks[2].text).toBe('Bの子タスク'); // Bの子がBのすぐ後ろに追従している
     });
 });

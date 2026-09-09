@@ -3,7 +3,7 @@
     import { onMount } from 'svelte';
     import { RefreshCw, CheckCircle2, EyeOff, Library, FileText, Heading1 } from 'lucide-svelte';
     import { invoke } from '@tauri-apps/api/core';
-    import { fetchWorkspaceTasks, completeTaskStatus, buildTaskTree, type Task, type GroupByOption } from '../../lib/task/taskService';
+    import { fetchWorkspaceTasks, completeTaskStatus, buildTaskTree, sortTaskTreeNodes, type Task, type GroupByOption, type SortOption } from '../../lib/task/taskService';
     import TaskGroupNode from './TaskGroupNode.svelte';
     import { workspacesStore, openTabs, switchTab, openFileInNewTab } from '../../lib/stores';
     import { getWorkspaceNodes } from '../../lib/workspace/treeUtils';
@@ -18,6 +18,7 @@
     let updatingTasks = new Set<string>(); // 処理中のタスクを特定する用（filePath + lineNumber）
     let groupBy: GroupByOption = 'heading'; // デフォルトは見出しごと
     let ignoreH1 = true; // デフォルトはH1無視
+    let sortOption: SortOption = 'none'; //  ソートオプション
 
     // 💥 workspacesStoreから現在のツリーを生成し、リアクティブに監視する
     $: targetNodes = ($workspacesStore && $workspacesStore.length > workspaceIndex) 
@@ -33,7 +34,8 @@
     };
 
     // 💥 抽出した純粋関数を使ってタスクツリーを構築する
-    $: taskTreeNodes = buildTaskTree(tasks, groupBy, ignoreH1);
+    // 既存の関数をラップし、ソート・ネスト解決を適用する
+    $: taskTreeNodes = sortTaskTreeNodes(buildTaskTree(tasks, groupBy, ignoreH1), sortOption);
 
     // 💥 ツリーが展開されて中身が更新されたら、自動でタスクを再取得する
     $: {
@@ -156,6 +158,14 @@
                     <Heading1 size={16} />
                 </button>
 
+                <!-- ソート切り替え -->
+                <select class="sort-select" bind:value={sortOption} title="ソート順">
+                    <option value="none">標準</option>
+                    <option value="text">文言順</option>
+                    <option value="modified">更新日順</option>
+                    <option value="created">作成日順</option>
+                </select>
+
                 <div class="separator-v"></div>
 
                 <button class="icon-btn" on:click={loadTasks} title="リストを再スキャン" disabled={isLoading}>
@@ -273,6 +283,18 @@
         opacity: 0.5;
         cursor: not-allowed;
     }
+
+    .sort-select {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        border: 1px solid color-mix(in srgb, var(--text-color) 20%, transparent);
+        border-radius: 4px;
+        padding: 2px 4px;
+        font-size: 0.85em;
+        outline: none;
+        cursor: pointer;
+    }
+
     .separator-v {
         width: 1px;
         height: 16px;

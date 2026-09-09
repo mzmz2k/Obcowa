@@ -1,6 +1,6 @@
 // 責務: ワークスペース内のタスク検索と、タスク状態の安全な更新処理
 use serde::{Deserialize, Serialize};
-use std::fs::{self, File};
+use std::fs::{self, File, metadata};
 use std::io::{self, BufRead, Write};
 use std::path::{Path};
 
@@ -13,6 +13,9 @@ pub struct Task {
     pub text: String,
     pub original_text: String,
     pub headings: Vec<String>,
+    pub indent_level: usize,
+    pub file_created: u64,
+    pub file_modified: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -61,6 +64,20 @@ pub async fn get_workspace_tasks(
 
 
 fn extract_tasks_from_file(file_path: &Path, tasks: &mut Vec<Task>) -> io::Result<()> {
+         // ファイルの更新日・作成日を取得（OSによって作成日が取れない場合は更新日でフォールバック）
+    let meta = metadata(file_path)?;
+    let file_modified = meta.modified()
+        .ok() // Result を Option に変換してエラーの型を無くす
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
+    let file_created = meta.created()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(file_modified);
+
     let file = File::open(file_path)?;
     // readerがここで定義されます
     let reader = io::BufReader::new(file);
@@ -75,6 +92,9 @@ fn extract_tasks_from_file(file_path: &Path, tasks: &mut Vec<Task>) -> io::Resul
         };
 
         let trimmed = line.trim_start();
+
+        // 先頭のインデント（空白文字数）を計算
+        let indent_level = line.len() - trimmed.len();
 
         // 見出し行の判定とスタックの更新
         if trimmed.starts_with('#') {
@@ -104,7 +124,10 @@ fn extract_tasks_from_file(file_path: &Path, tasks: &mut Vec<Task>) -> io::Resul
                 line_number: index,
                 text: text_content,
                 original_text: line.clone(),
-                headings: current_headings.clone(), // 修正: ここで headings を確実に付与
+                headings: current_headings.clone(), // ここで headings を確実に付与
+                indent_level,
+                file_created,
+                file_modified,
             });
         }
     }
