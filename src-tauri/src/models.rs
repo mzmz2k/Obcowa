@@ -6,6 +6,8 @@ fn default_font() -> String { "sans-serif".to_string() }
 fn default_sort_by() -> String { "name".to_string() }
 fn default_sort_order() -> String { "asc".to_string() }
 fn default_match_mode() -> String { "contains".to_string() }
+fn default_search_sort_by() -> String { "updated".to_string() }
+fn default_search_sort_order() -> String { "desc".to_string() }
 
 // ピン留め用の構造体
 #[derive(Debug, Serialize, Deserialize, Clone)]
