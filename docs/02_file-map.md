@@ -52,6 +52,8 @@ A03_Obcowa/
 │   │   │   ├── DashboardManager.ts
 │   │   │   └── widgets
 │   │   │       └── SearchWidget.svelte
+│   │   ├── Search
+│   │   │   └── SearchSortControl.svelte
 │   │   ├── Task
 │   │   │   ├── TaskGroupNode.svelte
 │   │   │   ├── TaskItem.svelte
@@ -80,6 +82,8 @@ A03_Obcowa/
 │   │   │   └── taskService.ts
 │   │   ├── utils
 │   │   │   ├── pathUtils.ts
+│   │   │   ├── queryParser.ts
+│   │   │   ├── searchUtils.ts
 │   │   │   ├── tagUtils.test.ts
 │   │   │   └── tagUtils.ts
 │   │   └── workspace
@@ -180,6 +184,8 @@ A03_Obcowa/
   └── import ../../lib/stores
   └── import ../../lib/workspace/treeUtils
   └── import lucide-svelte
+  └── import ../../features/Search/SearchSortControl.svelte
+  └── import ../../lib/utils/searchUtils
 
 📄 `src/components/Editor/TabBar.svelte`
   └── import ../../lib/stores
@@ -198,6 +204,7 @@ A03_Obcowa/
   └── import ../../lib/stores
   └── import ../../lib/editor/imageViewer
   └── import ./previewExtensions
+  └── import ../../lib/utils/queryParser
 
 📄 `src/components/Editor/previewExtensions.test.ts`
   └── import vitest
@@ -292,6 +299,12 @@ A03_Obcowa/
   └── import ../../../lib/stores
   └── import ../../../lib/workspace/treeUtils
   └── import lucide-svelte
+  └── import ../../../lib/utils/searchUtils
+
+📄 `src/features/Search/SearchSortControl.svelte`
+  └── import ../../lib/stores
+  └── import @tauri-apps/api/core
+  └── import lucide-svelte
 
 📄 `src/features/Task/TaskGroupNode.svelte`
   └── import lucide-svelte
@@ -371,6 +384,9 @@ A03_Obcowa/
 📄 `src/lib/task/taskService.ts`
   └── import @tauri-apps/api/core
   └── import ../workspace/treeUtils
+
+📄 `src/lib/utils/queryParser.ts`
+  └── import moo
 
 📄 `src/lib/utils/tagUtils.test.ts`
   └── import vitest
@@ -563,6 +579,11 @@ A03_Obcowa/
 ### src/features/Dashboard/widgets/
 - `src/features/Dashboard/widgets/SearchWidget.svelte` : 渡されたクエリで検索を実行し、結果をコンパクトなリストで表示する
   - `export let query`
+  - `export let sortKey`
+  - `export let sortOrder`
+
+### src/features/Search/
+- `src/features/Search/SearchSortControl.svelte` : 検索ソートのアイコンUIと、状態の永続化保存
 
 ### src/features/Task/
 - `src/features/Task/TaskGroupNode.svelte` : 責務: ワークスペースの未完了タスク一覧において、階層構造（ファイル・見出し）を再帰的に描画し、折りたたみ制御を行う
@@ -659,6 +680,10 @@ A03_Obcowa/
   - `export function isSpecialPath(path: string | undefined | null)`
   - `export function isDashboardPath(path: string | undefined | null)`
   - `export function getWorkspaceIdFromDashboardPath(path: string | undefined | null)`
+- `src/lib/utils/queryParser.ts` : mooを用いてDataview風構文を安全にパースする
+  - `export function parseDataviewQuery(rawQuery: string)`
+- `src/lib/utils/searchUtils.ts` : 検索結果配列を副作用なく並び替える純粋関数
+  - `export function sortSearchResults(results: any[], key: string, order: string)`
 - `src/lib/utils/tagUtils.test.ts` : （説明未記載）
 - `src/lib/utils/tagUtils.ts` : タグの文字列処理など（純粋関数）
   - `export function extractTags(content: string)`

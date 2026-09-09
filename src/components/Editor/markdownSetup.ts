@@ -6,6 +6,7 @@ import { get } from 'svelte/store';
 import { workspacesStore, currentWorkspaceIndex } from '../../lib/stores';
 import { generateImageHtml } from '../../lib/editor/imageViewer';
 import { COPY_ICON_SVG } from './previewExtensions';
+import { parseDataviewQuery } from '../../lib/utils/queryParser'; 
 
 // marked のレンダラー内で現在のタブパスを参照するための一時変数
 let currentTabPath = '';
@@ -220,6 +221,13 @@ export function sanitizeHtml(rawHtml: string): string {
  */
 export function parseMarkdown(content: string, tabPath: string): string {
     initMarked();
+
+    // Dataview風検索ブロックの置換
+    content = content.replace(/```search([\s\S]*?)```/g, (match, queryBody) => {
+    const { query, sortKey, sortOrder } = parseDataviewQuery(queryBody);
+    return `<div class="dashboard-widget" data-widget-type="search" data-query="${query}" data-sort-key="${sortKey}" data-sort-order="${sortOrder}"></div>`;
+    });
+
     // レンダラー(画像拡張等)内で使用するためにパスを一時保存
     currentTabPath = tabPath;
     const rawHtml = marked(removeFrontmatter(content));

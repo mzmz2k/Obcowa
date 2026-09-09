@@ -10,6 +10,8 @@ pub struct SearchResultItem {
     pub path: String,
     pub name: String,
     pub snippet: String,
+    pub created_at: u64,
+    pub updated_at: u64,
 }
 
 // バックエンドでの高速な検索処理
@@ -27,6 +29,11 @@ pub async fn search_files(
     let query_lower = query.to_lowercase();
 
     for path in file_paths {
+        // メタデータから作成日・更新日を安全に取得 (取得不能なら0)
+        let metadata = fs::metadata(&path).ok();
+        let created_at = metadata.as_ref().and_then(|m| m.created().ok()).and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()).unwrap_or(0);
+        let updated_at = metadata.as_ref().and_then(|m| m.modified().ok()).and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()).unwrap_or(0);
+
         let file_name = Path::new(&path)
             .file_name()
             .unwrap_or_default()
@@ -39,6 +46,8 @@ pub async fn search_files(
                     path,
                     name: file_name,
                     snippet: "(ファイル名に一致)".to_string(),
+                    created_at,
+                    updated_at,
                 });
             }
         } else {
@@ -57,6 +66,8 @@ pub async fn search_files(
                             path,
                             name: file_name,
                             snippet,
+                            created_at,
+                            updated_at,
                         });
                         break;
                     }

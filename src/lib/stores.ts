@@ -33,7 +33,19 @@ export const searchState = writable({
 
     searchByFilename: false, // 先ほど追加したファイル名検索フラグ
     results: [] as any[],
-    hasSearched: false
+    hasSearched: false,
+    sortKey: 'updated',
+    sortOrder: 'desc'
+});
+
+currentWorkspace.subscribe(ws => {
+    if (ws) {
+        searchState.update(s => ({
+            ...s,
+            sortKey: ws.search_sort_by || 'updated',
+            sortOrder: ws.search_sort_order || 'desc'
+        }));
+    }
 });
 
 // 左メニュー（ツリー）のフォルダを自動展開するためのリクエスト保持ストア

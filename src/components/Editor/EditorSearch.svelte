@@ -5,6 +5,8 @@
     import { openTabs, currentWorkspaceIndex, workspacesStore, switchTab, openFileInNewTab, searchState } from '../../lib/stores';
     import { getWorkspaceNodes, extractFilePaths } from '../../lib/workspace/treeUtils';
     import { FileText } from 'lucide-svelte';
+    import SearchSortControl from '../../features/Search/SearchSortControl.svelte'; // 追加
+    import { sortSearchResults } from '../../lib/utils/searchUtils'; // 追加
 
     let isSearching = false;
 
@@ -44,6 +46,9 @@
             console.error(e);
         }
     }
+
+    // ▼ 追加: リアクティブにソートされた配列を生成
+    $: sortedResults = sortSearchResults($searchState.results, $searchState.sortKey, $searchState.sortOrder);
 </script>
 
 <div class="p-8 flex flex-col h-full">
@@ -60,7 +65,8 @@
             style="background-color: var(--menu-bg); color: var(--text-color); border-color: color-mix(in srgb, var(--text-color) 20%, transparent);" 
             placeholder="検索キーワードを入力... (Enterで検索)"
         >
-
+    
+        <SearchSortControl />
        
         <!-- 💥 bind:checked を $searchState.searchByFilename に変更 -->
         <label class="flex items-center text-sm cursor-pointer select-none" style="color: var(--text-color);">

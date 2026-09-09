@@ -21,6 +21,7 @@ export function unmountAllWidgets() {
     activeWidgets = [];
 }
 
+
 /**
  * プレビュー画面のDOMを走査し、プレースホルダーにウィジェットを差し込む
  */
@@ -30,15 +31,20 @@ export function mountWidgets(container: HTMLElement) {
     const placeholders = container.querySelectorAll('.dashboard-widget');
 
     placeholders.forEach((el) => {
+        
         const type = el.getAttribute('data-widget-type');
         
         if (type === 'search') {
             const query = el.getAttribute('data-query') || '';
+            // ソート条件を属性から取得（未指定の場合はデフォルト値）
+            const sortKey = el.getAttribute('data-sort-key') || 'updated';
+            const sortOrder = el.getAttribute('data-sort-order') || 'desc';
+
             try {
                 // Svelte 5 の新しいマウントAPIを使用
                 const widget = mount(SearchWidget, {
                     target: el,
-                    props: { query }
+                    props: { query, sortKey, sortOrder }
                 });
                 activeWidgets.push(widget);
             } catch (e) {

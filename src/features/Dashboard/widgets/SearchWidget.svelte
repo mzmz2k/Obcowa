@@ -6,12 +6,16 @@
     import { openTabs, currentWorkspaceIndex, workspacesStore, switchTab, openFileInNewTab } from '../../../lib/stores';
     import { getWorkspaceNodes, extractFilePaths } from '../../../lib/workspace/treeUtils';
     import { FileText, Search, Loader2 } from 'lucide-svelte';
+    import { sortSearchResults } from '../../../lib/utils/searchUtils';
 
     export let query: string = ''; // DashboardManagerから渡される
+    export let sortKey = 'updated';
+    export let sortOrder = 'desc';
 
     let results: any[] = [];
     let isSearching = false;
     let hasSearched = false;
+    
 
     // マウントされたら自動で検索を実行する
     onMount(() => {
@@ -53,6 +57,9 @@
             console.error(e);
         }
     }
+
+    // ▼ 追加: ソート済みの結果を描画用にする
+    $: displayResults = sortSearchResults(results, sortKey, sortOrder);
 </script>
 
 <div class="my-4 border rounded overflow-hidden" style="border-color: color-mix(in srgb, var(--text-color) 20%, transparent); background-color: color-mix(in srgb, var(--bg-color) 50%, transparent);">
@@ -72,7 +79,7 @@
         {:else if hasSearched && results.length === 0}
             <div class="text-center p-4 text-sm opacity-50" style="color: var(--text-color);">見つかりませんでした</div>
         {:else}
-            {#each results as res}
+           {#each displayResults as result}
                  <!-- svelte-ignore a11y-click-events-have-key-events -->
                  <!-- svelte-ignore a11y-no-static-element-interactions -->
                  <div 
