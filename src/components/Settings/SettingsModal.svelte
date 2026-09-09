@@ -53,6 +53,15 @@
     }
   }
 
+  // タスク除外見出しの解除処理
+  function removeExcludeHeading(headingToRemove: string) {
+    if (workspaces[currentIndex] && workspaces[currentIndex].task_exclude_headings) {
+      workspaces[currentIndex].task_exclude_headings = workspaces[currentIndex].task_exclude_headings.filter((h: string) => h !== headingToRemove);
+      workspaces = workspaces; // Svelteに配列の変更を検知させる
+    }
+  }
+
+
 
   // 画像フォルダの選択ダイアログ
   async function selectImageFolder() {
@@ -187,6 +196,23 @@ async function openLauncherWindow() {
             </ul>
           {:else}
             <div class="text-sm opacity-50 p-2 border border-black/20 rounded bg-black/5">除外されているファイルはありません</div>
+          {/if}
+        </div>
+
+        <!-- 💥 タスク除外見出し設定エリア -->
+        <div class="mb-6">
+          <div class="text-sm opacity-80 mb-2">タスク一覧から除外されている見出し (現在のワークスペース)</div>
+          {#if workspaces[currentIndex]?.task_exclude_headings && workspaces[currentIndex].task_exclude_headings.length > 0}
+            <ul class="border border-black/20 rounded bg-black/5 max-h-40 overflow-y-auto p-2 space-y-1">
+              {#each workspaces[currentIndex].task_exclude_headings as heading}
+                <li class="flex justify-between items-center text-sm p-1 hover:bg-black/10 rounded">
+                  <span class="truncate opacity-80" title={heading}>{heading}</span>
+                  <button class="text-red-400 hover:text-red-500 font-bold px-2" on:click={() => removeExcludeHeading(heading)}>×</button>
+                </li>
+              {/each}
+            </ul>
+          {:else}
+            <div class="text-sm opacity-50 p-2 border border-black/20 rounded bg-black/5">除外されている見出しはありません</div>
           {/if}
         </div>
 
