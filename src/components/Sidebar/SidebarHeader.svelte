@@ -3,8 +3,9 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { open as openDialog } from '@tauri-apps/plugin-dialog';
-  import { RotateCw, ArrowUpDown, Search, FolderPlus, FilePlus, ListTodo } from 'lucide-svelte';
-  import { openSearchTab, openTaskTab } from '../../lib/stores';
+  import { RotateCw, ArrowUpDown, Search, FolderPlus, FilePlus, ListTodo, LayoutDashboard } from 'lucide-svelte';
+  import { openSearchTab, openTaskTab, openDashboardTab } from '../../lib/stores';
+
 
   const dispatch = createEventDispatcher();
 
@@ -61,9 +62,23 @@
 <svelte:window on:click={closeMenus} />
 
 <div class="p-3 border-b border-black/10 font-bold flex justify-between items-center shrink-0">
-  <!-- リスト名 -->
-  <span class="truncate pr-2">{workspaces[currentIndex]?.name || 'リスト'}</span>
-  
+
+    <!-- 左寄せメニュー -->
+  <div class="relative flex items-center shrink-0">
+    <button on:click|stopPropagation={() => isAddFolderMenuOpen = !isAddFolderMenuOpen} class="flex items-center justify-center w-6 h-6 hover:opacity-70 rounded transition" title="追加メニュー">
+      <FolderPlus size={14} />
+    </button>
+    
+    {#if isAddFolderMenuOpen}
+      <div class="absolute top-8 left-0 border border-black/20 rounded shadow-xl z-50 py-1 w-40 text-sm font-normal" style="background-color: var(--menu-bg); color: var(--text-color);">
+        <button class="flex items-center w-full text-left px-4 py-2 hover:opacity-70 transition" on:click={openSmartFolderModal}><Search size={14} class="mr-2" /> フォルダを追加</button>
+        <button class="flex items-center w-full text-left px-4 py-2 hover:opacity-70 transition" on:click={addFile}><FilePlus size={14} class="mr-2" /> ファイルを追加</button>
+      </div>
+    {/if}
+  </div>
+   
+  <!-- 右寄せボタングループ -->
+
   <div class="flex gap-2 shrink-0 relative">
     
     <!-- 更新ボタン（親に処理を依頼） -->
@@ -104,22 +119,22 @@
       <Search size={14} />
     </button>
     
-    <!-- 追加メニュー -->
-    <button on:click|stopPropagation={() => isAddFolderMenuOpen = !isAddFolderMenuOpen} class="flex items-center justify-center w-6 h-6 hover:opacity-70 rounded transition" >
-      <FolderPlus size={14} />
-    </button>
-    
-    {#if isAddFolderMenuOpen}
-      <div class="absolute top-8 right-0 border border-black/20 rounded shadow-xl z-50 py-1 w-40 text-sm font-normal" style="background-color: var(--menu-bg); color: var(--text-color);">
-        <button class="flex items-center w-full text-left px-4 py-2 hover:opacity-70 transition" on:click={openSmartFolderModal}><Search size={14} class="mr-2" /> フォルダを追加</button>
-        <button class="flex items-center w-full text-left px-4 py-2 hover:opacity-70 transition" on:click={addFile}><FilePlus size={14} class="mr-2" /> ファイルを追加</button>
-      </div>
-    {/if}
 
      <!-- タスク一覧ボタン（ストアの関数を直接呼ぶ） -->
      <button on:click={openTaskTab} class="flex items-center justify-center w-6 h-6 hover:opacity-70 rounded transition" title="タスク一覧">
        <ListTodo size={14} />
      </button>
+
+     
+    <!-- ダッシュボードボタン -->
+    {#if workspaces.length > 0 && workspaces[currentIndex]}
+      <button 
+        on:click={() => openDashboardTab(workspaces[currentIndex].id, workspaces[currentIndex].name)} 
+        class="flex items-center justify-center w-6 h-6 hover:opacity-70 rounded transition" 
+        title="ダッシュボード">
+        <LayoutDashboard size={14} />
+      </button>
+    {/if}
 
   </div>
 </div>

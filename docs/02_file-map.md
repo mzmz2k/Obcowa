@@ -274,7 +274,6 @@ A03_Obcowa/
 📄 `src/components/Sidebar/SidebarTree.svelte`
   └── import ../TreeNode.svelte
   └── import lucide-svelte
-  └── import ../../lib/stores
 
 📄 `src/components/TreeNode.svelte`
   └── import @tauri-apps/api/core

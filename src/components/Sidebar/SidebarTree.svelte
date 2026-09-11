@@ -2,8 +2,8 @@
 
 <script lang="ts">
   import TreeNode from '../TreeNode.svelte';
-  import { Pin, X, LayoutDashboard } from 'lucide-svelte';
-  import { openDashboardTab } from '../../lib/stores'; 
+  import { Pin, X } from 'lucide-svelte';
+
 
   // 親から受け取るデータと関数
   export let workspaces: any[];
@@ -57,24 +57,13 @@
 
 <div class="flex-1 p-2 overflow-auto">
 
-  <!-- ---  ダッシュボードボタン --- -->
-  {#if workspaces.length > 0 && workspaces[currentIndex]}
-    <div class="mb-2">
-      <button 
-        on:click={() => openDashboardTab(workspaces[currentIndex].id, workspaces[currentIndex].name)}
-        class="w-full flex items-center p-1.5 rounded hover:bg-[var(--active-highlight-bg)] text-[var(--text-color)] group transition-colors"
-      >
-        <LayoutDashboard size={16} class="mr-2 text-[var(--accent-color)]" />
-        <span class="text-sm font-medium">ダッシュボード</span>
-      </button>
-    </div>
-    <hr class="border-gray-700 border-dashed mb-2 opacity-30">
-  {/if}
-
   <!-- ピン留めエリア -->
   {#if workspaces[currentIndex]?.pinned && workspaces[currentIndex].pinned.length > 0}
-    <div class="mb-2">
-      <div class="flex items-center text-xs font-bold opacity-60 mb-1 pl-1"><Pin size={12} class="mr-1" /> ピン留め</div>
+    <div class="mb-2 flex items-start gap-1">
+      <div class="pt-1.5 pl-1 shrink-0 opacity-60" title="ピン留め">
+        <Pin size={12} />
+      </div>
+      <div class="flex-1 min-w-0">
       {#each workspaces[currentIndex].pinned as pin}
         <div class="flex items-center justify-between group">
           <div class="flex-1 overflow-hidden">
@@ -86,6 +75,7 @@
           </button>
         </div>
       {/each}
+      </div>
     </div>
     <hr class="border-gray-700 border-dashed mb-2">
   {/if}
