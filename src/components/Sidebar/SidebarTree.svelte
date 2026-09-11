@@ -70,14 +70,14 @@
             <!-- 💥 修正: isReadonlyではなくownerIdを渡すように修正 -->
             <TreeNode node={getPinnedNode(pin)} ownerId={workspaces[currentIndex].id} />
           </div>
-          <button on:click={() => unpin(pin.path)} class="flex items-center justify-center brightness-60 hover:text-red-400 opacity-0 group-hover:opacity-100 p-1">
+          <button on:click={() => unpin(pin.path)} class="flex items-center justify-center brightness-60 hover:text-[color-mix(in srgb, var(--accent-color) 80%, var(--text-color))] opacity-0 group-hover:opacity-100 p-1" title="ピン留め解除">
             <X size={12} />
           </button>
         </div>
       {/each}
       </div>
     </div>
-    <hr class="border-gray-700 border-dashed mb-2">
+    <hr class="border-dashed mb-2" style="border-color: color-mix(in srgb, var(--text-color) 20%, transparent);">
   {/if}
 
   <!-- ツリー本体（ワークスペース） -->
