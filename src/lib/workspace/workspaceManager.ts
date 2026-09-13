@@ -50,4 +50,80 @@ export function requestSaveWorkspaces(forceOverwrite = false): Promise<void> {
 
     return saveQueue;
 }
-// --- END OF src/lib/workspace/workspaceManager.ts ---
+
+
+
+ // --- ワークスペース・ツリー操作のビジネスロジック ---
+
+ export function getNodePath(node: any): string {
+   return node.type === 'Folder' ? node.original_path : node.path;
+ }
+
+ export async function removeNodeFromWorkspace(targetNode: any, ownerId: string): Promise<void> {
+   workspacesStore.update(wsList => {
+     const wsIndex = wsList.findIndex(w => w.id === ownerId);
+     if (wsIndex === -1) return wsList;
+
+     function filterOutNode(nodes: any[]): any[] {
+       return nodes.filter(n => n !== targetNode).map(n => {
+         if (n.children) n.children = filterOutNode(n.children);
+         return n;
+       });
+     }
+     wsList[wsIndex].nodes = filterOutNode(wsList[wsIndex].nodes);
+     return wsList;
+   });
+   await requestSaveWorkspaces(true);
+ }
+
+ export function pinNodeToWorkspace(targetNode: any): void {
+   const path = getNodePath(targetNode);
+   workspacesStore.update(wsList => {
+     const ws = wsList[get(currentWorkspaceIndex)];
+     if (!ws) return wsList;
+     if (!ws.pinned) ws.pinned = [];
+     if (!ws.pinned.find((p: any) => p.path === path)) {
+       ws.pinned.push({ item_type: targetNode.type, name: targetNode.name, path });
+     }
+     return wsList;
+   });
+   requestSaveWorkspaces(true);
+ }
+
+ export function unpinNodeFromWorkspace(path: string): void {
+   workspacesStore.update(wsList => {
+     const ws = wsList[get(currentWorkspaceIndex)];
+     if (ws && ws.pinned) {
+       ws.pinned = ws.pinned.filter((p: any) => p.path !== path);
+     }
+     return wsList;
+   });
+   requestSaveWorkspaces(true);
+ }
+
+ export function isNodePinned(targetNode: any): boolean {
+   const ws = get(workspacesStore)[get(currentWorkspaceIndex)];
+   if (!ws || !ws.pinned) return false;
+   return ws.pinned.some((p: any) => p.path === getNodePath(targetNode));
+ }
+
+ export function getWorkspaceClickBehavior(): boolean {
+   return get(workspacesStore)[get(currentWorkspaceIndex)]?.open_in_new_tab || false;
+ }
+
+ export function getWorkspaceGlobalSort(): { by: string; order: string } {
+   const ws = get(workspacesStore)[get(currentWorkspaceIndex)];
+   return {
+     by: ws?.sort_by || 'name',
+     order: ws?.sort_order || 'asc'
+   };
+ }
+
+ export function setWorkspaceNodeSort(node: any, by: string, order: string): void {
+   workspacesStore.update(wsList => {
+     node.sort_by = by;
+     node.sort_order = order;
+     return wsList;
+   });
+   requestSaveWorkspaces(true);
+ }

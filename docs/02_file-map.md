@@ -711,6 +711,14 @@ A03_Obcowa/
   - `export function extractFilePaths(nodes: any[])`
 - `src/lib/workspace/workspaceManager.ts` : 責務: ワークスペースデータの永続化（他ウィンドウとの競合マージと保存の直列化）
   - `export function requestSaveWorkspaces(forceOverwrite = false)`
+  - `export function getNodePath(node: any)`
+  - `export async function removeNodeFromWorkspace(targetNode: any, ownerId: string)`
+  - `export function pinNodeToWorkspace(targetNode: any)`
+  - `export function unpinNodeFromWorkspace(path: string)`
+  - `export function isNodePinned(targetNode: any)`
+  - `export function getWorkspaceClickBehavior()`
+  - `export function getWorkspaceGlobalSort()`
+  - `export function setWorkspaceNodeSort(node: any, by: string, order: string)`
 
 ### src/routes/
 - `src/routes/+layout.svelte` : （説明未記載）

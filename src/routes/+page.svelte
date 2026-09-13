@@ -23,7 +23,7 @@
   import LauncherWindow from '../features/launcher/LauncherWindow.svelte';
   import { refreshTree } from '../lib/workspace/treeUtils';
   import { isSpecialPath, isDashboardPath, getWorkspaceIdFromDashboardPath } from '../lib/utils/pathUtils';
-  import { requestSaveWorkspaces } from '../lib/workspace/workspaceManager';
+   import { requestSaveWorkspaces, removeNodeFromWorkspace, pinNodeToWorkspace, unpinNodeFromWorkspace,   isNodePinned, getWorkspaceClickBehavior, getWorkspaceGlobalSort,  setWorkspaceNodeSort, getNodePath } from '../lib/workspace/workspaceManager';
 
   let isLauncherWindow = false;
 
@@ -57,51 +57,15 @@
       isSettingsOpen = true;
   }
 
-
-  // --- コンテキストアクション ---
-  function getNodePath(node: any) { return node.type === 'Folder' ? node.original_path : node.path; }
-
   setContext('workspaceActions', {
-    removeNode: async (targetNode: any, ownerId: string) => {
 
-     workspacesStore.update(wsList => {
-       const wsIndex = wsList.findIndex(w => w.id === ownerId);
-       if (wsIndex === -1) return wsList;
+    removeNode: removeNodeFromWorkspace,
+    pinNode: pinNodeToWorkspace,
+    unpinNode: (targetNode: any) => unpinNodeFromWorkspace(getNodePath(targetNode)),
+    checkIsPinned: isNodePinned,
+    getClickBehavior: getWorkspaceClickBehavior,
+    saveWorkspace: () => requestSaveWorkspaces(true),
 
-       function filterOutNode(nodes: any[]) {
-         return nodes.filter(n => n !== targetNode).map(n => {
-           if (n.children) n.children = filterOutNode(n.children);
-           return n;
-         });
-       }
-       wsList[wsIndex].nodes = filterOutNode(wsList[wsIndex].nodes);
-       return wsList;
-     });
-      
-      // 💥 Svelteの変数更新が内部に浸透するのを待ってから保存
-      await tick();
-      requestSaveWorkspaces(true);
-    },
-    pinNode: (targetNode: any) => {
-
-     workspacesStore.update(wsList => {
-       const ws = wsList[$currentWorkspaceIndex];
-       if (!ws.pinned) ws.pinned = [];
-       const path = getNodePath(targetNode);
-       if (!ws.pinned.find((p:any) => p.path === path)) {
-         ws.pinned.push({ item_type: targetNode.type, name: targetNode.name, path });
-       }
-       return wsList;
-     });
-     requestSaveWorkspaces(true);
-    },
-    unpinNode: (targetNode: any) => unpin(getNodePath(targetNode)),
-    checkIsPinned: (targetNode: any) => $workspacesStore[$currentWorkspaceIndex]?.pinned?.some((p:any) => p.path === getNodePath(targetNode)),
-   getClickBehavior: () => $workspacesStore[$currentWorkspaceIndex]?.open_in_new_tab || false,
-    saveWorkspace: async () => {
-      await tick();
-      requestSaveWorkspaces(true);
-    },
     // 💥 新規追加: ツリーから編集モードを呼び出す
     editSmartFolder: (node: any) => {
       editingSmartNode = node;
@@ -114,32 +78,10 @@
       isNewFileModalOpen = true;
     },
 
-   // 💥 追加: 個別フォルダのソート設定用アクション
-    getGlobalSort: () => ({
-      by: $workspacesStore[$currentWorkspaceIndex]?.sort_by || 'name',
-     order: $workspacesStore[$currentWorkspaceIndex]?.sort_order || 'asc'
-    }),
-    setNodeSort: (node: any, by: string, order: string) => {
-      workspacesStore.update(wsList => {
-       node.sort_by = by;
-       node.sort_order = order;
-       return wsList;
-     });
-      requestSaveWorkspaces(true);
-    },
-
-
+   // 個別フォルダのソート設定用アクション
+    getGlobalSort: getWorkspaceGlobalSort,
+    setNodeSort: setWorkspaceNodeSort
   });
-
-  function unpin(path: string) {
-    workspacesStore.update(wsList => {
-     if (wsList[$currentWorkspaceIndex]) {
-       wsList[$currentWorkspaceIndex].pinned = wsList[$currentWorkspaceIndex].pinned.filter((p:any) => p.path !== path);
-     }
-     return wsList;
-   });
-   requestSaveWorkspaces(true);
-  }
 
     async function handleRefresh() {
      const currentWs = $workspacesStore[$currentWorkspaceIndex];
@@ -363,7 +305,7 @@
       }}
     />
     
-    <SidebarTree bind:workspaces={$workspacesStore} currentIndex={$currentWorkspaceIndex} {unpin} />
+    <SidebarTree bind:workspaces={$workspacesStore} currentIndex={$currentWorkspaceIndex} unpin={unpinNodeFromWorkspace} />
 
     <!-- リンク固定エリア -->
      {#if $workspacesStore[$currentWorkspaceIndex]}
