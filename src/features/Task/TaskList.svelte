@@ -9,6 +9,7 @@
     import { getWorkspaceNodes } from '../../lib/workspace/treeUtils';
     import ContextMenu from '../ContextMenu.svelte';
     import type { MenuItem } from '../../lib/workspace/menuUtils';
+    import { requestSaveWorkspaces } from '../../lib/workspace/workspaceManager';
 
     export let workspaceIndex: number;// 呼び出し元から現在のワークスペースパスを受け取る
 
@@ -110,7 +111,7 @@
             return wsList;
         });
 
-        await invoke('save_workspaces', { workspaces: $workspacesStore });
+        await requestSaveWorkspaces();
         loadTasks(); // リストを再取得して画面から消す
     }
 

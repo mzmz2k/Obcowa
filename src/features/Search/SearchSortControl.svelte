@@ -3,6 +3,7 @@
     import { searchState, workspacesStore, currentWorkspaceIndex } from '../../lib/stores';
     import { invoke } from '@tauri-apps/api/core';
     import { Clock, CalendarPlus, Type } from 'lucide-svelte';
+    import { requestSaveWorkspaces } from '../../lib/workspace/workspaceManager';
 
     const options = [
         { key: 'updated', icon: Clock, title: '更新日でソート' },
@@ -22,7 +23,7 @@
             $workspacesStore[$currentWorkspaceIndex].search_sort_by = $searchState.sortKey;
             $workspacesStore[$currentWorkspaceIndex].search_sort_order = $searchState.sortOrder;
             try {
-                await invoke('save_workspaces', { workspaces: $workspacesStore });
+                await requestSaveWorkspaces();
             } catch (e) {
                 console.error("設定保存エラー", e);
             }

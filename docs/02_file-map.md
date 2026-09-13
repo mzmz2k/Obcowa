@@ -89,7 +89,8 @@ A03_Obcowa/
 │   │   └── workspace
 │   │       ├── menuUtils.ts
 │   │       ├── treeUtils.test.ts
-│   │       └── treeUtils.ts
+│   │       ├── treeUtils.ts
+│   │       └── workspaceManager.ts
 │   └── routes
 │       ├── +layout.svelte
 │       ├── +layout.ts
@@ -304,6 +305,7 @@ A03_Obcowa/
   └── import ../../lib/stores
   └── import @tauri-apps/api/core
   └── import lucide-svelte
+  └── import ../../lib/workspace/workspaceManager
 
 📄 `src/features/Task/TaskGroupNode.svelte`
   └── import lucide-svelte
@@ -325,6 +327,7 @@ A03_Obcowa/
   └── import ../../lib/workspace/treeUtils
   └── import ../ContextMenu.svelte
   └── import ../../lib/workspace/menuUtils
+  └── import ../../lib/workspace/workspaceManager
 
 📄 `src/features/launcher/+page.svelte`
   └── import ../../features/launcher/LauncherWindow.svelte
@@ -401,6 +404,11 @@ A03_Obcowa/
 📄 `src/lib/workspace/treeUtils.ts`
   └── import @tauri-apps/api/core
 
+📄 `src/lib/workspace/workspaceManager.ts`
+  └── import svelte/store
+  └── import @tauri-apps/api/core
+  └── import ../stores
+
 📄 `src/routes/+page.svelte`
   └── import svelte
   └── import @tauri-apps/api/core
@@ -424,6 +432,7 @@ A03_Obcowa/
   └── import ../features/launcher/LauncherWindow.svelte
   └── import ../lib/workspace/treeUtils
   └── import ../lib/utils/pathUtils
+  └── import ../lib/workspace/workspaceManager
 
 📄 `src-tauri/src/dashboard_ops.rs`
   └── use/mod std::fs
@@ -699,6 +708,8 @@ A03_Obcowa/
   - `export function buildFilenameIndex(nodes: any[])`
   - `export function searchFilesByName(nodes: any[], query: string)`
   - `export function extractFilePaths(nodes: any[])`
+- `src/lib/workspace/workspaceManager.ts` : 責務: ワークスペースデータの永続化（他ウィンドウとの競合マージと保存の直列化）
+  - `export function requestSaveWorkspaces(forceOverwrite = false)`
 
 ### src/routes/
 - `src/routes/+layout.svelte` : （説明未記載）

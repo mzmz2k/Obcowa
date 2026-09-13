@@ -23,7 +23,7 @@
   import LauncherWindow from '../features/launcher/LauncherWindow.svelte';
   import { refreshTree } from '../lib/workspace/treeUtils';
   import { isSpecialPath, isDashboardPath, getWorkspaceIdFromDashboardPath } from '../lib/utils/pathUtils';
-
+  import { requestSaveWorkspaces } from '../lib/workspace/workspaceManager';
 
   let isLauncherWindow = false;
 
@@ -84,7 +84,7 @@
       
       // 💥 Svelteの変数更新が内部に浸透するのを待ってから保存
       await tick();
-      saveData(true);
+      requestSaveWorkspaces(true);
     },
     pinNode: (targetNode: any) => {
       const ws = workspaces[currentIndex];
@@ -92,7 +92,7 @@
       const path = getNodePath(targetNode);
       if (!ws.pinned.find((p:any) => p.path === path)) {
         ws.pinned.push({ item_type: targetNode.type, name: targetNode.name, path });
-        workspaces = [...workspaces]; saveData(true);
+        workspaces = [...workspaces]; requestSaveWorkspaces(true);
       }
     },
     unpinNode: (targetNode: any) => unpin(getNodePath(targetNode)),
@@ -100,7 +100,7 @@
     getClickBehavior: () => workspaces[currentIndex]?.open_in_new_tab || false,
     saveWorkspace: async () => {
       await tick();
-      saveData(true);
+      requestSaveWorkspaces(true);
     },
     // 💥 新規追加: ツリーから編集モードを呼び出す
     editSmartFolder: (node: any) => {
@@ -123,8 +123,8 @@
       node.sort_by = by;
       node.sort_order = order;
       workspaces = [...workspaces];
-      // 💥 変更: saveData(true) に変更
-      saveData(true);
+      // 💥 変更: requestSaveWorkspaces(true) に変更
+      requestSaveWorkspaces(true);
     },
 
 
@@ -132,7 +132,7 @@
 
   function unpin(path: string) {
     workspaces[currentIndex].pinned = workspaces[currentIndex].pinned.filter((p:any) => p.path !== path);
-    workspaces = [...workspaces]; saveData(true);
+    workspaces = [...workspaces]; requestSaveWorkspaces(true);
   }
 
     async function handleRefresh() {
@@ -148,7 +148,7 @@ workspaces[currentIndex].nodes = await refreshTree(workspaces[currentIndex].node
       }
     }
     workspaces = [...workspaces]; 
-    await saveData();
+    await requestSaveWorkspaces();
   }
   onMount(async () => {
 
@@ -278,35 +278,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
     if (JSON.stringify(currentWs.saved_tabs) !== JSON.stringify(tabsToSave) || currentWs.active_tab_id !== $activeTabId) {
       currentWs.saved_tabs = tabsToSave;
       currentWs.active_tab_id = $activeTabId;
-      saveData();
-    }
-  }
-
-  // 💥 複数ウィンドウでのファイル書き込み競合を防ぐため、保存直前に最新を読み込んでマージ
-  async function saveData(forceOverwrite = false) {
-    try {
-      // 強制上書きの指示があれば、そのまま全保存する
-      if (forceOverwrite) {
-        await invoke('save_workspaces', { workspaces });
-        return;
-      }
-
-      const latestWorkspaces: any[] = await invoke('load_workspaces');
-      
-      // もしリストの数自体が変わっていた場合（削除や追加された場合）は強制上書きに切り替える
-      if (latestWorkspaces.length !== workspaces.length) {
-        await invoke('save_workspaces', { workspaces });
-        return;
-      }
-
-      if (latestWorkspaces.length > 0 && latestWorkspaces[currentIndex]) {
-        latestWorkspaces[currentIndex] = workspaces[currentIndex];
-        await invoke('save_workspaces', { workspaces: latestWorkspaces });
-      } else {
-        await invoke('save_workspaces', { workspaces });
-      }
-    } catch (e) {
-      await invoke('save_workspaces', { workspaces });
+      requestSaveWorkspaces();
     }
   }
 
@@ -315,7 +287,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   async function deleteLink(id: string) {
     workspaces[currentIndex].links = (workspaces[currentIndex].links || []).filter((l: any) => l.id !== id);
     workspaces = [...workspaces];
-    await saveData();
+    await requestSaveWorkspaces();
   }
 
     // 設定とテーマ
@@ -356,10 +328,10 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
       bind:workspaces
       currentIndex={currentIndex}
       on:refresh={handleRefresh}
-      on:save={() => saveData(true)}
+      on:save={() => requestSaveWorkspaces(true)}
       on:addNode={(e) => {
         workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, e.detail];
-        saveData();
+        requestSaveWorkspaces();
       }}
       on:openSmartFolder={() => {
         editingSmartNode = null;
@@ -403,14 +375,14 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   bind:editingListIndex
   bind:isCreateModalOpen
   bind:isManageModalOpen
-  on:save={(e) => saveData(e.detail?.force || false)}
+  on:save={(e) => requestSaveWorkspaces(e.detail?.force || false)}
 />
 
 {#if isSettingsOpen}
   <SettingsModal 
     bind:workspaces={workspaces}
     currentIndex={currentIndex}
-    on:save={async () => { await saveData(true); isSettingsOpen = false; }}
+    on:save={async () => { await requestSaveWorkspaces(true); isSettingsOpen = false; }}
     on:close={() => isSettingsOpen = false}
   />
 {/if}
@@ -440,7 +412,7 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
       workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, newNode];
     }
     workspaces = [...workspaces];
-    saveData();
+    requestSaveWorkspaces();
   }}
 />
 
