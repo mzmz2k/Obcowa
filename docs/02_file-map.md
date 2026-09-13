@@ -378,6 +378,7 @@ A03_Obcowa/
 📄 `src/lib/stores.ts`
   └── import svelte/store
   └── import @tauri-apps/api/core
+  └── import ./workspace/workspaceManager
 
 📄 `src/lib/task/taskService.test.ts`
   └── import vitest

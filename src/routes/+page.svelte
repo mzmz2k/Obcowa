@@ -298,22 +298,6 @@
     } catch (e) {}
   });
 
-// 💥 タブの状態が変わったら自動でワークスペースに記録（初期化完了後のみ動くように修正）
-$: if (isInitialized && $workspacesStore.length > 0 && $workspacesStore[$currentWorkspaceIndex]) {
-const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title, isEditing: t.isEditing }));
-     const currentWs = $workspacesStore[$currentWorkspaceIndex];
-    
-    // 無限ループを防ぐため、変化があった時のみ保存
-    if (JSON.stringify(currentWs.saved_tabs) !== JSON.stringify(tabsToSave) || currentWs.active_tab_id !== $activeTabId) {
-           // Storeを更新
-     workspacesStore.update(wsList => {
-       wsList[$currentWorkspaceIndex].saved_tabs = tabsToSave;
-       wsList[$currentWorkspaceIndex].active_tab_id = $activeTabId;
-       return wsList;
-     });
-      requestSaveWorkspaces();
-    }
-  }
 
 
 

@@ -2,6 +2,7 @@
 
 import { writable, get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
+import { requestSaveWorkspaces } from './workspace/workspaceManager';
 
 export interface TabData {
     id: string;      // タブごとのユニークなID
@@ -53,6 +54,31 @@ currentWorkspace.subscribe(ws => {
 export const expandTreeRequest = writable<{ path: string; timestamp: number } | null>(null);
 
 
+ /**
+  * 💥 追加: 現在のタブの状態をワークスペースの設定に同期して保存する内部関数
+  */
+ function syncTabsToWorkspace() {
+   const currentWsIndex = get(currentWorkspaceIndex);
+   const wsList = get(workspacesStore);
+   
+   if (wsList.length === 0 || !wsList[currentWsIndex]) return;
+ 
+   const tabsToSave = get(openTabs).map(t => ({ 
+     id: t.id, 
+     path: t.path, 
+     title: t.title, 
+     isEditing: t.isEditing 
+   }));
+ 
+   workspacesStore.update(ws => {
+     ws[currentWsIndex].saved_tabs = tabsToSave;
+     ws[currentWsIndex].active_tab_id = get(activeTabId);
+     return ws;
+   });
+ 
+   requestSaveWorkspaces();
+ }
+
 // 💥 検索用の特殊なタブを作成・表示する関数
 export function openSearchTab() {
     const newId = "search-tab";
@@ -72,6 +98,7 @@ export function openSearchTab() {
         }];
     });
     activeTabId.set(newId);
+    syncTabsToWorkspace();
 }
 
  // 💥 タスク一覧用の特殊なタブを作成・表示する関数
@@ -93,12 +120,14 @@ export function openSearchTab() {
          }];
      });
      activeTabId.set(newId);
+     syncTabsToWorkspace();
  }
 
 // 💥 タブを切り替えるときに、すべてのタブをビューモード（isEditing = false）に戻す
 export function switchTab(tabId: string) {
     openTabs.update(tabs => tabs.map(t => ({ ...t, isEditing: false })));
     activeTabId.set(tabId);
+    syncTabsToWorkspace();
 }
 
 // 左クリック：今のタブを上書き
@@ -118,6 +147,7 @@ export function openFileInCurrentTab(filePath: string, title: string, initialCon
     } else {
         openFileInNewTab(filePath, title, initialContent);
     }
+    syncTabsToWorkspace();
 }
 
 // 右クリック：新しいタブ（同じファイルでも気にせず新規作成）
@@ -136,6 +166,7 @@ export function openFileInNewTab(filePath: string, title: string, initialContent
         }];
     });
     activeTabId.set(newId);
+    syncTabsToWorkspace();
 }
 
 export function createNewTab() {
@@ -153,6 +184,7 @@ export function createNewTab() {
         }];
     });
     activeTabId.set(newId);
+    syncTabsToWorkspace();
 }
 
 export function closeTab(idToClose: string) {
@@ -166,6 +198,7 @@ export function closeTab(idToClose: string) {
         });
         return filtered;
     });
+    syncTabsToWorkspace();
 }
 
 //  ランチャー（ワークスペース一覧）を起動時に開くかどうかの設定
@@ -200,6 +233,7 @@ export async function openDashboardTab(workspaceId: string, workspaceName: strin
         // as any で型の警告を一時的に回避（既存の型定義に影響を与えないため）
         openTabs.update(t => [...t, newTab as any]);
         activeTabId.set(newTab.id);
+        syncTabsToWorkspace();
     } catch (error) {
         console.error("Failed to load dashboard:", error);
         // エラーハンドリングが必要ならここに追記
