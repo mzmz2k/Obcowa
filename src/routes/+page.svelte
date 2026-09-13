@@ -33,19 +33,12 @@
   function stopResize() { isResizing = false; }
   function doResize(e: MouseEvent) { if (isResizing) sidebarWidth = Math.max(150, Math.min(e.clientX, 800)); }
 
-  let workspaces: any[] = [];
-  let currentIndex = 0;
-  $: $workspacesStore = workspaces;
-  $: $currentWorkspaceIndex = currentIndex;
-
   let isInitialized = false; 
 
-  $: if (isInitialized && workspaces[currentIndex]) {
-    getCurrentWindow().setTitle(workspaces[currentIndex].name).catch(() => {});
-    
-    // 💥 追加: ワークスペースを切り替えたら、そのワークスペースのフォント設定を読み込む
-    $editorFont = workspaces[currentIndex].editor_font || 'sans-serif';
-  }
+ $: if (isInitialized && $workspacesStore[$currentWorkspaceIndex]) {
+   getCurrentWindow().setTitle($workspacesStore[$currentWorkspaceIndex].name).catch(() => {});
+   $editorFont = $workspacesStore[$currentWorkspaceIndex].editor_font || 'sans-serif';
+ }
 
   // --- メニューとモーダルの状態 ---
   let isCreateModalOpen = false, isManageModalOpen = false;
@@ -70,34 +63,41 @@
 
   setContext('workspaceActions', {
     removeNode: async (targetNode: any, ownerId: string) => {
-      const wsIndex = workspaces.findIndex(w => w.id === ownerId);
-      if (wsIndex === -1) return;
 
-      function filterOutNode(nodes: any[]) {
-        return nodes.filter(n => n !== targetNode).map(n => {
-          if (n.children) n.children = filterOutNode(n.children);
-          return n;
-        });
-      }
-      workspaces[wsIndex].nodes = filterOutNode(workspaces[wsIndex].nodes);
-      workspaces = [...workspaces]; 
+     workspacesStore.update(wsList => {
+       const wsIndex = wsList.findIndex(w => w.id === ownerId);
+       if (wsIndex === -1) return wsList;
+
+       function filterOutNode(nodes: any[]) {
+         return nodes.filter(n => n !== targetNode).map(n => {
+           if (n.children) n.children = filterOutNode(n.children);
+           return n;
+         });
+       }
+       wsList[wsIndex].nodes = filterOutNode(wsList[wsIndex].nodes);
+       return wsList;
+     });
       
       // 💥 Svelteの変数更新が内部に浸透するのを待ってから保存
       await tick();
       requestSaveWorkspaces(true);
     },
     pinNode: (targetNode: any) => {
-      const ws = workspaces[currentIndex];
-      if (!ws.pinned) ws.pinned = [];
-      const path = getNodePath(targetNode);
-      if (!ws.pinned.find((p:any) => p.path === path)) {
-        ws.pinned.push({ item_type: targetNode.type, name: targetNode.name, path });
-        workspaces = [...workspaces]; requestSaveWorkspaces(true);
-      }
+
+     workspacesStore.update(wsList => {
+       const ws = wsList[$currentWorkspaceIndex];
+       if (!ws.pinned) ws.pinned = [];
+       const path = getNodePath(targetNode);
+       if (!ws.pinned.find((p:any) => p.path === path)) {
+         ws.pinned.push({ item_type: targetNode.type, name: targetNode.name, path });
+       }
+       return wsList;
+     });
+     requestSaveWorkspaces(true);
     },
     unpinNode: (targetNode: any) => unpin(getNodePath(targetNode)),
-    checkIsPinned: (targetNode: any) => workspaces[currentIndex]?.pinned?.some((p:any) => p.path === getNodePath(targetNode)),
-    getClickBehavior: () => workspaces[currentIndex]?.open_in_new_tab || false,
+    checkIsPinned: (targetNode: any) => $workspacesStore[$currentWorkspaceIndex]?.pinned?.some((p:any) => p.path === getNodePath(targetNode)),
+   getClickBehavior: () => $workspacesStore[$currentWorkspaceIndex]?.open_in_new_tab || false,
     saveWorkspace: async () => {
       await tick();
       requestSaveWorkspaces(true);
@@ -116,14 +116,15 @@
 
    // 💥 追加: 個別フォルダのソート設定用アクション
     getGlobalSort: () => ({
-      by: workspaces[currentIndex]?.sort_by || 'name',
-      order: workspaces[currentIndex]?.sort_order || 'asc'
+      by: $workspacesStore[$currentWorkspaceIndex]?.sort_by || 'name',
+     order: $workspacesStore[$currentWorkspaceIndex]?.sort_order || 'asc'
     }),
     setNodeSort: (node: any, by: string, order: string) => {
-      node.sort_by = by;
-      node.sort_order = order;
-      workspaces = [...workspaces];
-      // 💥 変更: requestSaveWorkspaces(true) に変更
+      workspacesStore.update(wsList => {
+       node.sort_by = by;
+       node.sort_order = order;
+       return wsList;
+     });
       requestSaveWorkspaces(true);
     },
 
@@ -131,23 +132,45 @@
   });
 
   function unpin(path: string) {
-    workspaces[currentIndex].pinned = workspaces[currentIndex].pinned.filter((p:any) => p.path !== path);
-    workspaces = [...workspaces]; requestSaveWorkspaces(true);
+    workspacesStore.update(wsList => {
+     if (wsList[$currentWorkspaceIndex]) {
+       wsList[$currentWorkspaceIndex].pinned = wsList[$currentWorkspaceIndex].pinned.filter((p:any) => p.path !== path);
+     }
+     return wsList;
+   });
+   requestSaveWorkspaces(true);
   }
 
     async function handleRefresh() {
-    if (!workspaces[currentIndex]) return;
-workspaces[currentIndex].nodes = await refreshTree(workspaces[currentIndex].nodes, workspaces[currentIndex].nodes);
-    const linkedLibs = workspaces[currentIndex].linked_libraries;
+     const currentWs = $workspacesStore[$currentWorkspaceIndex];
+   if (!currentWs) return;
+   
+   // 最新のツリー情報を取得
+   const refreshedMainNodes = await refreshTree(currentWs.nodes, currentWs.nodes);
+   const linkedLibs = currentWs.linked_libraries || [];
+   const libUpdates = [];
+   
     if (linkedLibs && linkedLibs.length > 0) {
       for (const libId of linkedLibs) {
-        const libIndex = workspaces.findIndex(w => w.id === libId);
+        const libIndex = $workspacesStore.findIndex(w => w.id === libId);
         if (libIndex !== -1) {
-           workspaces[libIndex].nodes = await refreshTree(workspaces[libIndex].nodes, workspaces[libIndex].nodes);
+           const refreshedLibNodes = await refreshTree($workspacesStore[libIndex].nodes, $workspacesStore[libIndex].nodes);
+          libUpdates.push({ index: libIndex, nodes: refreshedLibNodes });
         }
       }
     }
-    workspaces = [...workspaces]; 
+    
+   // 取得したデータをStoreに一括反映
+   workspacesStore.update(wsList => {
+     if (wsList[$currentWorkspaceIndex]) {
+       wsList[$currentWorkspaceIndex].nodes = refreshedMainNodes;
+     }
+     for (const update of libUpdates) {
+       wsList[update.index].nodes = update.nodes;
+     }
+     return wsList;
+   });
+
     await requestSaveWorkspaces();
   }
   onMount(async () => {
@@ -191,28 +214,33 @@ workspaces[currentIndex].nodes = await refreshTree(workspaces[currentIndex].node
     initStyles(); 
 
     try {
-      workspaces = await invoke('load_workspaces');
-      if (workspaces.length === 0) {
-        workspaces = [{ 
+       let loadedWorkspaces = await invoke('load_workspaces');
+     if (loadedWorkspaces.length === 0) {
+       loadedWorkspaces = [{ 
           id: Date.now().toString(), name: '作業中', category: 'Active', nodes: [], links: [], 
           pinned: [], linked_libraries: [], is_flat: false, open_in_new_tab: false, 
           saved_tabs: [], active_tab_id: null,
           editor_font: 'sans-serif' 
         }];
       } 
-      
+
+       let startWsIndex = 0;
       // 【一番最初】に開くべきワークスペースを決定する（チラつき防止）
       const params = new URLSearchParams(window.location.search);
       const wsParam = params.get('ws');
       if (wsParam !== null) {
-        currentIndex = parseInt(wsParam, 10);
+        startWsIndex = parseInt(wsParam, 10);
       } else {
-        const firstActive = workspaces.findIndex(w => w.category === 'Active');
-        if(firstActive !== -1) currentIndex = firstActive;
+        const firstActive = loadedWorkspaces.findIndex((w: any) => w.category === 'Active');
+       if(firstActive !== -1) startWsIndex = firstActive;
       }
 
+      // Storeに初期データをセット
+     workspacesStore.set(loadedWorkspaces);
+     currentWorkspaceIndex.set(startWsIndex);
+
 // ツリーの最新化を待たずに、保存されていた状態ですぐにタブを復元する
-      const ws = workspaces[currentIndex];
+      const ws = loadedWorkspaces[startWsIndex];
       if (ws && ws.saved_tabs && ws.saved_tabs.length > 0) {
         const restored = [];
         for (const tab of ws.saved_tabs) {
@@ -260,24 +288,29 @@ workspaces[currentIndex].nodes = await refreshTree(workspaces[currentIndex].node
       await invoke('show_main_window');
 
       (async () => {
-        for (let i = 0; i < workspaces.length; i++) {
-          workspaces[i].nodes = await refreshTree(workspaces[i].nodes, workspaces[i].nodes);
-        }
-        workspaces = [...workspaces];
-      })();
-
+        // 背景でツリーをリフレッシュし、完了後にStoreを更新
+       const updatedList = [...loadedWorkspaces];
+       for (let i = 0; i < updatedList.length; i++) {
+         updatedList[i].nodes = await refreshTree(updatedList[i].nodes, updatedList[i].nodes);
+      }
+    workspacesStore.set(updatedList);
+    })();
     } catch (e) {}
   });
 
 // 💥 タブの状態が変わったら自動でワークスペースに記録（初期化完了後のみ動くように修正）
-$: if (isInitialized && workspaces.length > 0 && workspaces[currentIndex]) {
+$: if (isInitialized && $workspacesStore.length > 0 && $workspacesStore[$currentWorkspaceIndex]) {
 const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title, isEditing: t.isEditing }));
-    const currentWs = workspaces[currentIndex];
+     const currentWs = $workspacesStore[$currentWorkspaceIndex];
     
     // 無限ループを防ぐため、変化があった時のみ保存
     if (JSON.stringify(currentWs.saved_tabs) !== JSON.stringify(tabsToSave) || currentWs.active_tab_id !== $activeTabId) {
-      currentWs.saved_tabs = tabsToSave;
-      currentWs.active_tab_id = $activeTabId;
+           // Storeを更新
+     workspacesStore.update(wsList => {
+       wsList[$currentWorkspaceIndex].saved_tabs = tabsToSave;
+       wsList[$currentWorkspaceIndex].active_tab_id = $activeTabId;
+       return wsList;
+     });
       requestSaveWorkspaces();
     }
   }
@@ -285,8 +318,12 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 
 
   async function deleteLink(id: string) {
-    workspaces[currentIndex].links = (workspaces[currentIndex].links || []).filter((l: any) => l.id !== id);
-    workspaces = [...workspaces];
+       workspacesStore.update(wsList => {
+     if (wsList[$currentWorkspaceIndex]) {
+       wsList[$currentWorkspaceIndex].links = (wsList[$currentWorkspaceIndex].links || []).filter((l: any) => l.id !== id);
+     }
+     return wsList;
+   });
     await requestSaveWorkspaces();
   }
 
@@ -325,12 +362,15 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
   <div class="flex flex-col border-r border-black/10" style="width: {sidebarWidth}px; background-color: var(--bg-color);">
 
     <SidebarHeader
-      bind:workspaces
-      currentIndex={currentIndex}
+      bind:workspaces={$workspacesStore}
+     currentIndex={$currentWorkspaceIndex}
       on:refresh={handleRefresh}
       on:save={() => requestSaveWorkspaces(true)}
       on:addNode={(e) => {
-        workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, e.detail];
+         workspacesStore.update(ws => {
+         ws[$currentWorkspaceIndex].nodes = [...ws[$currentWorkspaceIndex].nodes, e.detail];
+         return ws;
+       });
         requestSaveWorkspaces();
       }}
       on:openSmartFolder={() => {
@@ -339,20 +379,20 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
       }}
     />
     
-    <SidebarTree bind:workspaces {currentIndex} {unpin} />
+    <SidebarTree bind:workspaces={$workspacesStore} currentIndex={$currentWorkspaceIndex} {unpin} />
 
     <!-- リンク固定エリア -->
-    {#if workspaces[currentIndex]}
+     {#if $workspacesStore[$currentWorkspaceIndex]}
       <SidebarLinks 
-        links={workspaces[currentIndex].links || []} 
+        links={$workspacesStore[$currentWorkspaceIndex].links || []} 
         onLinkDelete={deleteLink} 
       />
     {/if}
 
     <!-- UI下部 -->
    <SidebarFooter 
-      {workspaces}
-      {currentIndex}
+      workspaces={$workspacesStore}
+      currentIndex={$currentWorkspaceIndex}
       bind:editingListIndex
       bind:isCreateModalOpen
       bind:isManageModalOpen
@@ -370,8 +410,8 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 <!-- 💥 各種モーダル -->
 
 <WorkspaceManager
-  bind:workspaces
-  bind:currentIndex
+  bind:workspaces={$workspacesStore}
+  bind:currentIndex={$currentWorkspaceIndex}
   bind:editingListIndex
   bind:isCreateModalOpen
   bind:isManageModalOpen
@@ -380,8 +420,8 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 
 {#if isSettingsOpen}
   <SettingsModal 
-    bind:workspaces={workspaces}
-    currentIndex={currentIndex}
+    bind:workspaces={$workspacesStore}
+    currentIndex={$currentWorkspaceIndex}
     on:save={async () => { await requestSaveWorkspaces(true); isSettingsOpen = false; }}
     on:close={() => isSettingsOpen = false}
   />
@@ -400,18 +440,20 @@ const tabsToSave = $openTabs.map(t => ({ id: t.id, path: t.path, title: t.title,
 <SmartFolderModal
   bind:isOpen={isSmartFolderModalOpen}
   editingSmartNode={editingSmartNode}
-  workspaceNodes={workspaces[currentIndex]?.nodes || []}
+  workspaceNodes={$workspacesStore[$currentWorkspaceIndex]?.nodes || []}
   on:save={(e) => {
     const { name, rules, children } = e.detail;
+    workspacesStore.update(wsList => {
     if (editingSmartNode) {
       editingSmartNode.name = name;
       editingSmartNode.smart_rules = rules;
       editingSmartNode.children = children;
     } else {
       const newNode = { type: "Folder", name, original_path: rules.target_dir || "__workspace__", children, smart_rules: rules };
-      workspaces[currentIndex].nodes = [...workspaces[currentIndex].nodes, newNode];
+      wsList[$currentWorkspaceIndex].nodes = [...wsList[$currentWorkspaceIndex].nodes, newNode];
     }
-    workspaces = [...workspaces];
+     return wsList;
+   });
     requestSaveWorkspaces();
   }}
 />
