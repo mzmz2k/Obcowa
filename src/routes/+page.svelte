@@ -330,7 +330,7 @@
    <!-- リサイズバー（Obsidian風: 広い当たり判定 + ホバー時に太くなるアニメーション） -->
    <div class="relative w-2 -mx-1 flex items-center justify-center cursor-col-resize z-10 group" 
         on:mousedown={startResize}>
-     <div class="h-full w-[1px] bg-[color-mix(in_srgb,var(--text-color)_15%,transparent)] transition-all duration-50 group-hover:w-[3px] group-hover:bg-[var(--accent-color)]"></div>
+     <div class="h-full w-[1px] bg-[color-mix(in_srgb,var(--text-color)_5%,transparent)] transition-all duration-20 group-hover:w-[3px] group-hover:bg-[var(--accent-color)]"></div>
    </div>
   <div class="flex-1 overflow-hidden relative">
     {#if isResizing}<div class="absolute inset-0 z-50 cursor-col-resize"></div>{/if}

@@ -48,10 +48,10 @@
         style="top: {contextMenu.y}px; left: {contextMenu.x}px; background-color: var(--menu-bg); color: var(--text-color); border-color: color-mix(in srgb, var(--text-color) 20%, transparent);"
       >
         <button 
-          class="w-full text-left px-3 py-1 hover:bg-[var(--active-highlight-bg)] text-red-400"
+          class="w-full text-left px-3 py-1 hover:bg-[var(--active-highlight-bg)]" style="color: var(--text-color);" 
           on:click={handleDelete}
         >
-          削除
+          リンクを削除
         </button>
       </div>
     {/if}
