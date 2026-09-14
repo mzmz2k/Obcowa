@@ -556,9 +556,11 @@ A03_Obcowa/
 - `src/components/RightSidebar/RightSidebar.svelte` : 責務: 右サイドバーの親枠。将来タブが増えた際の切り替えや閉じる処理を担う
   - `export let activeTab`
   - `export let onClose`
-- `src/components/RightSidebar/outlineUtils.ts` : --- START OF src/components/Editor/RightSidebar/outlineUtils.ts ---
+- `src/components/RightSidebar/outlineUtils.ts` : 責務: Markdownから見出しを抽出する純粋関数
   - `export interface OutlineItem`
   - `export function extractHeadings(markdown: string)`
+  - `export function getVisibleHeadings(headings: OutlineItem[], collapsedIndices: Set<number>)`
+  - `export function hasChildHeading(headings: OutlineItem[], index: number)`
 
 ### src/components/Settings/
 - `src/components/Settings/SettingsModal.svelte` : --- START OF src/components/SettingsModal.svelte ---
