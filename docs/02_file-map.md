@@ -35,6 +35,10 @@ A03_Obcowa/
 │   │   │   ├── NewFileModal.svelte
 │   │   │   ├── SmartFolderModal.svelte
 │   │   │   └── WorkspaceManager.svelte
+│   │   ├── RightSidebar
+│   │   │   ├── OutlinePanel.svelte
+│   │   │   ├── RightSidebar.svelte
+│   │   │   └── outlineUtils.ts
 │   │   ├── Settings
 │   │   │   ├── SettingsModal.svelte
 │   │   │   ├── StyleSettings.svelte
@@ -161,6 +165,8 @@ A03_Obcowa/
   └── import ../../features/Task/TaskList.svelte
   └── import ../../lib/utils/pathUtils
   └── import ../Modals/ConflictDialog.svelte
+  └── import ../RightSidebar/RightSidebar.svelte
+  └── import lucide-svelte
 
 📄 `src/components/Editor/EditorHeader.svelte`
   └── import @tauri-apps/api/core
@@ -234,6 +240,15 @@ A03_Obcowa/
   └── import svelte
   └── import @tauri-apps/plugin-dialog
   └── import ../../lib/stores
+
+📄 `src/components/RightSidebar/OutlinePanel.svelte`
+  └── import svelte
+  └── import lucide-svelte
+  └── import ./outlineUtils
+
+📄 `src/components/RightSidebar/RightSidebar.svelte`
+  └── import lucide-svelte
+  └── import ./OutlinePanel.svelte
 
 📄 `src/components/Settings/SettingsModal.svelte`
   └── import svelte
@@ -496,6 +511,7 @@ A03_Obcowa/
 - `src/components/Editor/EditorPreview.svelte` : Markdownを綺麗に表示し、ユーザーがクリックしたイベントを外に教える
   - `export let activeTab`
   - `export let scrollContainer`
+  - `export function scrollToHeading(headingIndex: number)`
 - `src/components/Editor/EditorSearch.svelte` : 検索機能と結果表示
 - `src/components/Editor/TabBar.svelte` : --- START OF src/components/Editor/TabBar.svelte ---
   - `export let handleTabClick`
@@ -533,6 +549,16 @@ A03_Obcowa/
   - `export let editingListIndex`
   - `export let isCreateModalOpen`
   - `export let isManageModalOpen`
+
+### src/components/RightSidebar/
+- `src/components/RightSidebar/OutlinePanel.svelte` : 責務: 見出しの抽出、検索フィルタリング、リスト表示とクリック時のジャンプイベント発行
+  - `export let activeTab`
+- `src/components/RightSidebar/RightSidebar.svelte` : 責務: 右サイドバーの親枠。将来タブが増えた際の切り替えや閉じる処理を担う
+  - `export let activeTab`
+  - `export let onClose`
+- `src/components/RightSidebar/outlineUtils.ts` : 責務: Markdownから見出しを抽出する純粋関数
+  - `export interface OutlineItem`
+  - `export function extractHeadings(markdown: string)`
 
 ### src/components/Settings/
 - `src/components/Settings/SettingsModal.svelte` : --- START OF src/components/SettingsModal.svelte ---

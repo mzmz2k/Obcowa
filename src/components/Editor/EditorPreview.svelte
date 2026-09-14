@@ -113,6 +113,15 @@
           try { await openUrl(anchor.href); } catch (e) {}
       }
   }
+  
+    export function scrollToHeading(headingIndex: number) {
+      if (!scrollContainer) return;
+      // h1~h6要素をすべて取得
+      const headings = scrollContainer.querySelectorAll('h1, h2, h3, h4, h5, h6');
+      if (headings && headings[headingIndex]) {
+          headings[headingIndex].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+  }
 </script>
 
 {#if !fileExists}

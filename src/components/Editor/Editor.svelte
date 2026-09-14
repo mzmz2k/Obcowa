@@ -19,6 +19,12 @@
     import { isSpecialPath } from '../../lib/utils/pathUtils';
     import ConflictDialog from '../Modals/ConflictDialog.svelte';
 
+    import RightSidebar from '../RightSidebar/RightSidebar.svelte';
+    import { PanelRightOpen } from 'lucide-svelte';
+
+    let isRightSidebarOpen = false;
+    let previewComponent: any; // EditorPreviewコンポーネントの参照用
+
     $: activeTab = $openTabs.find(t => t.id === $activeTabId);
 
     // --- タブと保存の管理 ---
@@ -211,43 +217,91 @@
         saveCurrentTab();
     }
 
+
+    // アウトライン見出しクリック時のジャンプ処理
+    function handleOutlineJump(event: CustomEvent<{ lineIndex: number, headingIndex: number }>) {
+        const { lineIndex, headingIndex } = event.detail;
+        
+        if (activeTab?.isEditing && editArea) {
+            // テキストエリアの場合は、行番号から文字数を計算してフォーカスを合わせる
+            const text = activeTab.content || '';
+            let pos = 0;
+            const lines = text.split('\n');
+            for (let i = 0; i < lineIndex && i < lines.length; i++) {
+                pos += lines[i].length + 1; // 1は改行文字分
+            }
+            editArea.focus();
+            editArea.setSelectionRange(pos, pos);
+        } else if (!activeTab?.isEditing && previewComponent) {
+            // プレビューの場合はDOM操作で直接スクロールする
+            previewComponent.scrollToHeading(headingIndex);
+        }
+    }
+
 </script>
-
-<div class="h-full flex flex-col transition-colors duration-200" style="background-color: var(--bg-color); color: var(--text-color);">
     
-    <!-- 💥 独立させたタブバーを配置 -->
-    <TabBar {handleTabClick} {handleTabClose} />
+<div class="h-full flex flex-row transition-colors duration-200 w-full overflow-hidden" style="background-color: var(--bg-color); color: var(--text-color);">
+    
+    <!-- エディタメイン領域 (ここを flex-1 flex-col min-w-0 でラップする) -->
+    <div class="flex-1 flex flex-col min-w-0 relative">
+        <TabBar {handleTabClick} {handleTabClose} />
 
-    {#if activeTab}
-        <div class="flex-1 relative flex flex-col overflow-hidden" style="background-color: var(--bg-color);">
-            
-            {#if activeTab.path === '__SEARCH__'}
-                <EditorSearch />
-            {:else if activeTab.path === '__TASK__'}
-               <TaskList workspaceIndex={$currentWorkspaceIndex} />
-            {:else}
+        {#if activeTab}
+            <div class="flex-1 relative flex flex-col overflow-hidden" style="background-color: var(--bg-color);">
                 
-                <EditorHeader {activeTab} {toggleEditMode} />
-
-                {#if activeTab.isEditing}
-                    <textarea bind:this={editArea} class="flex-1 w-full bg-transparent resize-none focus:outline-none p-6 overflow-y-auto" style="font-family: var(--editor-font, {$editorFont}); font-size: var(--editor-font-size, 14px); line-height: var(--editor-line-height, 1.6); color: var(--text-color);" value={activeTab.content} on:input={handleInput}></textarea>
+                {#if activeTab.path === '__SEARCH__'}
+                    <EditorSearch />
+                {:else if activeTab.path === '__TASK__'}
+                <TaskList workspaceIndex={$currentWorkspaceIndex} />
                 {:else}
-                    <!-- 💥 独立させたプレビュー画面を配置（イベント接続を追加） -->
-                    <EditorPreview 
-                        {activeTab} 
-                        bind:scrollContainer={previewScrollContainer} 
-                        on:renderComplete={handlePreviewRendered} 
-                        on:contentChange={handlePreviewContentChange}
-                    />
+                    
+                    <EditorHeader {activeTab} {toggleEditMode} />
+
+                    {#if activeTab.isEditing}
+                        <textarea bind:this={editArea} class="flex-1 w-full bg-transparent resize-none focus:outline-none p-6 overflow-y-auto" style="font-family: var(--editor-font, {$editorFont}); font-size: var(--editor-font-size, 14px); line-height: var(--editor-line-height, 1.6); color: var(--text-color);" value={activeTab.content} on:input={handleInput}></textarea>
+                    {:else}
+                        <!-- 🔽 bind:this={previewComponent} を追加 -->
+                        <EditorPreview 
+                            bind:this={previewComponent}
+                            {activeTab} 
+                            bind:scrollContainer={previewScrollContainer} 
+                            on:renderComplete={handlePreviewRendered} 
+                            on:contentChange={handlePreviewContentChange}
+                        />
+                    {/if}
                 {/if}
+            </div>
+            
+            <!-- 🔽 サイドバー展開ボタン (閉じている時のみ、画面右上に浮かせる) -->
+            {#if !isRightSidebarOpen && activeTab.path !== '__SEARCH__' && activeTab.path !== '__TASK__'}
+                <button 
+                    on:click={() => isRightSidebarOpen = true}
+                    class="absolute top-2 right-2 p-1.5 rounded opacity-50 hover:opacity-100 z-10 transition-all"
+                    style="background-color: var(--menu-bg); border: 1px solid color-mix(in srgb, var(--text-color) 20%, transparent);"
+                    title="右サイドバーを開く"
+                >
+                    <PanelRightOpen size={16} />
+                </button>
             {/if}
-        </div>
-    {:else}
-        <div class="flex-1 flex flex-col items-center justify-center opacity-60" style="background-color: var(--bg-color);">
-            <Inbox size={48} class="mb-4" />
-            <div class="text-sm">ファイルを選択するか、＋ボタンで新規作成してください</div>
-        </div>
+
+        {:else}
+            <!-- 既存の空状態 -->
+            <div class="flex-1 flex flex-col items-center justify-center opacity-60" style="background-color: var(--bg-color);">
+                <Inbox size={48} class="mb-4" />
+                <div class="text-sm">ファイルを選択するか、＋ボタンで新規作成してください</div>
+            </div>
+        {/if}
+    </div>
+
+    <!-- 🔽 右サイドバー領域 (開いている時のみ描画) -->
+    {#if isRightSidebarOpen && activeTab && activeTab.path !== '__SEARCH__' && activeTab.path !== '__TASK__'}
+        <RightSidebar 
+            {activeTab} 
+            onClose={() => isRightSidebarOpen = false}
+            on:jump={handleOutlineJump}
+        />
     {/if}
+
 </div>
 
  <ConflictDialog 
