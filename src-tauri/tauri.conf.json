@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "obcowa",
-  "version": "0.17.0",
-  "identifier": "com.nez.obcowa",
+  "version": "0.18.0",
+  "identifier": "com.mzn.obcowa",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
