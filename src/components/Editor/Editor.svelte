@@ -277,7 +277,7 @@
                 <button 
                     on:click={() => isRightSidebarOpen = true}
                     class="absolute top-2 right-2 p-1.5 rounded opacity-50 hover:opacity-100 z-10 transition-all"
-                    style="background-color: var(--menu-bg); border: 1px solid color-mix(in srgb, var(--text-color) 20%, transparent);"
+                    style="background-color: var(--menu-bg); "
                     title="右サイドバーを開く"
                 >
                     <PanelRightOpen size={16} />

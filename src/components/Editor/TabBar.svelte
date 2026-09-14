@@ -141,10 +141,12 @@
 <svelte:window on:click={closeTabMenu} />
 
 <!-- タブバー本体 -->
-<div class="flex border-b border-black/10 flex-wrap select-none" style="background-color: var(--menu-bg);">
+<!-- 🔽 ボタンと被らないように右側に余白(pr-12)を追加 -->
+<div class="flex border-b border-black/10 flex-wrap select-none pr-12" style="background-color: var(--menu-bg);">
   {#each $openTabs as tab}
+      <!-- 🔽 max-w-[120px] を w-[140px] (固定幅) に変更してサイズを統一 -->
       <div 
-          class="flex items-center px-2 py-1 text-xs max-w-[120px] cursor-pointer border-r border-black/10 border-b transition-colors
+          class="flex items-center px-2 py-1 text-xs w-[140px] cursor-pointer border-r border-black/10 border-b transition-colors
                  { $activeTabId === tab.id ? 'border-t-2' : 'border-t-2 border-t-transparent hover:opacity-70' }"
           style="{ $activeTabId === tab.id ? 'background-color: var(--bg-color); color: var(--text-color); border-top-color: var(--accent-color); border-bottom-color: transparent;' : 'background-color: transparent; color: inherit;' }"
           on:click={() => onTabClick(tab)}
@@ -154,11 +156,13 @@
           {#if tab.path === '__SEARCH__'}
               <Search size={14} class="mr-1.5 opacity-70 shrink-0" />
           {/if}
+          <!-- 文字が長い場合は truncate で末尾が「...」になります -->
           <span class="truncate flex-1" title={tab.title}>{tab.title}</span>
+          
           {#if tab.isDirty}
-              <span class="ml-1 text-[10px]" style="color: var(--accent-color);">●</span>
+              <span class="ml-1 text-[10px] shrink-0" style="color: var(--accent-color);">●</span>
           {/if}
-          <button class="ml-1 w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/10 hover:text-red-400 transition" on:click|stopPropagation={() => handleTabClose(tab.id)}>
+          <button class="ml-1 w-5 h-5 flex items-center justify-center shrink-0 rounded-full hover:bg-black/10 hover:text-red-400 transition" on:click|stopPropagation={() => handleTabClose(tab.id)}>
               <X size={12} />
           </button>
       </div>
