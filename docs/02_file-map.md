@@ -12,6 +12,7 @@ A03_Obcowa/
 ├── .vscode
 │   ├── extensions.json
 │   └── settings.json
+├── LICENSE.md
 ├── README.md
 ├── myicon.png
 ├── package-lock.json
