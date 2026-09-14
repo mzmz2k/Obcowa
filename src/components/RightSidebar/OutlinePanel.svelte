@@ -2,19 +2,30 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { Search } from 'lucide-svelte';
-    import { extractHeadings } from './outlineUtils';
+    import { extractHeadings, type OutlineItem } from './outlineUtils';
 
     export let activeTab: any;
     const dispatch = createEventDispatcher();
 
     let searchQuery = '';
     
-    // Markdownが更新されたら自動で再抽出
-    $: headings = extractHeadings(activeTab?.content || '');
+    // 💡 確実にSvelteに変更を検知させるため、contentを一度ローカルのリアクティブ変数で受ける
+    $: content = activeTab?.content || '';
+    
+    // contentが変わった時のみ抽出を再実行
+    let headings: OutlineItem[] = [];
+    $: {
+        if (content) {
+            headings = extractHeadings(content);
+        } else {
+            headings = [];
+        }
+    }
+
     // 検索窓の入力でフィルタリング
     $: filteredHeadings = headings.filter(h => h.text.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    function handleJump(h: any) {
+    function handleJump(h: OutlineItem) {
         dispatch('jump', { lineIndex: h.lineIndex, headingIndex: h.headingIndex });
     }
 </script>
