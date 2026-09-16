@@ -305,7 +305,7 @@
       }}
     />
     
-    <SidebarTree bind:workspaces={$workspacesStore} currentIndex={$currentWorkspaceIndex} unpin={unpinNodeFromWorkspace} />
+    <SidebarTree />
 
     <!-- リンク固定エリア -->
      {#if $workspacesStore[$currentWorkspaceIndex]}

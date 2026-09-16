@@ -296,6 +296,8 @@ A03_Obcowa/
 📄 `src/components/Sidebar/SidebarTree.svelte`
   └── import ../TreeNode.svelte
   └── import lucide-svelte
+  └── import ../../lib/stores
+  └── import ../../lib/workspace/workspaceManager
 
 📄 `src/components/TreeNode.svelte`
   └── import @tauri-apps/api/core
@@ -591,9 +593,6 @@ A03_Obcowa/
   - `export let links`
   - `export let onLinkDelete`
 - `src/components/Sidebar/SidebarTree.svelte` : サイドバーのツリー表示とピン留め
-  - `export let workspaces`
-  - `export let currentIndex`
-  - `export let unpin`
 
 ### src/components/
 - `src/components/TreeNode.svelte` : （説明未記載）
