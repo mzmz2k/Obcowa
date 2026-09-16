@@ -351,8 +351,6 @@
 
 {#if isSettingsOpen}
   <SettingsModal 
-    bind:workspaces={$workspacesStore}
-    currentIndex={$currentWorkspaceIndex}
     on:save={async () => { await requestSaveWorkspaces(true); isSettingsOpen = false; }}
     on:close={() => isSettingsOpen = false}
   />

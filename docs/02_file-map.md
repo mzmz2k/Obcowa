@@ -567,8 +567,6 @@ A03_Obcowa/
 
 ### src/components/Settings/
 - `src/components/Settings/SettingsModal.svelte` : --- START OF src/components/SettingsModal.svelte ---
-  - `export let workspaces`
-  - `export let currentIndex`
 - `src/components/Settings/StyleSettings.svelte` : --- START OF src/components/StyleSettings.svelte ---
   - `export let tempStyle`
   - `export let tempCustomSlots`

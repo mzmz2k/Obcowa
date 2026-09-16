@@ -5,16 +5,13 @@
   import StyleSettings from './StyleSettings.svelte';
   import { activeStyleSlot, customStyleSlots, defaultStyle, applyStyleToRoot } from '../../features/styleSettings/styleStore';
   import { activeTheme, type Theme } from '../../lib/settings/theme';
-  import { editorFont, registeredTags } from '../../lib/stores';
+  import { editorFont, registeredTags, workspacesStore, currentWorkspaceIndex } from '../../lib/stores';
   import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
   import { showLauncherOnStartup } from '../../lib/stores';
   import { invoke } from '@tauri-apps/api/core';
 
   const dispatch = createEventDispatcher();
-
-  export let workspaces: any[];
-  export let currentIndex: number;
 
   let tempFont = $editorFont || 'sans-serif';
   let activeSettingsTab = 'general';
@@ -47,39 +44,53 @@
 
   // タスク除外ファイルの解除処理
   function removeExcludePath(pathToRemove: string) {
-    if (workspaces[currentIndex] && workspaces[currentIndex].task_exclude_paths) {
-      workspaces[currentIndex].task_exclude_paths = workspaces[currentIndex].task_exclude_paths.filter((p: string) => p !== pathToRemove);
-      workspaces = workspaces; // Svelteに配列の変更を検知させる
-    }
+    workspacesStore.update(ws => {
+      const current = ws[$currentWorkspaceIndex];
+      if (current && current.task_exclude_paths) {
+        current.task_exclude_paths = current.task_exclude_paths.filter((p: string) => p !== pathToRemove);
+      }
+      return ws;
+    });
   }
 
   // タスク除外見出しの解除処理
   function removeExcludeHeading(headingToRemove: string) {
-    if (workspaces[currentIndex] && workspaces[currentIndex].task_exclude_headings) {
-      workspaces[currentIndex].task_exclude_headings = workspaces[currentIndex].task_exclude_headings.filter((h: string) => h !== headingToRemove);
-      workspaces = workspaces; // Svelteに配列の変更を検知させる
-    }
+    workspacesStore.update(ws => {
+      const current = ws[$currentWorkspaceIndex];
+      if (current && current.task_exclude_headings) {
+        current.task_exclude_headings = current.task_exclude_headings.filter((h: string) => h !== headingToRemove);
+      }
+      return ws;
+    });
   }
-
 
 
   // 画像フォルダの選択ダイアログ
   async function selectImageFolder() {
     const selectedPath = await openDialog({ directory: true, multiple: false });
     if (typeof selectedPath === 'string') {
-      if (!workspaces[currentIndex].image_folders) workspaces[currentIndex].image_folders = [];
-      if (!workspaces[currentIndex].image_folders.includes(selectedPath)) {
-        workspaces[currentIndex].image_folders = [...workspaces[currentIndex].image_folders, selectedPath];
-      }
+      workspacesStore.update(ws => {
+        const current = ws[$currentWorkspaceIndex];
+        if (current) {
+          if (!current.image_folders) current.image_folders = [];
+          if (!current.image_folders.includes(selectedPath)) {
+            current.image_folders = [...current.image_folders, selectedPath];
+          }
+        }
+        return ws;
+      });
     }
   }
 
   // 画像フォルダの削除
   function removeImageFolder(folder: string) {
-    if (workspaces[currentIndex] && workspaces[currentIndex].image_folders) {
-      workspaces[currentIndex].image_folders = workspaces[currentIndex].image_folders.filter((f: string) => f !== folder);
-      workspaces = workspaces; // Svelteに配列の変更を検知させる
-    }
+    workspacesStore.update(ws => {
+      const current = ws[$currentWorkspaceIndex];
+      if (current && current.image_folders) {
+        current.image_folders = current.image_folders.filter((f: string) => f !== folder);
+      }
+      return ws;
+    });
   }
 
 
@@ -97,13 +108,12 @@
     localStorage.setItem('customStyleSlots', JSON.stringify(tempCustomSlots));
     applyStyleToRoot(tempStyle);
 
-    if (workspaces[currentIndex]) {
-      workspaces[currentIndex].editor_font = tempStyle.editorFont; // 💥 変更: tempStyleから取得するよう修正
-    }
-
-    if (workspaces[currentIndex]) {
-      workspaces[currentIndex].editor_font = tempStyle.editorFont; // tempStyleから取得するよう修正
-    }
+    workspacesStore.update(ws => {
+      if (ws[$currentWorkspaceIndex]) {
+        ws[$currentWorkspaceIndex].editor_font = tempStyle.editorFont;
+      }
+      return ws;
+    });
 
     // 呼び出し元の +page.svelte に保存処理を依頼して閉じる
     dispatch('save');
@@ -143,7 +153,7 @@ async function openLauncherWindow() {
         <div class="mb-6">
           <div class="text-sm opacity-80 mb-2">添付ファイル（画像）の保存フォルダ (複数指定可)</div>
           <ul class="mb-2 space-y-1">
-            {#each workspaces[currentIndex]?.image_folders || [] as folder}
+            {#each $workspacesStore[$currentWorkspaceIndex]?.image_folders || [] as folder}
               <li class="flex justify-between items-center bg-black/5 border border-black/20 rounded p-2 text-sm opacity-80">
                 <span class="truncate" title={folder}>{folder}</span>
                 <button class="text-red-400 hover:text-red-500 font-bold px-2" on:click={() => removeImageFolder(folder)}>×</button>
@@ -185,9 +195,9 @@ async function openLauncherWindow() {
         <!-- 💥 タスク除外設定エリア -->
         <div class="mb-6">
           <div class="text-sm opacity-80 mb-2">タスク一覧から除外されているファイル (現在のワークスペース)</div>
-          {#if workspaces[currentIndex]?.task_exclude_paths && workspaces[currentIndex].task_exclude_paths.length > 0}
+          {#if $workspacesStore[$currentWorkspaceIndex]?.task_exclude_paths && $workspacesStore[$currentWorkspaceIndex].task_exclude_paths.length > 0}task_exclude_paths.length > 0}
             <ul class="border border-black/20 rounded bg-black/5 max-h-40 overflow-y-auto p-2 space-y-1">
-              {#each workspaces[currentIndex].task_exclude_paths as path}
+               {#each $workspacesStore[$currentWorkspaceIndex].task_exclude_paths as path}
                 <li class="flex justify-between items-center text-sm p-1 hover:bg-black/10 rounded">
                   <span class="truncate opacity-80" title={path}>{path.split(/[/\\]/).pop()}</span>
                   <button class="text-red-400 hover:text-red-500 font-bold px-2" on:click={() => removeExcludePath(path)}>×</button>
@@ -202,9 +212,9 @@ async function openLauncherWindow() {
         <!-- 💥 タスク除外見出し設定エリア -->
         <div class="mb-6">
           <div class="text-sm opacity-80 mb-2">タスク一覧から除外されている見出し (現在のワークスペース)</div>
-          {#if workspaces[currentIndex]?.task_exclude_headings && workspaces[currentIndex].task_exclude_headings.length > 0}
+          {#if $workspacesStore[$currentWorkspaceIndex]?.task_exclude_headings && $workspacesStore[$currentWorkspaceIndex].task_exclude_headings.length > 0}
             <ul class="border border-black/20 rounded bg-black/5 max-h-40 overflow-y-auto p-2 space-y-1">
-              {#each workspaces[currentIndex].task_exclude_headings as heading}
+              {#each $workspacesStore[$currentWorkspaceIndex].task_exclude_headings as heading}
                 <li class="flex justify-between items-center text-sm p-1 hover:bg-black/10 rounded">
                   <span class="truncate opacity-80" title={heading}>{heading}</span>
                   <button class="text-red-400 hover:text-red-500 font-bold px-2" on:click={() => removeExcludeHeading(heading)}>×</button>
