@@ -1,6 +1,7 @@
 // 責務: ワークスペースデータの永続化（他ウィンドウとの競合マージと保存の直列化）
 import { get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
+import { emit, listen } from '@tauri-apps/api/event';
 import { workspacesStore, currentWorkspaceIndex } from '../stores';
 
 // 保存処理を直列化するためのPromiseキュー
@@ -20,29 +21,39 @@ export function requestSaveWorkspaces(forceOverwrite = false): Promise<void> {
 
             if (forceOverwrite) {
                 await invoke('save_workspaces', { workspaces });
+                await emit('workspaces-updated');
                 return;
             }
 
             // 最新の保存データを読み込み（他ウィンドウや別処理での変更を拾う）
             const latestWorkspaces: any[] = await invoke('load_workspaces');
             
-            if (latestWorkspaces.length !== workspaces.length) {
+            const currentWs = workspaces[currentIndex];
+
+            if (!currentWs) {
                 await invoke('save_workspaces', { workspaces });
+                await emit('workspaces-updated');
                 return;
             }
 
-            if (latestWorkspaces.length > 0 && latestWorkspaces[currentIndex]) {
-                // 現在開いているワークスペースの設定だけを最新化してマージ
-                latestWorkspaces[currentIndex] = workspaces[currentIndex];
+            // 💥 IDを基準にして、現在開いているワークスペースのみを安全にマージ
+            const targetIndex = latestWorkspaces.findIndex((w: any) => w.id === currentWs.id);
+            if (targetIndex !== -1) {
+                latestWorkspaces[targetIndex] = currentWs;
                 await invoke('save_workspaces', { workspaces: latestWorkspaces });
             } else {
-                await invoke('save_workspaces', { workspaces });
+               // ディスク側に見当たらない場合は末尾に追加
+                latestWorkspaces.push(currentWs);
+                await invoke('save_workspaces', { workspaces: latestWorkspaces });
             }
+            // 他の全ウィンドウに変更を通知
+            await emit('workspaces-updated');
         } catch (e) {
             console.error('Workspace save failed, falling back to force overwrite:', e);
             // エラー時はフェールセーフとして強制保存（データの完全喪失を防ぐ）
             const workspaces = get(workspacesStore);
             await invoke('save_workspaces', { workspaces });
+            await emit('workspaces-updated').catch(() => {});
         }
     }).catch(e => {
         console.error('Error in save queue:', e);
@@ -51,6 +62,30 @@ export function requestSaveWorkspaces(forceOverwrite = false): Promise<void> {
     return saveQueue;
 }
 
+// --- ウィンドウ間でのリアルタイム同期リスナー ---
+if (typeof window !== 'undefined') {
+    listen('workspaces-updated', async () => {
+        try {
+            const latestWorkspaces: any[] = await invoke('load_workspaces');
+            const currentList = get(workspacesStore);
+            const currentIndex = get(currentWorkspaceIndex);
+            const currentWs = currentList[currentIndex];
+
+            // グローバルStoreを最新データに置き換え
+            workspacesStore.set(latestWorkspaces);
+
+            // 他ウィンドウでの追加/削除でインデックスがズレても、今開いているワークスペースを見失わないよう補正
+            if (currentWs) {
+                const newIndex = latestWorkspaces.findIndex((w: any) => w.id === currentWs.id);
+                if (newIndex !== -1) {
+                    currentWorkspaceIndex.set(newIndex);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to sync workspaces from event:', e);
+        }
+    });
+}
 
 
  // --- ワークスペース・ツリー操作のビジネスロジック ---

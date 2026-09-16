@@ -432,6 +432,7 @@ A03_Obcowa/
 📄 `src/lib/workspace/workspaceManager.ts`
   └── import svelte/store
   └── import @tauri-apps/api/core
+  └── import @tauri-apps/api/event
   └── import ../stores
 
 📄 `src/routes/+page.svelte`
