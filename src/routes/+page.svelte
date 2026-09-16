@@ -23,7 +23,8 @@
   import LauncherWindow from '../features/launcher/LauncherWindow.svelte';
   import { refreshTree } from '../lib/workspace/treeUtils';
   import { isSpecialPath, isDashboardPath, getWorkspaceIdFromDashboardPath } from '../lib/utils/pathUtils';
-   import { requestSaveWorkspaces, removeNodeFromWorkspace, pinNodeToWorkspace, unpinNodeFromWorkspace,   isNodePinned, getWorkspaceClickBehavior, getWorkspaceGlobalSort,  setWorkspaceNodeSort, getNodePath } from '../lib/workspace/workspaceManager';
+  import { requestSaveWorkspaces, removeNodeFromWorkspace, pinNodeToWorkspace, unpinNodeFromWorkspace,   isNodePinned, getWorkspaceClickBehavior, getWorkspaceGlobalSort,  setWorkspaceNodeSort, getNodePath } from '../lib/workspace/workspaceManager';
+  import { initializeWorkspaceSession } from '../lib/workspace/workspaceInit';
 
   let isLauncherWindow = false;
 
@@ -156,88 +157,19 @@
     initStyles(); 
 
     try {
-       let loadedWorkspaces = await invoke('load_workspaces');
-     if (loadedWorkspaces.length === 0) {
-       loadedWorkspaces = [{ 
-          id: Date.now().toString(), name: '作業中', category: 'Active', nodes: [], links: [], 
-          pinned: [], linked_libraries: [], is_flat: false, open_in_new_tab: false, 
-          saved_tabs: [], active_tab_id: null,
-          editor_font: 'sans-serif' 
-        }];
-      } 
 
-       let startWsIndex = 0;
-      // 【一番最初】に開くべきワークスペースを決定する（チラつき防止）
-      const params = new URLSearchParams(window.location.search);
-      const wsParam = params.get('ws');
-      if (wsParam !== null) {
-        startWsIndex = parseInt(wsParam, 10);
-      } else {
-        const firstActive = loadedWorkspaces.findIndex((w: any) => w.category === 'Active');
-       if(firstActive !== -1) startWsIndex = firstActive;
-      }
+     // ワークスペース読み込み、タブ復元、ツリー同期を実行
+      await initializeWorkspaceSession(window.location.search);
 
-      // Storeに初期データをセット
-     workspacesStore.set(loadedWorkspaces);
-     currentWorkspaceIndex.set(startWsIndex);
-
-// ツリーの最新化を待たずに、保存されていた状態ですぐにタブを復元する
-      const ws = loadedWorkspaces[startWsIndex];
-      if (ws && ws.saved_tabs && ws.saved_tabs.length > 0) {
-        const restored = [];
-        for (const tab of ws.saved_tabs) {
-          let content = "";
-          let isDashboard = false;
-          let workspaceId = "";
-          
-          if (tab.path) {
-            // 💥 追加: ダッシュボードタブの復元処理分岐
-            if (isDashboardPath(tab.path)) {
-               isDashboard = true;
-               // "__DASHBOARD__12345" から "12345" (workspaceId) を抽出
-               workspaceId = getWorkspaceIdFromDashboardPath(tab.path) || '';
-               try {
-                 // ダッシュボード専用の読み込みコマンドを呼ぶ
-                 content = await invoke('load_dashboard', { workspaceId });
-               } catch (e) {
-                 console.error("Failed to restore dashboard content", e);
-               }
-            } 
-            // 既存の通常ファイル復元処理
-            else if (!isSpecialPath(tab.path)) {
-              try {
-                content = await invoke('read_file_content', { path: tab.path });
-              } catch(e) {}
-            }
-          }
-          
-          restored.push({ 
-            id: tab.id, path: tab.path, title: tab.title, content, 
-            isEditing: tab.isEditing, isDirty: false, lastModified: 0,
-            // 💥 追加: 復元時にもダッシュボードフラグとIDを持たせる
-            isDashboard,
-            workspaceId
-          });
-        }
-        openTabs.set(restored);
-        activeTabId.set(ws.active_tab_id || restored[0].id);
-      }
-      
       // この時点で画面をユーザーに見せる
       isInitialized = true; 
 
       // 初期化が終わったこのタイミングでメイン画面をパッと表示する
       await invoke('show_main_window');
-
-      (async () => {
-        // 背景でツリーをリフレッシュし、完了後にStoreを更新
-       const updatedList = [...loadedWorkspaces];
-       for (let i = 0; i < updatedList.length; i++) {
-         updatedList[i].nodes = await refreshTree(updatedList[i].nodes, updatedList[i].nodes);
-      }
-    workspacesStore.set(updatedList);
-    })();
-    } catch (e) {}
+      
+    } catch (e) {
+      console.error("Initialization failed:", e);
+    }
   });
 
 

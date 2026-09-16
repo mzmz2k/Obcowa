@@ -98,6 +98,7 @@ A03_Obcowa/
 │   │       ├── menuUtils.ts
 │   │       ├── treeUtils.test.ts
 │   │       ├── treeUtils.ts
+│   │       ├── workspaceInit.ts
 │   │       └── workspaceManager.ts
 │   └── routes
 │       ├── +layout.svelte
@@ -429,6 +430,12 @@ A03_Obcowa/
 📄 `src/lib/workspace/treeUtils.ts`
   └── import @tauri-apps/api/core
 
+📄 `src/lib/workspace/workspaceInit.ts`
+  └── import @tauri-apps/api/core
+  └── import ../stores
+  └── import ../utils/pathUtils
+  └── import ./treeUtils
+
 📄 `src/lib/workspace/workspaceManager.ts`
   └── import svelte/store
   └── import @tauri-apps/api/core
@@ -459,6 +466,7 @@ A03_Obcowa/
   └── import ../lib/workspace/treeUtils
   └── import ../lib/utils/pathUtils
   └── import ../lib/workspace/workspaceManager
+  └── import ../lib/workspace/workspaceInit
 
 📄 `src-tauri/src/dashboard_ops.rs`
   └── use/mod std::fs
@@ -736,6 +744,10 @@ A03_Obcowa/
   - `export function buildFilenameIndex(nodes: any[])`
   - `export function searchFilesByName(nodes: any[], query: string)`
   - `export function extractFilePaths(nodes: any[])`
+- `src/lib/workspace/workspaceInit.ts` : 責務: アプリ起動時におけるワークスペースの読み込み、タブ復元、初期バックグラウンド同期
+  - `export interface SavedTabInfo`
+  - `export async function restoreTabs(savedTabs: SavedTabInfo[])`
+  - `export async function initializeWorkspaceSession(searchQuery: string)`
 - `src/lib/workspace/workspaceManager.ts` : 責務: ワークスペースデータの永続化（他ウィンドウとの競合マージと保存の直列化）
   - `export function requestSaveWorkspaces(forceOverwrite = false)`
   - `export function getNodePath(node: any)`
