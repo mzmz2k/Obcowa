@@ -289,10 +289,7 @@
         style="width: {sidebarWidth}px; background-color: var(--bg-color); border-color: color-mix(in srgb, var(--text-color) 10%, transparent);">
 
     <SidebarHeader
-      bind:workspaces={$workspacesStore}
-     currentIndex={$currentWorkspaceIndex}
       on:refresh={handleRefresh}
-      on:save={() => requestSaveWorkspaces(true)}
       on:addNode={(e) => {
          workspacesStore.update(ws => {
          if (ws[$currentWorkspaceIndex]) {

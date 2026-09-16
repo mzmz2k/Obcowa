@@ -288,6 +288,7 @@ A03_Obcowa/
   └── import @tauri-apps/plugin-dialog
   └── import lucide-svelte
   └── import ../../lib/stores
+  └── import ../../lib/workspace/workspaceManager
 
 📄 `src/components/Sidebar/SidebarLinks.svelte`
   └── import @tauri-apps/plugin-opener
@@ -586,8 +587,6 @@ A03_Obcowa/
   - `export let isManageModalOpen`
   - `export let openSettings`
 - `src/components/Sidebar/SidebarHeader.svelte` : サイドバー上部の新規追加ボタン等
-  - `export let workspaces`
-  - `export let currentIndex`
 - `src/components/Sidebar/SidebarLinks.svelte` : 責務: サイドバー内の外部リンク一覧の表示・コンテキストメニューおよび開く処理の管理
   - `export let links`
   - `export let onLinkDelete`

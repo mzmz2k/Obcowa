@@ -4,14 +4,11 @@
   import { createEventDispatcher } from 'svelte';
   import { open as openDialog } from '@tauri-apps/plugin-dialog';
   import { RotateCw, ArrowUpDown, Search, FolderPlus, FilePlus, ListTodo, LayoutDashboard } from 'lucide-svelte';
-  import { openSearchTab, openTaskTab, openDashboardTab } from '../../lib/stores';
+  import { openSearchTab, openTaskTab, openDashboardTab, workspacesStore, currentWorkspaceIndex } from '../../lib/stores';
+  import { requestSaveWorkspaces } from '../../lib/workspace/workspaceManager';
 
 
   const dispatch = createEventDispatcher();
-
-  // 親から受け取るデータ
-  export let workspaces: any[] = [];
-  export let currentIndex: number;
 
   // メニューの開閉状態（この部品の中だけで完結する）
   let isGlobalSortMenuOpen = false;
@@ -24,13 +21,16 @@
   }
 
   // --- ソート変更処理 ---
-  function changeGlobalSort(type: 'by' | 'order', value: string) {
-    if (workspaces[currentIndex]) {
-      if (type === 'by') workspaces[currentIndex].sort_by = value;
-      else workspaces[currentIndex].sort_order = value;
-      // 親に「データが変わったから保存して」と伝える
-      dispatch('save');
-    }
+  async function changeGlobalSort(type: 'by' | 'order', value: string) {
+    workspacesStore.update(ws => {
+      const current = ws[$currentWorkspaceIndex];
+      if (current) {
+        if (type === 'by') current.sort_by = value;
+        else current.sort_order = value;
+      }
+      return ws;
+    });
+    await requestSaveWorkspaces(true);
   }
 
   // --- フォルダ・ファイル追加処理 ---
@@ -95,20 +95,20 @@
       {#if isGlobalSortMenuOpen}
         <div class="absolute top-8 left-0 border rounded shadow-xl z-50 py-1 w-32 text-sm font-normal" style="background-color: var(--menu-bg); color: var(--text-color); border-color: color-mix(in srgb, var(--text-color) 20%, transparent);">
           <button class="block w-full text-left px-4 py-1.5 hover:opacity-70 transition" on:click={() => changeGlobalSort('order', 'asc')}>
-            <span class="inline-block w-4">{workspaces[currentIndex]?.sort_order !== 'desc' ? '✓' : ''}</span>昇順
+            <span class="inline-block w-4">{$workspacesStore[$currentWorkspaceIndex]?.sort_order !== 'desc' ? '✓' : ''}</span>昇順
           </button>
           <button class="block w-full text-left px-4 py-1.5 hover:opacity-70 transition" on:click={() => changeGlobalSort('order', 'desc')}>
-            <span class="inline-block w-4">{workspaces[currentIndex]?.sort_order === 'desc' ? '✓' : ''}</span>降順
+            <span class="inline-block w-4">{$workspacesStore[$currentWorkspaceIndex]?.sort_order === 'desc' ? '✓' : ''}</span>降順
           </button>
           <hr class="my-1" style="border-color: color-mix(in srgb, var(--text-color) 10%, transparent);">
           <button class="block w-full text-left px-4 py-1.5 hover:opacity-70 transition" on:click={() => changeGlobalSort('by', 'name')}>
-            <span class="inline-block w-4">{workspaces[currentIndex]?.sort_by === 'name' || !workspaces[currentIndex]?.sort_by ? '✓' : ''}</span>名前
+            <span class="inline-block w-4">{$workspacesStore[$currentWorkspaceIndex]?.sort_by === 'name' || !$workspacesStore[$currentWorkspaceIndex]?.sort_by ? '✓' : ''}</span>名前
           </button>
           <button class="block w-full text-left px-4 py-1.5 hover:opacity-70 transition" on:click={() => changeGlobalSort('by', 'created')}>
-            <span class="inline-block w-4">{workspaces[currentIndex]?.sort_by === 'created' ? '✓' : ''}</span>作成日
+            <span class="inline-block w-4">{$workspacesStore[$currentWorkspaceIndex]?.sort_by === 'created' ? '✓' : ''}</span>作成日
           </button>
           <button class="block w-full text-left px-4 py-1.5 hover:opacity-70 transition" on:click={() => changeGlobalSort('by', 'modified')}>
-            <span class="inline-block w-4">{workspaces[currentIndex]?.sort_by === 'modified' ? '✓' : ''}</span>更新日
+            <span class="inline-block w-4">{$workspacesStore[$currentWorkspaceIndex]?.sort_by === 'modified' ? '✓' : ''}</span>更新日
           </button>
         </div>
       {/if}
@@ -127,9 +127,9 @@
 
      
     <!-- ダッシュボードボタン -->
-    {#if workspaces.length > 0 && workspaces[currentIndex]}
+    {#if $workspacesStore.length > 0 && $workspacesStore[$currentWorkspaceIndex]}
       <button 
-        on:click={() => openDashboardTab(workspaces[currentIndex].id, workspaces[currentIndex].name)} 
+        on:click={() => openDashboardTab($workspacesStore[$currentWorkspaceIndex].id, $workspacesStore[$currentWorkspaceIndex].name)} 
         class="flex items-center justify-center w-6 h-6 hover:opacity-70 rounded transition" 
         title="ダッシュボード">
         <LayoutDashboard size={14} />
