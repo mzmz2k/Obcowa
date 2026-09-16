@@ -2,57 +2,62 @@
 <script lang="ts">
   import { createEventDispatcher, tick } from 'svelte';
   import { confirm as tauriConfirm } from '@tauri-apps/plugin-dialog';
-  import { openTabs, activeTabId } from '../../lib/stores';
+  import { openTabs, activeTabId, workspacesStore, currentWorkspaceIndex } from '../../lib/stores';
+  import { requestSaveWorkspaces } from '../../lib/workspace/workspaceManager';
 
-  // 親から渡されるデータと表示フラグ（双方向バインディング）
-  export let workspaces: any[] = [];
-  export let currentIndex: number;
   export let editingListIndex: number;
   
   export let isCreateModalOpen = false;
   export let isManageModalOpen = false;
-
-  const dispatch = createEventDispatcher();
 
   // --- リスト作成・管理関連 ---
   let newListName = '';
 
   async function createNewWorkspace() {
     if (!newListName) return;
-    workspaces = [...workspaces, { 
-      id: Date.now().toString(), name: newListName, category: 'Active', 
-      nodes: [], links: [], pinned: [], linked_libraries: [], is_flat: false,
-      editor_font: 'sans-serif' 
-    }];
+
+        workspacesStore.update(ws => [
+      ...ws, 
+      { 
+        id: Date.now().toString(), name: newListName, category: 'Active', 
+        nodes: [], links: [], pinned: [], linked_libraries: [], is_flat: false,
+        editor_font: 'sans-serif' 
+      }
+    ]);
 
     openTabs.set([]);
     activeTabId.set(null);
 
-    currentIndex = workspaces.length - 1;
+    $currentWorkspaceIndex = $workspacesStore.length - 1;
     isCreateModalOpen = false; 
     newListName = '';
-    dispatch('save', { force: true });
+    await requestSaveWorkspaces(true);
   }
 
 
   async function deleteEditingList() {
     const isYes = await tauriConfirm("本当に削除しますか？", { title: "確認", kind: "warning" });
     if (isYes) {
-      workspaces.splice(editingListIndex, 1);
+      workspacesStore.update(ws => {
+        const newWs = [...ws];
+        newWs.splice(editingListIndex, 1);
+        return newWs;
+      });
 
-            // 削除したあともSvelteに画面更新を促す
-      workspaces = [...workspaces];
-      if (currentIndex >= workspaces.length) currentIndex = Math.max(0, workspaces.length - 1);
+      if ($currentWorkspaceIndex >= $workspacesStore.length) {
+        $currentWorkspaceIndex = Math.max(0, $workspacesStore.length - 1);
+      }
       isManageModalOpen = false;
       
-      // Svelteのバインディングが親コンポーネントに伝播するのを待つ
-      await tick();
-      
-      dispatch('save', { force: true });
+      await requestSaveWorkspaces(true);
     }
   }
 
-  function triggerSave() { dispatch('save', { force: true }); }
+  async function triggerSave() { 
+    // DOM/Storeへの値の反映を確実に待ってから保存する
+    await tick();
+    await requestSaveWorkspaces(true); 
+  }
 
   // --- リンク機能関連 ---
   let isLinkModalOpen = false, editingLinkId: string | null = null, linkTitle = '', linkUrl = '';
@@ -67,19 +72,32 @@
   async function saveLink() {
     if (!linkTitle || !linkUrl) return;
     if (!linkUrl.startsWith('http')) linkUrl = 'https://' + linkUrl;
-    const ws = workspaces[editingListIndex];
-    if (!ws.links) ws.links = [];
-    if (editingLinkId) {
-      const idx = ws.links.findIndex((l:any) => l.id === editingLinkId);
-      if (idx !== -1) ws.links[idx] = { id: editingLinkId, title: linkTitle, url: linkUrl };
-    } else { ws.links.push({ id: Date.now().toString(), title: linkTitle, url: linkUrl }); }
+
+    workspacesStore.update(ws => {
+      const targetWs = ws[editingListIndex];
+      if (!targetWs.links) targetWs.links = [];
+      if (editingLinkId) {
+        const idx = targetWs.links.findIndex((l:any) => l.id === editingLinkId);
+        if (idx !== -1) targetWs.links[idx] = { id: editingLinkId, title: linkTitle, url: linkUrl };
+      } else { 
+        targetWs.links.push({ id: Date.now().toString(), title: linkTitle, url: linkUrl }); 
+      }
+      return ws;
+    });
+
     isLinkModalOpen = false;
-    triggerSave();
+    await requestSaveWorkspaces(true);
   }
 
   async function deleteLink(id: string) {
-    workspaces[editingListIndex].links = workspaces[editingListIndex].links.filter((l:any) => l.id !== id);
-    triggerSave();
+    workspacesStore.update(ws => {
+      const targetWs = ws[editingListIndex];
+      if (targetWs && targetWs.links) {
+        targetWs.links = targetWs.links.filter((l:any) => l.id !== id);
+      }
+      return ws;
+    });
+    await requestSaveWorkspaces(true);
     closeLinkMenu();
   }
 
@@ -108,24 +126,24 @@
       <h2 class="text-lg font-bold mb-4">リスト管理</h2>
       <div class="flex gap-2 mb-4">
         <select class="flex-1 bg-black/10 border border-black/20 rounded p-2 text-sm outline-none" style="background-color: var(--bg-color); color: var(--text-color);" bind:value={editingListIndex}>
-          <optgroup label="ワークスペース">{#each workspaces.map((w, i) => ({...w, i})).filter(w => w.category === 'Active') as ws}<option value={ws.i}>{ws.name}</option>{/each}</optgroup>
+          <optgroup label="ワークスペース">{#each $workspacesStore.map((w, i) => ({...w, i})).filter(w => w.category === 'Active') as ws}<option value={ws.i}>{ws.name}</option>{/each}</optgroup>
           
         </select>
         <button on:click={deleteEditingList} class="px-3 py-2 bg-red-900/50 hover:bg-red-900/80 text-red-100 rounded text-sm transition font-bold">削除</button>
       </div>
 
-      {#if workspaces[editingListIndex]}
+     {#if $workspacesStore[editingListIndex]}
         <div class="bg-black/5 p-4 rounded border border-black/10 mb-6 max-h-[50vh] overflow-y-auto">
-          <input type="text" class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm outline-none mb-4" bind:value={workspaces[editingListIndex].name} on:change={triggerSave} />
+          <input type="text" class="w-full bg-black/10 border border-black/20 rounded p-2 text-sm outline-none mb-4" bind:value={$workspacesStore[editingListIndex].name} on:change={triggerSave} />
           
-          {#if workspaces[editingListIndex].category === 'Active'}
+          {#if $workspacesStore[editingListIndex].category === 'Active'}
             <div class="mb-4 p-3 bg-black/5 rounded border border-black/10">
               <div class="text-xs opacity-70 mb-2">ファイルをクリックした時の動作</div>
               <label class="flex items-center text-sm cursor-pointer mb-2">
-                <input type="radio" bind:group={workspaces[editingListIndex].open_in_new_tab} value={false} on:change={triggerSave} class="mr-2 accent-[var(--accent-color)]">今開いているタブを上書きする
+                <input type="radio" bind:group={$workspacesStore[editingListIndex].open_in_new_tab} value={false} on:change={triggerSave} class="mr-2 accent-[var(--accent-color)]">今開いているタブを上書きする
               </label>
               <label class="flex items-center text-sm cursor-pointer">
-                <input type="radio" bind:group={workspaces[editingListIndex].open_in_new_tab} value={true} on:change={triggerSave} class="mr-2 accent-[var(--accent-color)]">新しいタブで開く
+                <input type="radio" bind:group={$workspacesStore[editingListIndex].open_in_new_tab} value={true} on:change={triggerSave} class="mr-2 accent-[var(--accent-color)]">新しいタブで開く
               </label>
             </div>
           {/if}
@@ -137,7 +155,7 @@
               <button on:click={() => openLinkModal()} class="px-2 py-1 bg-black/20 hover:bg-black/30 rounded text-xs transition">＋ 追加</button>
             </div>
             <div class="space-y-2">
-              {#each workspaces[editingListIndex].links || [] as link}
+              {#each $workspacesStore[editingListIndex].links || [] as link}
                 <div class="flex items-center justify-between text-sm bg-black/10 p-2 rounded">
                   <span class="truncate flex-1 pr-2">{link.title}</span>
                   <div class="flex gap-3 shrink-0">

@@ -295,10 +295,12 @@
       on:save={() => requestSaveWorkspaces(true)}
       on:addNode={(e) => {
          workspacesStore.update(ws => {
-         ws[$currentWorkspaceIndex].nodes = [...ws[$currentWorkspaceIndex].nodes, e.detail];
+         if (ws[$currentWorkspaceIndex]) {
+           ws[$currentWorkspaceIndex].nodes = [...(ws[$currentWorkspaceIndex].nodes || []), e.detail];
+         }
          return ws;
        });
-        requestSaveWorkspaces();
+        requestSaveWorkspaces(true);
       }}
       on:openSmartFolder={() => {
         editingSmartNode = null;
@@ -341,8 +343,6 @@
 <!-- 💥 各種モーダル -->
 
 <WorkspaceManager
-  bind:workspaces={$workspacesStore}
-  bind:currentIndex={$currentWorkspaceIndex}
   bind:editingListIndex
   bind:isCreateModalOpen
   bind:isManageModalOpen

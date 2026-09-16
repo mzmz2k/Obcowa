@@ -244,6 +244,7 @@ A03_Obcowa/
   └── import svelte
   └── import @tauri-apps/plugin-dialog
   └── import ../../lib/stores
+  └── import ../../lib/workspace/workspaceManager
 
 📄 `src/components/RightSidebar/OutlinePanel.svelte`
   └── import svelte
@@ -548,8 +549,6 @@ A03_Obcowa/
   - `export let editingSmartNode`
   - `export let workspaceNodes`
 - `src/components/Modals/WorkspaceManager.svelte` : --- START OF src/components/Modals/WorkspaceManager.svelte ---
-  - `export let workspaces`
-  - `export let currentIndex`
   - `export let editingListIndex`
   - `export let isCreateModalOpen`
   - `export let isManageModalOpen`
