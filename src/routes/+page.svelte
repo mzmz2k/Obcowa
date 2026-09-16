@@ -253,17 +253,7 @@
     await requestSaveWorkspaces();
   }
 
-    // 設定とテーマ
-  let isSettingsOpen = false; 
-  let tempFont = '';
-  let activeSettingsTab = 'general';
-  
-  let tempTheme: Theme = { 
-    id: 'temp', name: 'temp', bgColor: '#1f2937', textColor: '#e5e7eb', 
-    scrollBg: '#111827', scrollThumb: '#4b5563', accentColor: '#3b82f6', 
-    activeHighlightBg: '#1e3a8a', menuBg: '#111827' , selectionBg: '#4b5563'
-  };
-
+let isSettingsOpen = false;
 
   // 💥 移動したCSS変数の適用処理を呼び出す
   $: if (typeof document !== 'undefined' && $activeTheme) {
@@ -341,7 +331,6 @@
   bind:editingListIndex
   bind:isCreateModalOpen
   bind:isManageModalOpen
-  on:save={(e) => requestSaveWorkspaces(e.detail?.force || false)}
 />
 
 {#if isSettingsOpen}
@@ -368,17 +357,20 @@
   on:save={(e) => {
     const { name, rules, children } = e.detail;
     workspacesStore.update(wsList => {
+    const currentWs = wsList[$currentWorkspaceIndex];
+      if (!currentWs) return wsList;
+
     if (editingSmartNode) {
       editingSmartNode.name = name;
       editingSmartNode.smart_rules = rules;
       editingSmartNode.children = children;
     } else {
       const newNode = { type: "Folder", name, original_path: rules.target_dir || "__workspace__", children, smart_rules: rules };
-      wsList[$currentWorkspaceIndex].nodes = [...wsList[$currentWorkspaceIndex].nodes, newNode];
+      currentWs.nodes = [...(currentWs.nodes || []), newNode];
     }
      return wsList;
    });
-    requestSaveWorkspaces();
+    requestSaveWorkspaces(true);
   }}
 />
 
