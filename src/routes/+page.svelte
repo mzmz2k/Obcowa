@@ -317,8 +317,6 @@
 
     <!-- UI下部 -->
    <SidebarFooter 
-      workspaces={$workspacesStore}
-      currentIndex={$currentWorkspaceIndex}
       bind:editingListIndex
       bind:isCreateModalOpen
       bind:isManageModalOpen

@@ -282,6 +282,7 @@ A03_Obcowa/
 📄 `src/components/Sidebar/SidebarFooter.svelte`
   └── import @tauri-apps/api/webviewWindow
   └── import lucide-svelte
+  └── import ../../lib/stores
 
 📄 `src/components/Sidebar/SidebarHeader.svelte`
   └── import svelte
@@ -582,8 +583,6 @@ A03_Obcowa/
 
 ### src/components/Sidebar/
 - `src/components/Sidebar/SidebarFooter.svelte` : サイドバー下部のリスト切り替え・設定ボタン
-  - `export let workspaces`
-  - `export let currentIndex`
   - `export let editingListIndex`
   - `export let isCreateModalOpen`
   - `export let isManageModalOpen`

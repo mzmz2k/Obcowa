@@ -3,10 +3,9 @@
 <script lang="ts">
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { SquarePen, Settings, SlidersHorizontal } from 'lucide-svelte';
+  import { workspacesStore, currentWorkspaceIndex } from '../../lib/stores';
 
   // 親から受け取る変数（モーダル開閉フラグなどは双方向バインディングで親と共有します）
-  export let workspaces: any[];
-  export let currentIndex: number;
   export let editingListIndex: number;
   export let isCreateModalOpen: boolean;
   export let isManageModalOpen: boolean;
@@ -21,14 +20,14 @@
     const selectedIndex = parseInt(target.value, 10);
     
     // 現在のウィンドウは切り替えず、セレクトボックスの表示を元に戻す
-    target.value = currentIndex.toString();
-    if (selectedIndex === currentIndex) return;
+    target.value = $currentWorkspaceIndex.toString();
+    if (selectedIndex === $currentWorkspaceIndex) return;
 
     // 別のワークスペースを「新しいウィンドウ」として開く
     const label = `ws-${Date.now()}`;
     const webview = new WebviewWindow(label, {
       url: `/?ws=${selectedIndex}`,
-      title: workspaces[selectedIndex].name,
+      title: $workspacesStore[selectedIndex]?.name || 'Workspace',
       width: 1000,
       height: 800
     });
@@ -51,11 +50,11 @@
   <select 
     class="w-32 text-xs rounded py-1 px-1 outline-none" 
     style="background-color: var(--bg-color); color: var(--text-color); border: none;" 
-    value={currentIndex} 
+    value={$currentWorkspaceIndex} 
     on:change={changeWorkspace}
   >
 
-    {#each workspaces.map((w, i) => ({...w, originalIndex: i})).filter(w => w.category === 'Active') as ws}
+    {#each $workspacesStore.map((w, i) => ({...w, originalIndex: i})).filter(w => w.category === 'Active') as ws}
       <option value={ws.originalIndex}>{ws.name}</option>
     {/each}
   </select>
@@ -81,7 +80,7 @@
         <SquarePen size={14} class="mr-2" /> リスト作成
       </button>
 
-      <button class="menu-item" on:click={() => { isSettingsMenuOpen = false; editingListIndex = currentIndex; isManageModalOpen = true; }}>
+      <button class="menu-item" on:click={() => { isSettingsMenuOpen = false; editingListIndex = $currentWorkspaceIndex; isManageModalOpen = true; }}>
 
         <SlidersHorizontal size={14} class="mr-2" /> リスト管理
       </button>
