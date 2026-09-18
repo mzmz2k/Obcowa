@@ -32,6 +32,7 @@ A03_Obcowa/
 │   │   │   ├── EditorSearch.svelte
 │   │   │   ├── TabBar.svelte
 │   │   │   ├── markdownSetup.ts
+│   │   │   ├── preview.css
 │   │   │   ├── previewExtensions.test.ts
 │   │   │   └── previewExtensions.ts
 │   │   ├── Modals
@@ -663,7 +664,7 @@ A03_Obcowa/
   - `export interface SaveDependencies`
   - `export interface BaseTabData`
 - `src/lib/editor/imageViewer.test.ts` : --- START OF src/lib/imageViewer.test.ts ---
-- `src/lib/editor/imageViewer.ts` : Obsidianの画像表示記法をHTMLに変換する
+- `src/lib/editor/imageViewer.ts` : プレビュー内の画像プレースホルダーを検出し、ローカル画像の検索・バイナリ読込・Blobキャッシュと表示反映を行う
   - `export async function loadImagesInDom(container: HTMLElement, activeTabPath: string, imageFolders: string[] = [])`
 - `src/lib/editor/scrollSync.test.ts` : scrollSync関数の単体テスト
 - `src/lib/editor/scrollSync.ts` : 編集エリアとプレビューエリア間のスクロール位置比率の計算を行う純粋関数

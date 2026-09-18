@@ -1,0 +1,289 @@
+/* プレビュー表示用スタイル（マークダウンおよび拡張記法） */
+
+.editor-preview * {
+        color: var(--text-color) !important;
+    }
+
+.editor-preview a {
+    color: var(--accent-color) !important;
+    text-decoration-color: color-mix(in srgb, var(--accent-color) 40%, transparent) !important;
+    text-decoration-thickness: 1px !important;
+    text-underline-offset: 2px !important;
+    transition: text-decoration-color 0.2s ease;
+}
+
+.editor-preview a:hover {
+    text-decoration-color: var(--accent-color) !important;
+}
+
+.editor-preview strong {
+    color: var(--text-color) !important;
+    font-weight: 700 !important;
+}
+
+/* プレビュー画面全体の文字サイズ・行間 */
+.editor-preview {
+    font-size: var(--editor-font-size, 14px) !important;
+    line-height: var(--editor-line-height, 1.6) !important;
+}
+
+/* .prose のデフォルト文字サイズを無効化し、上の設定を引き継がせる */
+.editor-preview p,
+.editor-preview ul,
+.editor-preview ol,
+.editor-preview li,
+.editor-preview table,
+.editor-preview blockquote {
+    font-size: inherit !important;
+    line-height: inherit !important;
+}
+
+/* --- 罫線（---） --- */
+.editor-preview hr {
+    border-color: color-mix(in srgb, var(--text-color) 20%, transparent) !important;
+    border-width: 1px !important;
+    margin: 2rem 0 !important;
+}
+
+/* --- 引用ブロック（>） --- */
+.editor-preview blockquote {
+    border-left-color: var(--accent-color) !important;
+    border-left-width: 4px !important;
+    background-color: color-mix(in srgb, var(--text-color) 5%, transparent) !important;
+    padding: 0.5rem 1rem !important;
+    margin: 1.5rem 0 !important;
+    border-radius: 0 0.25rem 0.25rem 0 !important;
+    color: color-mix(in srgb, var(--text-color) 85%, transparent) !important;
+    font-style: italic !important;
+}
+
+.editor-preview blockquote p {
+    margin-top: 0.5em !important;
+    margin-bottom: 0.5em !important;
+}
+
+/* --- コードブロック & インラインコード --- */
+.editor-preview pre {
+    background-color: color-mix(in srgb, var(--text-color) 8%, var(--bg-color)) !important;
+    padding: 1rem !important;
+    border-radius: 0.5rem !important;
+    overflow-x: auto !important;
+}
+
+.editor-preview code {
+    background-color: color-mix(in srgb, var(--text-color) 15%, transparent) !important;
+    padding: 0.2em 0.4em !important;
+    border-radius: 0.25rem !important;
+    font-size: 0.9em !important;
+}
+
+.editor-preview pre code {
+    background-color: transparent !important;
+    padding: 0 !important;
+}
+
+/* コードブロックのコピーボタン */
+.editor-preview .code-block-wrapper {
+    position: relative;
+}
+
+.editor-preview .code-copy-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border-radius: 0.375rem;
+    background-color: color-mix(in srgb, var(--menu-bg) 85%, var(--text-color) 15%);
+    color: var(--text-color);
+    border: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+    user-select: none;
+}
+
+.editor-preview .code-block-wrapper:hover .code-copy-btn {
+    opacity: 0.7;
+}
+
+.editor-preview .code-copy-btn:hover {
+    opacity: 1 !important;
+    background-color: var(--active-highlight-bg);
+    color: var(--accent-color);
+}
+
+/* --- 見出し（h1〜h6） --- */
+.editor-preview h1,
+.editor-preview h2,
+.editor-preview h3,
+.editor-preview h4,
+.editor-preview h5,
+.editor-preview h6 {
+    position: relative;
+    padding-left: 0;
+    user-select: text;
+}
+
+.editor-preview h1 {
+    font-size: var(--h1-size, 2.25em) !important;
+    border-bottom: var(--h1-border, none) !important;
+    font-style: var(--h1-style, normal) !important;
+    font-weight: var(--h1-weight, bold) !important;
+    padding-bottom: 0.3em;
+}
+.editor-preview h2 {
+    font-size: var(--h2-size, 1.875em) !important;
+    border-bottom: var(--h2-border, none) !important;
+    font-style: var(--h2-style, normal) !important;
+    font-weight: var(--h2-weight, bold) !important;
+    padding-bottom: 0.3em;
+}
+.editor-preview h3 {
+    font-size: var(--h3-size, 1.5em) !important;
+    border-bottom: var(--h3-border, none) !important;
+    font-style: var(--h3-style, normal) !important;
+    font-weight: var(--h3-weight, bold) !important;
+}
+.editor-preview h4 {
+    font-size: var(--h4-size, 1.25em) !important;
+    border-bottom: var(--h4-border, none) !important;
+    font-style: var(--h4-style, normal) !important;
+    font-weight: var(--h4-weight, bold) !important;
+}
+.editor-preview h5 {
+    font-size: var(--h5-size, 1.125em) !important;
+    border-bottom: var(--h5-border, none) !important;
+    font-style: var(--h5-style, normal) !important;
+    font-weight: var(--h5-weight, bold) !important;
+}
+.editor-preview h6 {
+    font-size: var(--h6-size, 1.0em) !important;
+    border-bottom: var(--h6-border, none) !important;
+    font-style: var(--h6-style, normal) !important;
+    font-weight: var(--h6-weight, bold) !important;
+}
+
+/* 見出しの折りたたみトグル矢印 */
+.editor-preview .heading-toggle {
+    position: absolute;
+    left: -1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0.75rem;
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.editor-preview .heading-toggle::before {
+    content: '';
+    width: 0.5rem;
+    height: 0.5rem;
+    border-right: 1.5px solid var(--text-color);
+    border-bottom: 1.5px solid var(--text-color);
+    transform: rotate(45deg);
+    opacity: 0;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.editor-preview h1:hover .heading-toggle::before,
+.editor-preview h2:hover .heading-toggle::before,
+.editor-preview h3:hover .heading-toggle::before,
+.editor-preview h4:hover .heading-toggle::before,
+.editor-preview h5:hover .heading-toggle::before,
+.editor-preview h6:hover .heading-toggle::before {
+    opacity: 0.8;
+}
+
+.editor-preview .is-collapsed .heading-toggle::before {
+    opacity: 0.5;
+    transform: rotate(-45deg);
+}
+
+.editor-preview .is-collapsed:hover .heading-toggle::before {
+    opacity: 1;
+}
+
+.editor-preview .collapsed-child {
+    display: none !important;
+}
+
+/* --- Obsidianハイライト記法（== ==） --- */
+.editor-preview .obsidian-highlight {
+    background-color: color-mix(in srgb, var(--selection-bg) 90%, var(--text-color)) !important;
+    color: inherit !important;
+    padding: 0.1em 0.3em;
+    border-radius: 0.25rem;
+}
+
+/* --- タスク箇条書き --- */
+.editor-preview ul:has(li.task-list-item),
+.editor-preview ol:has(li.task-list-item) {
+    list-style-type: none !important;
+    padding-left: 1.25rem !important;
+}
+
+.editor-preview li.task-list-item {
+    list-style-type: none !important;
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+    line-height: 1.6;
+}
+
+.editor-preview li.task-list-item > input.task-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1.2rem;
+    height: 1.2rem;
+    border: 1.5px solid color-mix(in srgb, var(--text-color) 40%, transparent);
+    border-radius: 50%;
+    outline: none;
+    cursor: pointer;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+    background-color: transparent;
+    flex-shrink: 0;
+}
+
+/* ホバー時の枠線カラー */
+.editor-preview li.task-list-item > input.task-checkbox:hover {
+    border-color: var(--accent-color);
+}
+
+.editor-preview li.task-list-item > input.task-checkbox:checked {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+/* チェックマーク（V字アイコン）の描画 */
+.editor-preview li.task-list-item > input.task-checkbox:checked::after {
+    content: '';
+    width: 0.35rem;
+    height: 0.6rem;
+    border: solid var(--bg-color);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    margin-bottom: 2px;
+}
+
+.editor-preview li.task-list-item > .task-content {
+    vertical-align: middle;
+}
+
+/* チェック済みタスク 
+.editor-preview li.task-list-item:has(> input:checked) {
+}
+*/
