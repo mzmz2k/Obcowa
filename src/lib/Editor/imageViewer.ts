@@ -1,41 +1,30 @@
-// --- START OF src/lib/editor/imageViewer.ts ---
+// Obsidianの画像表示記法をHTMLに変換する
 import { invoke } from '@tauri-apps/api/core';
 
 // 💥 追加: メモリに保持する画像の最大数（これを超えると古いものから破棄される）
 const MAX_CACHE_SIZE = 50; 
 const imageBlobCache = new Map<string, string>();
 
-/**
- * Obsidian形式の画像リンク文字列から、HTMLのimgタグ（プレースホルダー）を生成します。
- */
-export function generateImageHtml(filenameWithOpts: string, activeTabPath: string, imageFolders: string[] = []): string {
-    if (!activeTabPath) return '';
-
-    const parts = filenameWithOpts.split('|');
-    const rawFilename = parts[0].trim();
-    const filename = rawFilename.split(/[/\\]/).pop() || rawFilename;
-    const sizeAttr = parts.length > 1 ? ` width="${parts[1].trim()}"` : ' class="max-w-full h-auto"';
-
-    const parentDir = activeTabPath.replace(/\\/g, '/').replace(/\/[^\/]+$/, '');
-    const cacheKey = imageFolders.length > 0 ? `${imageFolders.join('|')}/${filename}` : `${parentDir}/${filename}`;
-
-    const dirsAttr = imageFolders.length > 0 ? ` data-primary-dirs="${encodeURIComponent(JSON.stringify(imageFolders))}"` : '';
-
-    return `<img data-img-filename="${filename}"${dirsAttr} data-fallback-dir="${parentDir}" data-cache-key="${cacheKey}" alt="${filename}"${sizeAttr} style="border-radius: 4px; display: inline-block; margin: 0.5rem 0; min-height: 40px; min-width: 40px; background-color: rgba(0,0,0,0.1);" />`;
-}
 
 /**
  * 画面上に存在する目印のついたimgタグを探し、Rust経由で画像を検索・読み込んで表示させます。
+ * @param container 検索対象の親要素
+ * @param activeTabPath 現在のタブのパス
+ * @param imageFolders 検索対象のフォルダリスト
  */
-export async function loadImagesInDom() {
-    const placeholders = document.querySelectorAll('img[data-img-filename]');
+export async function loadImagesInDom(container: HTMLElement, activeTabPath: string, imageFolders: string[] = []) {
+    if (!container || !activeTabPath) return;
+    
+    const placeholders = container.querySelectorAll('img[data-img-filename]');
+    const parentDir = activeTabPath.replace(/\\/g, '/').replace(/\/[^\/]+$/, '');
+
     for (const img of placeholders) {
         const filename = img.getAttribute('data-img-filename');
-        const primaryDirsRaw = img.getAttribute('data-primary-dirs');
-        const fallbackDir = img.getAttribute('data-fallback-dir');
-        const cacheKey = img.getAttribute('data-cache-key');
         
-        if (!filename || !cacheKey) continue;
+        if (!filename) continue;
+
+        // HTML側ではなく、実行時にキャッシュキーを生成する
+        const cacheKey = imageFolders.length > 0 ? `${imageFolders.join('|')}/${filename}` : `${parentDir}/${filename}`;
 
         if (imageBlobCache.has(cacheKey)) {
             // 💥 追加: 使われた画像を「最新」として扱うため、一度消して一番後ろに再登録する
@@ -51,23 +40,21 @@ export async function loadImagesInDom() {
         try {
             let foundPath: string | null = null;
 
-            if (primaryDirsRaw) {
-                try {
-                    const primaryDirs: string[] = JSON.parse(decodeURIComponent(primaryDirsRaw));
-                    for (const dir of primaryDirs) {
-                        if (!dir) continue;
-                        foundPath = await invoke('find_image_file', { dirPath: dir, fileName: filename });
-                        if (foundPath) break;
-                    }
-                } catch (e) {}
+            if (imageFolders.length > 0) {
+                for (const dir of imageFolders) {
+                    if (!dir) continue;
+                    foundPath = await invoke('find_image_file', { dirPath: dir, fileName: filename });
+                    if (foundPath) break;
+                }
             }
             
-            if (!foundPath && fallbackDir) {
-                foundPath = await invoke('find_image_file', { dirPath: fallbackDir, fileName: filename });
+            if (!foundPath && parentDir) {
+                foundPath = await invoke('find_image_file', { dirPath: parentDir, fileName: filename });
             }
 
             if (foundPath) {
-                const bytes: number[] = await invoke('read_file_content', { path: foundPath });
+                // ★ テキスト用ではなく、バイナリ用の関数を呼び出す
+                const bytes: number[] = await invoke('read_image_bytes', { path: foundPath });
                 setImageData(img, cacheKey, bytes);
             } else {
                 throw new Error("File not found in any directory");
@@ -101,8 +88,5 @@ function setImageData(img: Element, cacheKey: string, bytes: number[]) {
     imageBlobCache.set(cacheKey, blobUrl);
     img.setAttribute('src', blobUrl);
     img.removeAttribute('data-img-filename');
-    img.removeAttribute('data-primary-dirs');
-    img.removeAttribute('data-fallback-dir');
-    img.removeAttribute('data-cache-key');
 }
 // --- END OF src/lib/editor/imageViewer.ts ---

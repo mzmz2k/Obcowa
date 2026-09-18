@@ -1,4 +1,4 @@
-// プレビュー表示拡張機能（タスク切り替え、コードコピー、見出し折りたたみ）のロジックとDOM操作
+// プレビュー表示拡張機能（タスク切り替え、コードコピー、見出し折りたたみ）のロジックとDOM操作（描画・変換はしない）
 
 import { get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';

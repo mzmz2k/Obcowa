@@ -180,6 +180,7 @@ A03_Obcowa/
 📄 `src/components/Editor/EditorPreview.svelte`
   └── import @tauri-apps/api/core
   └── import svelte
+  └── import svelte/store
   └── import ../../lib/stores
   └── import ../../lib/editor/imageViewer
   └── import @tauri-apps/plugin-opener
@@ -211,9 +212,6 @@ A03_Obcowa/
 📄 `src/components/Editor/markdownSetup.ts`
   └── import marked
   └── import dompurify
-  └── import svelte/store
-  └── import ../../lib/stores
-  └── import ../../lib/editor/imageViewer
   └── import ./previewExtensions
   └── import ../../lib/utils/queryParser
 
@@ -525,7 +523,7 @@ A03_Obcowa/
 - `src/components/Editor/EditorHeader.svelte` : --- START OF src/components/EditorHeader.svelte ---
   - `export let activeTab`
   - `export let toggleEditMode`
-- `src/components/Editor/EditorPreview.svelte` : Markdownを綺麗に表示し、ユーザーがクリックしたイベントを外に教える
+- `src/components/Editor/EditorPreview.svelte` : ユーザーがクリックしたイベントを外に教える　マークダウンのHTML変換を受け取り描画する
   - `export let activeTab`
   - `export let scrollContainer`
   - `export function scrollToHeading(headingIndex: number)`
@@ -533,12 +531,12 @@ A03_Obcowa/
 - `src/components/Editor/TabBar.svelte` : --- START OF src/components/Editor/TabBar.svelte ---
   - `export let handleTabClick`
   - `export let handleTabClose`
-- `src/components/Editor/markdownSetup.ts` : Markdown文字列を安全なHTMLに変換し、独自記法(マークや画像、ダッシュボード拡張)を適用する
+- `src/components/Editor/markdownSetup.ts` : Markdown文字列や独自ウィジェットなどを安全なHTMLに変換する
   - `export function removeFrontmatter(content: string)`
   - `export function sanitizeHtml(rawHtml: string)`
   - `export function parseMarkdown(content: string, tabPath: string)`
 - `src/components/Editor/previewExtensions.test.ts` : 前後のコード明確化: src/features/previewExtensions/previewExtensions.test.ts
-- `src/components/Editor/previewExtensions.ts` : プレビュー表示拡張機能（タスク切り替え、コードコピー、見出し折りたたみ）のロジックとDOM操作
+- `src/components/Editor/previewExtensions.ts` : プレビュー表示拡張機能（タスク切り替え、コードコピー、見出し折りたたみ）のロジックとDOM操作（描画・変換はしない）
   - `export const COPY_ICON_SVG`
   - `export const CHECK_ICON_SVG`
   - `export function toggleTaskMarkdown(content: string, targetIndex: number)`
@@ -665,9 +663,8 @@ A03_Obcowa/
   - `export interface SaveDependencies`
   - `export interface BaseTabData`
 - `src/lib/editor/imageViewer.test.ts` : --- START OF src/lib/imageViewer.test.ts ---
-- `src/lib/editor/imageViewer.ts` : --- START OF src/lib/editor/imageViewer.ts ---
-  - `export function generateImageHtml(filenameWithOpts: string, activeTabPath: string, imageFolders: string[] = [])`
-  - `export async function loadImagesInDom()`
+- `src/lib/editor/imageViewer.ts` : Obsidianの画像表示記法をHTMLに変換する
+  - `export async function loadImagesInDom(container: HTMLElement, activeTabPath: string, imageFolders: string[] = [])`
 - `src/lib/editor/scrollSync.test.ts` : scrollSync関数の単体テスト
 - `src/lib/editor/scrollSync.ts` : 編集エリアとプレビューエリア間のスクロール位置比率の計算を行う純粋関数
   - `export function calculateScrollRatio(scrollTop: number, scrollHeight: number)`
@@ -776,6 +773,7 @@ A03_Obcowa/
   - `pub fn get_file_modified(path: String) -> Result<u64, String>`
   - `pub fn save_workspaces(app: AppHandle, workspaces: Vec<Workspace>) -> Result<(), String>`
   - `pub fn load_workspaces(app: AppHandle) -> Result<Vec<Workspace>, String>`
+  - `pub fn read_image_bytes(path: String) -> Result<Vec<u8>, String>`
   - `pub fn save_file_content(path: String, content: String, last_modified: u64, force: bool) -> Result<u64, String>`
   - `pub fn read_file_content(path: String) -> Result<String, String>`
   - `pub fn read_directory( path: String, sort_by: Option<String>, sort_order: Option<String> ) -> Result<Vec<VirtualNode>, String>`

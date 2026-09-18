@@ -1,15 +1,10 @@
-// Markdown文字列を安全なHTMLに変換し、独自記法(マークや画像、ダッシュボード拡張)を適用する
+// Markdown文字列や独自ウィジェットなどを安全なHTMLに変換する
 
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import { get } from 'svelte/store';
-import { workspacesStore, currentWorkspaceIndex } from '../../lib/stores';
-import { generateImageHtml } from '../../lib/editor/imageViewer';
 import { COPY_ICON_SVG } from './previewExtensions';
 import { parseDataviewQuery } from '../../lib/utils/queryParser'; 
 
-// marked のレンダラー内で現在のタブパスを参照するための一時変数
-let currentTabPath = '';
 let isMarkedInitialized = false;
 
 // marked レンダラーの this 型定義
@@ -69,11 +64,12 @@ function initMarked() {
             if (match) return { type: 'obsidianImage', raw: match[0], filename: match[1] };
         },
         renderer(token: any) {
-            // Svelte Storeから現在のワークスペース情報を取得
-            const currentWs = get(workspacesStore)[get(currentWorkspaceIndex)];
-            const folders = currentWs?.image_folders || [];
-            // グローバル変数として保持している現在のパスを使用
-            return generateImageHtml(token.filename, currentTabPath, folders);
+            // ストアやパスに依存せず、プレースホルダーを返すだけにする
+            const parts = token.filename.split('|');
+            const rawFilename = parts[0].trim();
+            const filename = rawFilename.split(/[/\\]/).pop() || rawFilename;
+            const sizeAttr = parts.length > 1 ? ` width="${parts[1].trim()}"` : ' class="max-w-full h-auto"';
+            return `<img data-img-filename="${filename}"${sizeAttr} alt="${filename}" style="border-radius: 4px; display: inline-block; margin: 0.5rem 0; min-height: 40px; min-width: 40px; background-color: var(--active-highlight-bg);" />`;
         }
     };
 
@@ -209,9 +205,9 @@ export function sanitizeHtml(rawHtml: string): string {
     return DOMPurify.sanitize(rawHtml, {
         ADD_TAGS: ['button', 'input'],
         ADD_ATTR: [
-            'data-img-filename', 'data-primary-dirs', 'data-fallback-dir', 'data-cache-key',
-            'data-task-index', 'type', 'checked', 'class',
-            'data-widget-type', 'data-query', 'data-wiki-target'
+            'data-img-filename', 'data-task-index', 'type', 'checked', 'class',
+            'data-widget-type', 'data-query', 'data-wiki-target',
+            'style', 'width', 'alt' // ★追加: 画像の表示崩れを防ぐ
         ]
     });
 }
@@ -228,8 +224,6 @@ export function parseMarkdown(content: string, tabPath: string): string {
     return `<div class="dashboard-widget" data-widget-type="search" data-query="${query}" data-sort-key="${sortKey}" data-sort-order="${sortOrder}"></div>`;
     });
 
-    // レンダラー(画像拡張等)内で使用するためにパスを一時保存
-    currentTabPath = tabPath;
     const rawHtml = marked(removeFrontmatter(content));
     return rawHtml as string;
 }

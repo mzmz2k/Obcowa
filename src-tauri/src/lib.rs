@@ -337,10 +337,11 @@ pub fn run() {
             file_ops::open_folder,
             file_ops::find_image_file,
             file_ops::check_file_exists,
+            file_ops::read_image_bytes,
             task_ops::get_workspace_tasks,
             task_ops::complete_task,
             dashboard_ops::load_dashboard,
-            dashboard_ops::save_dashboard 
+            dashboard_ops::save_dashboard
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,8 +1,9 @@
-<!-- Markdownを綺麗に表示し、ユーザーがクリックしたイベントを外に教える -->
+<!-- ユーザーがクリックしたイベントを外に教える　マークダウンのHTML変換を受け取り描画する -->
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { tick, createEventDispatcher, onDestroy } from 'svelte';
-  import { editorFont } from '../../lib/stores';
+  import { get } from 'svelte/store';
+  import { editorFont, workspacesStore, currentWorkspaceIndex } from '../../lib/stores';
   import { loadImagesInDom } from '../../lib/editor/imageViewer';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { FileQuestion } from 'lucide-svelte';
@@ -56,7 +57,12 @@
           }
           
           await tick(); 
-          loadImagesInDom(); 
+          
+          if (scrollContainer) {
+              const currentWs = get(workspacesStore)[get(currentWorkspaceIndex)];
+              const folders = currentWs?.image_folders || [];
+              loadImagesInDom(scrollContainer, tab.path || '', folders);
+          }
           assignTaskIndexes();
           
           if (tab.isDashboard && scrollContainer) {

@@ -79,6 +79,12 @@ pub fn load_workspaces(app: AppHandle) -> Result<Vec<Workspace>, String> {
     Ok(workspaces)
 }
 
+/// 画像などをバイナリとして読み込む
+#[tauri::command]
+pub fn read_image_bytes(path: String) -> Result<Vec<u8>, String> {
+    std::fs::read(&path).map_err(|e| e.to_string())
+}
+
 // 保存時に日時をチェックし、問題なければ新しい日時を返すように修正
 #[tauri::command]
 pub fn save_file_content(path: String, content: String, last_modified: u64, force: bool) -> Result<u64, String> {
