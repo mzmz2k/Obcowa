@@ -287,3 +287,36 @@
 .editor-preview li.task-list-item:has(> input:checked) {
 }
 */
+
+/* --- テーブル（表） --- */
+.editor-preview table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 1.5rem 0 !important;
+    /* 外枠の線 */
+    border: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent) !important;
+    border-radius: 4px;
+}
+
+/* テーブルの見出し行（th） */
+.editor-preview th {
+    /* ほんの少し背景を濃くして見出しらしくする */
+    background-color: color-mix(in srgb, var(--text-color) 6%, transparent) !important;
+    border: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent) !important;
+    padding: 0.5rem 0.75rem !important;
+    font-weight: 600 !important;
+    color: var(--text-color) !important;
+}
+
+/* テーブルの通常マス（td） */
+.editor-preview td {
+    border: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent) !important;
+    padding: 0.5rem 0.75rem !important;
+    color: var(--text-color) !important;
+}
+
+/* マウスを行に乗せた時のほんのりハイライト（見やすくなります）
+.editor-preview tbody tr:hover {
+    background-color: color-mix(in srgb, var(--text-color) 4%, transparent);
+}
+*/
