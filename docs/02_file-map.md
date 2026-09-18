@@ -164,7 +164,6 @@ A03_Obcowa/
   └── import ./TabBar.svelte
   └── import ./EditorPreview.svelte
   └── import ./EditorSearch.svelte
-  └── import ../../lib/stores
   └── import ../../lib/editor/editorSave
   └── import ../../lib/editor/scrollSync
   └── import ../../features/Task/TaskList.svelte

@@ -2,7 +2,7 @@
 
 <!-- --- START OF src/components/Editor.svelte --- -->
 <script lang="ts">
-    import { openTabs, activeTabId, currentWorkspaceIndex, openFileInNewTab, switchTab, closeTab, editorFont, workspaces } from '$lib/stores';
+    import { openTabs, activeTabId, currentWorkspaceIndex, openFileInNewTab, switchTab, closeTab, editorFont } from '$lib/stores';
     import { invoke } from '@tauri-apps/api/core';
     import { confirm as tauriConfirm } from '@tauri-apps/plugin-dialog'; 
     import { tick } from 'svelte';
@@ -12,7 +12,6 @@
     import TabBar from './TabBar.svelte';
     import EditorPreview from './EditorPreview.svelte';
     import EditorSearch from './EditorSearch.svelte';
-    import { currentWorkspace } from '../../lib/stores';
     import { saveTabWithConflictCheck, type SaveDependencies } from '../../lib/editor/editorSave';
     import { calculateScrollRatio, calculateScrollTopFromRatio } from '../../lib/editor/scrollSync';
     import TaskList from '../../features/Task/TaskList.svelte';
@@ -66,21 +65,25 @@
     };
 
 
-        // タブが開かれた時に、ファイルの最新日時を取得する
-    $: if (activeTab && activeTab.path && !isSpecialPath(activeTab.path) && activeTab.lastModified === 0) {
-        invoke('get_file_modified', { path: activeTab.path }).then((modified) => {
+    // 同一タブに対する多重IPC呼び出しを防止するセット
+    let fetchingModifiedTabs = new Set<string>();
+    $: if (activeTab && activeTab.path && !isSpecialPath(activeTab.path) && activeTab.lastModified === 0 && !fetchingModifiedTabs.has(activeTab.id)) {
+        fetchingModifiedTabs.add(activeTab.id);
+        invoke('get_file_modified', { path: activeTab.path }).then((modified: any) => {
             openTabs.update(tabs => {
                 const t = tabs.find(t => t.id === activeTab!.id);
                 if (t) t.lastModified = modified as number;
                 return tabs;
             });
+            fetchingModifiedTabs.delete(activeTab!.id);
         }).catch(() => {});
+            fetchingModifiedTabs.delete(activeTab!.id);
     }
    // 💥 連続保存による非同期のズレを防ぐためのロック用変数
    let savePromise: Promise<void> | null = null;
 
-   // 保存時に競合チェックを行い、エラーならダイアログを出す
-    async function saveCurrentTab() {
+   // 💥 修正: 保存対象のタブを引数で受け取れるように変更（指定がなければ現在のアクティブタブ）
+    async function saveCurrentTab(explicitTab?: any) {
         if (isDialogShowing) return; 
         
         // 💥 別の保存処理が実行中の場合は完了を待つ（レースコンディション防止）
@@ -90,8 +93,7 @@
 
         savePromise = (async () => {
             // 非同期待ちの間にタブが切り替わっている可能性があるため、Storeから最新の情報を取得する
-            const currentId = $activeTabId;
-            const targetTab = $openTabs.find(t => t.id === currentId);
+            const targetTab = explicitTab || $openTabs.find(t => t.id === $activeTabId);
 
             if (!targetTab) return;
 
@@ -109,7 +111,10 @@
 
     async function handleTabClick(tabId: string) {
         clearTimeout(saveTimeout);
-        await saveCurrentTab();
+       // 💥 切り替え前のタブを確実に指定して保存
+        if (activeTab) {
+            await saveCurrentTab(activeTab);
+        }
         const nextTab = $openTabs.find(t => t.id === tabId);
 
         scrollRatio = 0; // 別のタブを開いた時に前回のスクロール位置を引き継がないようリセットする
@@ -176,25 +181,39 @@
         }
     }
 
-    function handleInput(event: Event) {
+function handleInput(event: Event) {
         const target = event.target as HTMLTextAreaElement;
         if (!activeTab) return;
-        openTabs.update(tabs => { 
-            const t = tabs.find(t => t.id === activeTab!.id); 
-            if (t) { 
-                t.content = target.value; 
-                t.isDirty = true; 
-                // 💥 入力があったら保留フラグを解除する
-                t.isConflict = false; 
-            } 
-            return tabs; 
-        });
+        
+        const newText = target.value;
+        activeTab.content = newText;
+
+        // 💥 キー入力があったら即座に保留(Conflict)を解除し、未保存(Dirty)にする
+        if (activeTab.isConflict || !activeTab.isDirty) {
+            activeTab.isConflict = false;
+            activeTab.isDirty = true;
+            openTabs.update(tabs => {
+                const t = tabs.find(t => t.id === activeTab!.id);
+                if (t) {
+                    t.isDirty = true;
+                    t.isConflict = false;
+                }
+                return tabs;
+            });
+        }
+
         clearTimeout(saveTimeout);
         saveTimeout = setTimeout(() => { 
-            // 💥 現在のタブが保留(Conflict)状態でなければ保存を実行
+            // 1.5秒キー入力が止まったらStoreに内容を反映して自動保存
+            openTabs.update(tabs => {
+                const t = tabs.find(t => t.id === activeTab!.id);
+                if (t) t.content = newText;
+                return tabs;
+            });
             const current = $openTabs.find(t => t.id === activeTab!.id);
+            // 保留が解除されている場合のみ保存を実行
             if (!current?.isConflict) {
-                saveCurrentTab(); 
+                saveCurrentTab(current); 
             }
         }, 1500);
     }
