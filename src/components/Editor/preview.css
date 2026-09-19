@@ -341,7 +341,20 @@
     user-select: none;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
+}
+
+/* ★トグル矢印アイコンのスタイルと回転アニメーション */
+.editor-preview .properties-toggle-icon {
+    display: inline-block;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+    transform: rotate(0deg); /* 開いている時: ∨ */
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.editor-preview .obsidian-properties-header:hover .properties-toggle-icon {
+    opacity: 1;
 }
 
 /* 折りたたみ時の挙動 */
@@ -351,7 +364,8 @@
 .editor-preview .obsidian-properties-card.is-collapsed .obsidian-properties-header {
     border-bottom: none;
 }
-.editor-preview .obsidian-properties-card.is-collapsed .heading-toggle {
+/* ★折りたたみ時: ∨ が回転して ＞ になる */
+.editor-preview .obsidian-properties-card.is-collapsed .properties-toggle-icon {
     transform: rotate(-90deg);
 }
 

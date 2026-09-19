@@ -108,6 +108,14 @@
           }
           return;
       }
+      
+      // ★追加: プロパティカードの折りたたみ
+      const propHeader = target.closest<HTMLElement>('.obsidian-properties-header');
+      if (propHeader) {
+          const card = propHeader.closest<HTMLElement>('.obsidian-properties-card');
+          if (card) card.classList.toggle('is-collapsed');
+          return;
+      }
 
       const headingToggle = target.closest<HTMLElement>('.heading-toggle');
       if (headingToggle) {

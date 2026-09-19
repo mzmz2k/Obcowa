@@ -199,6 +199,9 @@ export function removeFrontmatter(content: string) {
         return content.replace(FRONTMATTER_REGEX, '');
 }
 
+// 折りたたみ用の矢印アイコン (下向きChevron)
+const CHEVRON_DOWN_SVG = `<svg class="properties-toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+
 /**
  * フロントマターを解析し、Obsidian風のプロパティカードHTMLを生成する
  */
@@ -265,8 +268,8 @@ function renderPropertiesCard(yamlText: string): string {
 
     return `
     <div class="obsidian-properties-card">
-        <div class="obsidian-properties-header">
-            <span class="heading-toggle"></span>
+        <div class="obsidian-properties-header" title="プロパティを折りたたむ">
+            ${CHEVRON_DOWN_SVG}
             <span class="obsidian-properties-title">PROPERTIES</span>
         </div>
         <div class="obsidian-properties-body">${rowsHtml}</div>
