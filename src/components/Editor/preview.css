@@ -320,3 +320,50 @@
     background-color: color-mix(in srgb, var(--text-color) 4%, transparent);
 }
 */
+
+/* --- Obsidian風プロパティカード --- */
+.editor-preview .obsidian-properties-card {
+    border: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    background-color: color-mix(in srgb, var(--text-color) 2%, transparent);
+    font-size: 0.875rem;
+}
+
+.editor-preview .obsidian-properties-header {
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.4rem 0.75rem;
+    opacity: 0.6;
+    border-bottom: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+}
+
+.editor-preview .obsidian-properties-body {
+    padding: 0.25rem 0.75rem;
+}
+
+.editor-preview .obsidian-property-row {
+    display: flex;
+    align-items: center;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--text-color) 5%, transparent);
+}
+
+.editor-preview .obsidian-property-row:last-child {
+    border-bottom: none;
+}
+
+.editor-preview .obsidian-property-key {
+    width: 140px;
+    font-weight: 500;
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.editor-preview .obsidian-property-value {
+    flex-grow: 1;
+    color: var(--text-color);
+}

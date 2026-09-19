@@ -191,11 +191,38 @@ function initMarked() {
     isMarkedInitialized = true;
 }
 
+const FRONTMATTER_REGEX = /^\uFEFF?---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 /**
  * BOMやフロントマター(メタデータ)を除去する
  */
 export function removeFrontmatter(content: string) {
-    return content.replace(/^\uFEFF?---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
+        return content.replace(FRONTMATTER_REGEX, '');
+}
+
+/**
+ * フロントマターを解析し、Obsidian風のプロパティカードHTMLを生成する
+ */
+function renderPropertiesCard(yamlText: string): string {
+    const lines = yamlText.split('\n').filter(l => l.trim() !== '');
+    let rows = '';
+
+    for (const line of lines) {
+        const colonIndex = line.indexOf(':');
+        if (colonIndex !== -1) {
+            const key = line.slice(0, colonIndex).trim();
+            const val = line.slice(colonIndex + 1).trim();
+            rows += `<div class="obsidian-property-row"><span class="obsidian-property-key">${key}</span><span class="obsidian-property-value">${val}</span></div>`;
+        } else {
+            rows += `<div class="obsidian-property-row"><span class="obsidian-property-value">${line}</span></div>`;
+        }
+    }
+
+    return `
+    <div class="obsidian-properties-card">
+        <div class="obsidian-properties-header">Properties</div>
+        <div class="obsidian-properties-body">${rows}</div>
+    </div>\n
+    `;
 }
 
 /**
@@ -215,8 +242,18 @@ export function sanitizeHtml(rawHtml: string): string {
 /**
  * Markdown文字列をパースしてHTMLに変換するメイン関数
  */
-export function parseMarkdown(content: string, tabPath: string): string {
+export function parseMarkdown(content: string, tabPath: string, showProperties: boolean = false): string {
     initMarked();
+ 
+    let propertiesHtml = '';
+    const match = content.match(FRONTMATTER_REGEX);
+
+    if (match) {
+        if (showProperties) {
+            propertiesHtml = renderPropertiesCard(match[1]);
+        }
+        content = content.replace(FRONTMATTER_REGEX, '');
+    }
 
     // Dataview風検索ブロックの置換
     content = content.replace(/```search([\s\S]*?)```/g, (match, queryBody) => {
@@ -225,5 +262,5 @@ export function parseMarkdown(content: string, tabPath: string): string {
     });
 
     const rawHtml = marked(removeFrontmatter(content));
-    return rawHtml as string;
+    return propertiesHtml + (rawHtml as string);
 }

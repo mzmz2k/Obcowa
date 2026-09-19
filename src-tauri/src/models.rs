@@ -128,4 +128,6 @@ pub struct Workspace {
     pub task_exclude_headings: Option<Vec<String>>, 
     #[serde(default)]
     pub image_folders: Option<Vec<String>>,
+    #[serde(default)]
+    pub show_properties: Option<bool>,
 }

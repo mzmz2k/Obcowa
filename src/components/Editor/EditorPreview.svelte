@@ -51,8 +51,11 @@
               const safeText = tab.content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
               renderedHtml = DOMPurify.sanitize(safeText.replace(/\n/g, '<br>'));
           } else {
+
               // ★変更: markdownSetup に切り出した純粋関数を呼び出すだけ！
-              const rawHtml = parseMarkdown(tab.content, tab.path || '');
+              const currentWs = get(workspacesStore)[get(currentWorkspaceIndex)];
+              const showProps = currentWs?.show_properties ?? false;
+              const rawHtml = parseMarkdown(tab.content, tab.path || '', showProps);
               renderedHtml = sanitizeHtml(rawHtml);
           }
           

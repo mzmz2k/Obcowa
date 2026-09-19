@@ -165,6 +165,26 @@ async function openLauncherWindow() {
           </div>
           <div class="text-xs opacity-50 mt-1">※上から順に画像を検索します。指定しない場合はファイルと同じ場所を探します。</div>
         </div>
+        
+        <!-- プロパティ表示設定エリア -->
+        <div class="mb-6">
+          <div class="text-sm opacity-80 mb-2">エディタ表示設定 (現在のワークスペース)</div>
+          <label class="flex items-center space-x-2 cursor-pointer bg-black/5 border border-black/20 rounded p-3 hover:bg-black/10 transition">
+            <input 
+              type="checkbox" 
+              class="rounded"
+              checked={$workspacesStore[$currentWorkspaceIndex]?.show_properties ?? false} 
+              on:change={(e) => {
+                const checked = e.currentTarget.checked;
+                workspacesStore.update(ws => {
+                  if (ws[$currentWorkspaceIndex]) ws[$currentWorkspaceIndex].show_properties = checked;
+                  return ws;
+                });
+              }} 
+            />
+            <span class="text-sm">プレビューでファイルのプロパティ（フロントマター）を表示する</span>
+          </label>
+        </div>
 
         <!-- ランチャーの設定エリア -->
         <div class="mb-6">
