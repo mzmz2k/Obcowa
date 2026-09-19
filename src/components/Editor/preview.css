@@ -323,47 +323,85 @@
 
 /* --- Obsidian風プロパティカード --- */
 .editor-preview .obsidian-properties-card {
-    border: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
+    
     border-radius: 6px;
     margin-bottom: 1.5rem;
     overflow: hidden;
-    background-color: color-mix(in srgb, var(--text-color) 2%, transparent);
     font-size: 0.875rem;
 }
 
 .editor-preview .obsidian-properties-header {
     font-size: 0.75rem;
     font-weight: bold;
-    text-transform: uppercase;
     letter-spacing: 0.05em;
     padding: 0.4rem 0.75rem;
     opacity: 0.6;
     border-bottom: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* 折りたたみ時の挙動 */
+.editor-preview .obsidian-properties-card.is-collapsed .obsidian-properties-body {
+    display: none;
+}
+.editor-preview .obsidian-properties-card.is-collapsed .obsidian-properties-header {
+    border-bottom: none;
+}
+.editor-preview .obsidian-properties-card.is-collapsed .heading-toggle {
+    transform: rotate(-90deg);
 }
 
 .editor-preview .obsidian-properties-body {
-    padding: 0.25rem 0.75rem;
+    padding: 0.35rem 0.75rem;
 }
 
 .editor-preview .obsidian-property-row {
     display: flex;
-    align-items: center;
-    padding: 0.35rem 0;
-    border-bottom: 1px solid color-mix(in srgb, var(--text-color) 5%, transparent);
+    align-items: flex-start;
+    padding: 0.4rem 0;
+    
 }
 
 .editor-preview .obsidian-property-row:last-child {
     border-bottom: none;
 }
 
+/* 左側: 項目名エリア */
 .editor-preview .obsidian-property-key {
-    width: 140px;
+    width: 120px;
     font-weight: 500;
     opacity: 0.7;
     flex-shrink: 0;
+    padding-top: 0.15rem;
 }
 
+/* 右側: 値エリア（改行なしで続けて横並び） */
 .editor-preview .obsidian-property-value {
     flex-grow: 1;
-    color: var(--text-color);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+/* #タグ のバッジ風リンクスタイル */
+.editor-preview .obsidian-property-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.1rem 0.55rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background-color: color-mix(in srgb, var(--accent-color) 15%, transparent);
+    color: color-mix(in srgb, var(--accent-color) 85%, var(--text-color));
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.editor-preview .obsidian-property-tag:hover {
+    background-color: color-mix(in srgb, var(--accent-color) 25%, transparent);
 }

@@ -203,24 +203,73 @@ export function removeFrontmatter(content: string) {
  * フロントマターを解析し、Obsidian風のプロパティカードHTMLを生成する
  */
 function renderPropertiesCard(yamlText: string): string {
-    const lines = yamlText.split('\n').filter(l => l.trim() !== '');
-    let rows = '';
 
-    for (const line of lines) {
+    const lines = yamlText.split('\n');
+    const properties: { key: string; values: string[] }[] = [];
+    let currentProp: { key: string; values: string[] } | null = null;
+
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        // YAMLの複数行リスト（- タグ名）の処理
+        if (line.startsWith('-')) {
+            const val = line.replace(/^-\s*/, '').trim();
+            if (currentProp) {
+                currentProp.values.push(val);
+            }
+            continue;
+        }
+
         const colonIndex = line.indexOf(':');
         if (colonIndex !== -1) {
             const key = line.slice(0, colonIndex).trim();
-            const val = line.slice(colonIndex + 1).trim();
-            rows += `<div class="obsidian-property-row"><span class="obsidian-property-key">${key}</span><span class="obsidian-property-value">${val}</span></div>`;
-        } else {
-            rows += `<div class="obsidian-property-row"><span class="obsidian-property-value">${line}</span></div>`;
+
+            const rest = line.slice(colonIndex + 1).trim();
+            currentProp = { key, values: [] };
+            properties.push(currentProp);
+
+            if (rest) {
+                // [tag1, tag2] のようなインライン配列
+                if (rest.startsWith('[') && rest.endsWith(']')) {
+                    const items = rest.slice(1, -1).split(',').map(s => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+                    currentProp.values.push(...items);
+                } else {
+                    currentProp.values.push(rest.replace(/^['"]|['"]$/g, ''));
+                }
+            }
         }
+    }
+
+    let rowsHtml = '';
+    for (const prop of properties) {
+        const isTag = prop.key.toLowerCase() === 'tags' || prop.key.toLowerCase() === 'tag';
+        let valuesHtml = '';
+
+        if (isTag) {
+            // タグは # を付けたバッジにする
+            valuesHtml = prop.values.map(v => {
+                const tagText = v.startsWith('#') ? v : `#${v}`;
+                return `<span class="obsidian-property-tag" data-tag="${v}">${tagText}</span>`;
+            }).join('');
+        } else {
+            valuesHtml = prop.values.map(v => `<span class="obsidian-property-text">${v}</span>`).join(', ');
+        }
+
+        rowsHtml += `
+        <div class="obsidian-property-row">
+            <div class="obsidian-property-key">${prop.key}</div>
+            <div class="obsidian-property-value">${valuesHtml}</div>
+        </div>`;
     }
 
     return `
     <div class="obsidian-properties-card">
-        <div class="obsidian-properties-header">Properties</div>
-        <div class="obsidian-properties-body">${rows}</div>
+        <div class="obsidian-properties-header">
+            <span class="heading-toggle"></span>
+            <span class="obsidian-properties-title">PROPERTIES</span>
+        </div>
+        <div class="obsidian-properties-body">${rowsHtml}</div>
     </div>\n
     `;
 }
