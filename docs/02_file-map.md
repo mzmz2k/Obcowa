@@ -264,6 +264,8 @@ A03_Obcowa/
   └── import @tauri-apps/plugin-dialog
   └── import ../../lib/stores
   └── import @tauri-apps/api/core
+  └── import ../../lib/workspace/workspaceManager
+  └── import lucide-svelte
 
 📄 `src/components/Settings/StyleSettings.svelte`
   └── import ../../features/styleSettings/styleStore

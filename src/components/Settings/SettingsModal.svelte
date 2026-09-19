@@ -10,6 +10,8 @@
 
   import { showLauncherOnStartup } from '../../lib/stores';
   import { invoke } from '@tauri-apps/api/core';
+  import { requestSaveWorkspaces } from '../../lib/workspace/workspaceManager';
+  import { X } from 'lucide-svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -51,6 +53,7 @@
       }
       return ws;
     });
+    requestSaveWorkspaces(); // ★即時反映される操作はその場でキューに入れて安全に保存
   }
 
   // タスク除外見出しの解除処理
@@ -62,6 +65,7 @@
       }
       return ws;
     });
+    requestSaveWorkspaces(); // ★即時反映される操作はその場でキューに入れて安全に保存
   }
 
 
@@ -79,6 +83,7 @@
         }
         return ws;
       });
+      requestSaveWorkspaces(); // ★即時反映される操作はその場でキューに入れて安全に保存
     }
   }
 
@@ -91,11 +96,12 @@
       }
       return ws;
     });
+    requestSaveWorkspaces(); // ★即時反映される操作はその場でキューに入れて安全に保存
   }
 
 
-  // 設定の保存と適用
-  function saveSettings() {
+  // 設定を確定して閉じる（Obsidian風オートセーブ）
+  function handleClose() {
 
     // テーマの保存
     $activeTheme = { ...tempTheme };
@@ -115,8 +121,9 @@
       return ws;
     });
 
-    // 呼び出し元の +page.svelte に保存処理を依頼して閉じる
-    dispatch('save');
+    // ★ワークスペースマネージャーに安全な保存を要求する
+    requestSaveWorkspaces();
+    dispatch('close');
   }
 
   // ランチャー画面の設定
@@ -130,10 +137,34 @@ async function openLauncherWindow() {
     await invoke('open_launcher');
 }
 
+  // Escキーで閉じる
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      handleClose();
+    }
+  }
+
 </script>
 
-<div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
-  <div class="rounded shadow-xl border border-black/20 flex overflow-hidden w-[700px] h-[550px]" style="background-color: var(--menu-bg); color: var(--text-color);">
+
+<svelte:window on:keydown={handleKeydown} />
+
+<!-- 背景クリックでも閉じられるオーバーレイ -->
+<!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y-no-static-element-interactions -->
+<div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center" on:click|self={handleClose}>
+  <div class="rounded-lg shadow-2xl border border-black/20 flex overflow-hidden w-[750px] h-[600px] relative" style="background-color: var(--menu-bg); color: var(--text-color);">
+     
+    <!-- ★追加: Obsidian風の右上の閉じる（×）ボタン -->
+    <button 
+      class="absolute top-3 right-3 p-1.5 rounded-full hover:bg-black/10 transition opacity-70 hover:opacity-100 z-10"
+      style="color: var(--text-color);"
+      title="閉じる (Esc)"
+      on:click={handleClose}
+    >
+      <X size={18} />
+    </button>
+
     
     <!-- 左サイドバー（タブ） -->
     <div class="w-1/4 bg-black/10 p-4 space-y-2 text-sm border-r border-black/10">
@@ -270,10 +301,6 @@ async function openLauncherWindow() {
         <StyleSettings bind:tempStyle={tempStyle} bind:tempCustomSlots={tempCustomSlots} {defaultStyle} />
       {/if}
 
-      <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-black/10">
-        <button class="px-5 py-2 bg-black/20 hover:bg-black/30 rounded text-sm transition font-bold" on:click={() => dispatch('close')}>キャンセル</button>
-        <button class="px-5 py-2 bg-[var(--accent-color)] text-white rounded text-sm transition font-bold shadow hover:brightness-110" on:click={saveSettings}>設定を保存して閉じる</button>
-      </div>
     </div>
   </div>
 </div>

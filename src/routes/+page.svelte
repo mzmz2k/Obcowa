@@ -266,10 +266,7 @@ let isSettingsOpen = false;
 />
 
 {#if isSettingsOpen}
-  <SettingsModal 
-    on:save={async () => { await requestSaveWorkspaces(true); isSettingsOpen = false; }}
-    on:close={() => isSettingsOpen = false}
-  />
+  <SettingsModal on:close={() => isSettingsOpen = false} />
 {/if}
 <!-- 💥 新規ファイル作成モーダル -->
 <NewFileModal 
