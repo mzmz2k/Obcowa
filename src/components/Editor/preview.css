@@ -5,7 +5,7 @@
     }
 
 .editor-preview a {
-    color: var(--accent-color) !important;
+    color: color-mix(in srgb, var(--accent-color) 80%, var(--text-color))!important;
     text-decoration-color: color-mix(in srgb, var(--accent-color) 40%, transparent) !important;
     text-decoration-thickness: 1px !important;
     text-underline-offset: 2px !important;
@@ -47,7 +47,7 @@
 
 /* --- 引用ブロック（>） --- */
 .editor-preview blockquote {
-    border-left-color: var(--accent-color) !important;
+    border-left-color: color-mix(in srgb, var(--accent-color) 90%, transparent) !important;
     border-left-width: 4px !important;
     background-color: color-mix(in srgb, var(--text-color) 5%, transparent) !important;
     padding: 0.5rem 1rem !important;
@@ -218,7 +218,7 @@
 
 /* --- Obsidianハイライト記法（== ==） --- */
 .editor-preview .obsidian-highlight {
-    background-color: color-mix(in srgb, var(--selection-bg) 90%, var(--text-color)) !important;
+    background-color: color-mix(in srgb, var(--selection-bg) 95%, var(--text-color)) !important;
     color: inherit !important;
     padding: 0.1em 0.3em;
     border-radius: 0.25rem;

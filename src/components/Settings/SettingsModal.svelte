@@ -168,10 +168,10 @@ async function openLauncherWindow() {
     
     <!-- 左サイドバー（タブ） -->
     <div class="w-1/4 bg-black/10 p-4 space-y-2 text-sm border-r border-black/10">
-      <button class="w-full text-left p-2 rounded transition-colors {activeSettingsTab === 'general' ? 'bg-[var(--accent-color)] text-white font-bold' : 'hover:bg-black/10'}" on:click={() => activeSettingsTab = 'general'}>一般</button>
-      <button class="w-full text-left p-2 rounded transition-colors {activeSettingsTab === 'theme' ? 'bg-[var(--accent-color)] text-white font-bold' : 'hover:bg-black/10'}" on:click={() => activeSettingsTab = 'theme'}>テーマ</button>
+      <button class="w-full text-left p-2 rounded transition-colors {activeSettingsTab === 'general' ? 'bg-[var(--active-highlight-bg)] text-white font-bold' : 'hover:bg-black/10'}" on:click={() => activeSettingsTab = 'general'}>一般</button>
+      <button class="w-full text-left p-2 rounded transition-colors {activeSettingsTab === 'theme' ? 'bg-[var(--active-highlight-bg)] text-white font-bold' : 'hover:bg-black/10'}" on:click={() => activeSettingsTab = 'theme'}>テーマ</button>
        <!-- スタイルタブのボタン -->
-      <button class="w-full text-left p-2 rounded transition-colors {activeSettingsTab === 'style' ? 'bg-[var(--accent-color)] text-white font-bold' : 'hover:bg-black/10'}" on:click={() => activeSettingsTab = 'style'}>スタイル</button>
+      <button class="w-full text-left p-2 rounded transition-colors {activeSettingsTab === 'style' ? 'bg-[var(--active-highlight-bg)] text-white font-bold' : 'hover:bg-black/10'}" on:click={() => activeSettingsTab = 'style'}>スタイル</button>
     </div>
 
     <!-- 右コンテンツ -->

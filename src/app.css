@@ -29,10 +29,10 @@ html, body {
     }
 /* アプリ全体の文字選択時のハイライト色 */
 ::selection {
-  background-color: var(--selection-bg);
+  background-color: color-mix(in srgb, var(--selection-bg) 90%, var(--bg-color)) 
 }
 ::-moz-selection {
-  background-color: var(--selection-bg);
+  background-color: color-mix(in srgb, var(--selection-bg) 90%, var(--bg-color)) 
 }
 
 

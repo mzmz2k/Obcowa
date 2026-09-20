@@ -331,7 +331,7 @@ async function loadFileContent(path: string): Promise<string> {
     bind:this={nodeElement}
     class="flex items-center p-1 rounded text-sm cursor-pointer select-none transition-colors 
            {isActive ? 'font-bold' : 'hover:opacity-70'}"
-    style="{isActive ? 'background-color: var(--active-highlight-bg); color: var(--text-color);' : 'background-color: transparent; color: inherit;'}"
+    style="{isActive ? 'background-color: color-mix(in srgb, var(--active-highlight-bg) 80%, transparent); color: var(--text-color);' : 'background-color: transparent; color: inherit;'}"
     on:click={handleClick}
     on:contextmenu={handleContextMenu}
   >
