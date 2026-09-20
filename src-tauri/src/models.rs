@@ -76,6 +76,8 @@ pub enum VirtualNode {
         sort_by: Option<String>,
         #[serde(default)]
         sort_order: Option<String>,
+        #[serde(default)]
+        category: Option<String>,
     },
     File {
         name: String,
@@ -84,6 +86,8 @@ pub enum VirtualNode {
         created: u64,
         #[serde(default)]
         modified: u64,
+        #[serde(default)]
+        category: Option<String>,
     },
 }
 
@@ -112,6 +116,9 @@ pub struct Workspace {
     pub active_tab_id: Option<String>,
     #[serde(default = "default_font")]
     pub editor_font: String,
+
+    #[serde(default)]
+    pub category_order: Vec<String>,
 
     #[serde(default = "default_sort_by")]
     pub sort_by: String,

@@ -46,6 +46,49 @@ export function getSortedNodes(nodes: any[], sortBy = 'name', sortOrder = 'asc')
 }
 
 
+/**
+ * ノード配列をカテゴリごとにグループ化し、指定されたカテゴリ順に従って配列を構成する
+ */
+export function groupNodesByCategory(nodes: any[], categoryOrder: string[] = [], sortBy = 'name', sortOrder = 'asc') {
+  if (!nodes) return { groups: {}, sortedCategories: [] };
+  
+  const groups: Record<string, any[]> = {};
+  
+  // 全ノードをカテゴリごとに分ける
+  for (const node of nodes) {
+    const category = node.category || ''; // 未設定・空文字は「カテゴリなし」
+    if (!groups[category]) groups[category] = [];
+    groups[category].push(node);
+  }
+  
+  // 各グループ内で既存のソートを適用
+  for (const key in groups) {
+    groups[key] = getSortedNodes(groups[key], sortBy, sortOrder);
+  }
+  
+  const existingCategories = Object.keys(groups);
+  const sortedCategories: string[] = [];
+  
+  // 「カテゴリなし（空文字）」は常に一番上に固定する
+  if (existingCategories.includes('')) {
+    sortedCategories.push('');
+  }
+  
+  // 記憶された並び順に従って追加
+  for (const cat of categoryOrder) {
+    if (cat !== '' && existingCategories.includes(cat) && !sortedCategories.includes(cat)) sortedCategories.push(cat);
+  }
+  
+  // 記憶されていない新しいカテゴリは末尾に追加
+  for (const cat of existingCategories) {
+    if (!sortedCategories.includes(cat)) sortedCategories.push(cat);
+  }
+
+  return { groups, sortedCategories };
+}
+
+
+
 export async function refreshTree(nodes: any[], workspaceNodes: any[]): Promise<any[]> {
   const updatedNodes = [];
   for (let node of nodes) {

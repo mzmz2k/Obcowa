@@ -220,6 +220,7 @@ pub fn read_directory(
                 smart_rules: None, 
                 sort_by: None,    
                 sort_order: None, 
+                category: None,
             });
         } else if path.is_file() && (path.extension().and_then(|s| s.to_str()) == Some("md") || path.extension().and_then(|s| s.to_str()) == Some("txt")) {
             let metadata = entry.metadata().unwrap();
@@ -231,6 +232,7 @@ pub fn read_directory(
                 path: path.to_string_lossy().into_owned(),
                 created,  
                 modified, 
+                category: None,
             });
         }
     }

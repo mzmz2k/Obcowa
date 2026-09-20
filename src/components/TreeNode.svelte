@@ -2,7 +2,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { workspacesStore, openFileInCurrentTab, openFileInNewTab, activeTabId, openTabs, switchTab, registeredTags, expandTreeRequest } from '../lib/stores'; 
   import { getContext, tick } from 'svelte';
-  import { ChevronDown, ChevronRight, Library, FolderOpen, Folder, FileText, Tag, Pin, PinOff, Search, Pencil, ArrowUpDown, ExternalLink } from 'lucide-svelte';
+  import { ChevronDown, ChevronRight, Library, FolderOpen, Folder, FileText, Tag, Pin, PinOff, Search, Pencil, ArrowUpDown, ExternalLink, Layers } from 'lucide-svelte';
 
   import { extractTags, updateTagsInContent } from '../lib/utils/tagUtils';
   import ContextMenu from '../features/ContextMenu.svelte';
@@ -240,6 +240,13 @@
     
     if (!node.is_virtual_wrapper) {
 
+      // カテゴリ設定
+      items.push({
+        label: 'カテゴリを設定',
+        icon: Layers,
+        action: () => setCategory()
+      });
+
       items.push({
         label: 'リストから削除',
         danger: true,
@@ -334,6 +341,19 @@ async function loadFileContent(path: string): Promise<string> {
       await tick();
       requestSaveWorkspaces();
     });
+  }
+
+  async function setCategory() {
+    const currentCat = node.category || '';
+    const newCat = prompt("カテゴリ名を入力してください（空欄でカテゴリなしになります）", currentCat);
+    if (newCat !== null) {
+      workspacesStore.update(wsList => {
+        node.category = newCat.trim();
+        return wsList;
+      });
+      await tick();
+      requestSaveWorkspaces();
+    }
   }
 
   async function openInExplorer() {

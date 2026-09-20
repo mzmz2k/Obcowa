@@ -128,17 +128,18 @@ fn build_tree_from_paths(files: Vec<FileMeta>, base_dir: &str) -> Vec<VirtualNod
         for val in vals {
             if val.is_file { 
                 // 💥 変更: created と modified を渡す
-                nodes.push(VirtualNode::File { name: val.name, path: val.path, created: val.created, modified: val.modified }); 
+                nodes.push(VirtualNode::File { name: val.name, path: val.path, created: val.created, modified: val.modified, category: None });
             } else { 
                 let name_clone = val.name.clone();
                 let path_clone = val.path.clone();
-                nodes.push(VirtualNode::Folder { 
+                nodes.push(VirtualNode::Folder {
                     name: name_clone, 
                     original_path: Some(path_clone), 
                     children: convert(val), 
                     smart_rules: None,
-                    sort_by: None,    // 💥 追加
-                    sort_order: None  // 💥 追加
+                    sort_by: None,    
+                    sort_order: None,  
+                    category: None
                 }); 
             }
         }
@@ -264,7 +265,7 @@ async fn evaluate_smart_folder(
         Ok(filtered_files.into_iter().map(|f| {
             let c_ms = f.created.duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
             let m_ms = f.modified.duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
-            VirtualNode::File { name: f.name, path: f.path, created: c_ms, modified: m_ms }
+            VirtualNode::File { name: f.name, path: f.path, created: c_ms, modified: m_ms, category: None }
         }).collect()) 
     }
 }
