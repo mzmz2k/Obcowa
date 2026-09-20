@@ -24,6 +24,10 @@ jobs:
       - name: install dependencies
         run: npm ci
 
+      # ビルド前にライセンス自動生成スクリプトを実行
+      - name: generate license file
+        run: node scripts/generate-licenses.js
+
       - name: build and release
         uses: tauri-apps/tauri-action@v0
         env:
