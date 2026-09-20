@@ -14,6 +14,7 @@ A03_Obcowa/
 │   └── settings.json
 ├── LICENSE.md
 ├── README.md
+├── THIRD_PARTY_LICENSES.txt
 ├── myicon.png
 ├── package-lock.json
 ├── package.json
@@ -154,6 +155,7 @@ A03_Obcowa/
 📄 `scripts/generate_licenses.js`
   └── import fs
   └── import path
+  └── import url
 
 📄 `src/components/Editor/Editor.svelte`
   └── import $lib/stores

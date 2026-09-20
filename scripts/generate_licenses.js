@@ -2,9 +2,17 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+// 1. スクリプトの置き場所（/scripts）を基準に、プロジェクトルートの絶対パスを決定
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectRoot = path.resolve(__dirname, '..');
 
 export function generateThirdPartyLicenses() {
-  const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+  // package.json のパスを絶対パスで指定
+  const pkgPath = path.resolve(projectRoot, 'package.json');
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
   const deps = Object.keys(pkg.dependencies || {});
   
   let output = `================================================================================
@@ -18,7 +26,8 @@ Please see the individual sections for license terms and copyright notices.
   // 1. npm ライブラリの走査
   for (const dep of deps) {
     try {
-      const depPkgPath = path.resolve('node_modules', dep, 'package.json');
+      // node_modules の位置もプロジェクトルート基準に統一
+      const depPkgPath = path.resolve(projectRoot, 'node_modules', dep, 'package.json');
       if (!fs.existsSync(depPkgPath)) continue;
 
       const depPkg = JSON.parse(fs.readFileSync(depPkgPath, 'utf8'));
@@ -71,7 +80,11 @@ Licensed under the Apache License, Version 2.0 or the MIT license,
 at your option. This file may not be copied, modified, or distributed
 except according to those terms.\n\n`;
 
-  // ルートディレクトリに書き出し
-  fs.writeFileSync('THIRD_PARTY_LICENSES.txt', output, 'utf8');
-  console.log('Generated: THIRD_PARTY_LICENSES.txt');
+  // プロジェクトルート直下に THIRD_PARTY_LICENSES.txt を書き出し
+  const outputPath = path.resolve(projectRoot, 'THIRD_PARTY_LICENSES.txt');
+  fs.writeFileSync(outputPath, output, 'utf8');
+  console.log(`Generated: ${outputPath}`);
 }
+
+// コマンドラインから直接実行された際に動作させるための呼び出し
+generateThirdPartyLicenses();
