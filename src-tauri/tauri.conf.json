@@ -34,7 +34,7 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "THIRD_PARTY_LICENSES.txt"
+      "../THIRD_PARTY_LICENSES.txt"
     ]
   }
 }
