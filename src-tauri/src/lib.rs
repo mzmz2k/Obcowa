@@ -147,6 +147,31 @@ fn build_tree_from_paths(files: Vec<FileMeta>, base_dir: &str) -> Vec<VirtualNod
     convert(root)
 }
 
+/// 複数のファイルパスから共通の祖先ディレクトリを計算する純粋関数
+fn get_common_base_path(files: &[FileMeta]) -> String {
+    if files.is_empty() {
+        return String::new();
+    }
+    let mut common_path = std::path::PathBuf::from(&files[0].path);
+    common_path.pop(); // ファイル名を除去
+    
+    for file in files.iter().skip(1) {
+        let path = std::path::Path::new(&file.path);
+        let mut new_common = std::path::PathBuf::new();
+        let mut it1 = common_path.components();
+        let mut it2 = path.components();
+        while let (Some(c1), Some(c2)) = (it1.next(), it2.next()) {
+            if c1 == c2 {
+                new_common.push(c1);
+            } else {
+                break;
+            }
+        }
+        common_path = new_common;
+    }
+    common_path.to_string_lossy().into_owned()
+}
+
 // スマートフォルダの条件評価コマンド
 #[tauri::command]
 async fn evaluate_smart_folder(
@@ -189,14 +214,14 @@ async fn evaluate_smart_folder(
     all_files.sort_by(|a, b| a.path.cmp(&b.path));
     all_files.dedup_by(|a, b| a.path == b.path);
 
-    // Date条件ごとの上位N件を抽出
-    let mut date_sets: Vec<std::collections::HashSet<String>> = Vec::new();
-    for cond in &rules.conditions {
+    // Date条件のインデックスズレを防ぐため、条件の絶対インデックスをキーにしたHashMapで管理
+    let mut date_sets: std::collections::HashMap<usize, std::collections::HashSet<String>> = std::collections::HashMap::new();
+    for (i, cond) in rules.conditions.iter().enumerate() {
         if let SmartCondition::Date { date_type, limit } = cond {
             let mut sorted = all_files.clone();
             if date_type == "created" { sorted.sort_by(|a, b| b.created.cmp(&a.created)); } 
             else { sorted.sort_by(|a, b| b.modified.cmp(&a.modified)); }
-            date_sets.push(sorted.into_iter().take(*limit).map(|f| f.path).collect());
+            date_sets.insert(i, sorted.into_iter().take(*limit).map(|f| f.path).collect());
         }
     }
 
@@ -205,9 +230,9 @@ async fn evaluate_smart_folder(
         let mut is_match_all = true;
         let mut is_match_any = false;
         let mut has_conditions = false;
-        let mut date_cond_idx = 0;
 
-        for cond in &rules.conditions {
+        // enumerate を使って絶対インデックス(i)を取得
+        for (i, cond) in rules.conditions.iter().enumerate() {
             has_conditions = true;
             let cond_match = match cond {
                 SmartCondition::Tag { tag, match_mode, include_inline, is_exclude } => {
@@ -215,9 +240,8 @@ async fn evaluate_smart_folder(
                     if *is_exclude { !has_tag } else { has_tag }
                 },
                 SmartCondition::Date { .. } => {
-                    let is_in_top = date_sets[date_cond_idx].contains(&file.path);
-                    date_cond_idx += 1;
-                    is_in_top
+                    // HashMapから安全に取得。存在しない場合はマッチしないとみなす
+                    date_sets.get(&i).map_or(false, |set| set.contains(&file.path))
                 }
             };
             is_match_all = is_match_all && cond_match;
@@ -229,9 +253,13 @@ async fn evaluate_smart_folder(
     }
 
     if rules.keep_structure { 
-        // 対象のベースディレクトリを仮決めする（フォルダ指定があればそれ、なければ空）
-        let base = if !rules.target_dir.is_empty() { &rules.target_dir } else { "" };
-        Ok(build_tree_from_paths(filtered_files, base)) 
+    // ワークスペース抽出時など target_dir が空の場合、抽出されたファイル群から共通の祖先パスを算出する
+        let base = if !rules.target_dir.trim().is_empty() { 
+            rules.target_dir.clone() 
+        } else { 
+            get_common_base_path(&filtered_files) 
+        };
+        Ok(build_tree_from_paths(filtered_files, &base)) 
     } else { 
         Ok(filtered_files.into_iter().map(|f| {
             let c_ms = f.created.duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;

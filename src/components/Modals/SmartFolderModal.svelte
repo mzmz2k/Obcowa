@@ -17,35 +17,38 @@
   let sfKeep = true;
   let sfConds: any[] = [];
 
-  // 💥 モーダルが開かれた瞬間に、新規作成か編集かを判定して初期化する
-// 💥 変更: 直前の「開いていたか」の状態を記憶する変数を追加
   let prevIsOpen = false;
 
-  // 💥 変更: 「閉じていた(false)」状態から「開いた(true)」状態になった瞬間だけ初期化処理を走らせる
-  $: {
-    if (isOpen && !prevIsOpen) {
-      if (editingSmartNode) {
-        sfName = editingSmartNode.name;
-        sfTarget = editingSmartNode.smart_rules.target_dir;
-        sfTargetWorkspace = editingSmartNode.smart_rules.target_workspace || false;
-        sfMatch = editingSmartNode.smart_rules.match_type;
-        sfKeep = editingSmartNode.smart_rules.keep_structure;
-        
-        sfConds = JSON.parse(JSON.stringify(editingSmartNode.smart_rules.conditions));
-        sfConds.forEach((c: any) => {
-          if (c.cond_type === 'Tag' && !c.match_mode) c.match_mode = 'contains';
-        });
-      } else {
-        sfName = '';
-        sfTarget = '';
-        sfTargetWorkspace = false;
-        sfMatch = 'AND';
-        sfKeep = true;
-        sfConds = [];
-      }
+  // ブロック内部での変数更新を分離し、Svelte標準の安全なリアクティビティパターンに変更
+  $: if (isOpen) {
+    if (!prevIsOpen) {
+      initForm();
     }
-    // 状態を更新
-    prevIsOpen = isOpen;
+    prevIsOpen = true;
+  } else {
+    prevIsOpen = false;
+  }
+
+  function initForm() {
+    if (editingSmartNode) {
+      sfName = editingSmartNode.name;
+      sfTarget = editingSmartNode.smart_rules.target_dir;
+      sfTargetWorkspace = editingSmartNode.smart_rules.target_workspace || false;
+      sfMatch = editingSmartNode.smart_rules.match_type;
+      sfKeep = editingSmartNode.smart_rules.keep_structure;
+      
+      sfConds = JSON.parse(JSON.stringify(editingSmartNode.smart_rules.conditions));
+      sfConds.forEach((c: any) => {
+        if (c.cond_type === 'Tag' && !c.match_mode) c.match_mode = 'contains';
+      });
+    } else {
+      sfName = '';
+      sfTarget = '';
+      sfTargetWorkspace = false;
+      sfMatch = 'AND';
+      sfKeep = true;
+      sfConds = [];
+    }
   }
 
   function changeCondType(idx: number, type: string) {
