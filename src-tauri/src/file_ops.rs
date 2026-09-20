@@ -6,32 +6,71 @@ use tauri::{AppHandle, Manager};
 // lib.rs で定義されている構造体を使えるように読み込む
 use crate::{Workspace, VirtualNode};
 
-/// 💥 安全にファイルを保存するアトミック書き込み関数
-pub fn atomic_write(path: &std::path::Path, content: &[u8]) -> Result<(), String> {
-    let dir = path.parent().unwrap_or_else(|| std::path::Path::new(""));
+use std::path::Path;
+
+/// フォルダ内のクラッシュ時の未処理ファイルを安全に復旧または破棄する
+fn recover_temp_files(dir: &Path) {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let file_name = entry.file_name();
+            let name_str = file_name.to_string_lossy();
+            
+            if name_str.starts_with(".~writing_") {
+                // 書き込み途中でクラッシュしたゴミは破棄（元データは無傷）
+                let _ = fs::remove_file(entry.path());
+            } else if name_str.starts_with(".~ready_") {
+                // 書き込み完了後、コピー上書き中にクラッシュしたものは復旧
+                let original_name = name_str.trim_start_matches(".~ready_");
+                let original_path = dir.join(original_name);
+                let ready_path = entry.path();
+                
+                // 完全なデータから元ファイルを上書き復旧
+                if fs::copy(&ready_path, &original_path).is_ok() {
+                    let _ = fs::remove_file(&ready_path);
+                }
+            }
+        }
+    }
+}
+
+/// 💥 安全にファイルを保存し、かつ作成日時を維持するアトミック書き込み関数
+pub fn atomic_write(path: &Path, content: &[u8]) -> Result<(), String> {
+    let dir = path.parent().unwrap_or_else(|| Path::new(""));
     let file_name = path.file_name().unwrap_or_default().to_string_lossy();
     
-    let timestamp = std::time::SystemTime::now()
-        .duration_since(std::time::SystemTime::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_micros();
-    let tmp_path = dir.join(format!(".~tmp_{}_{}", timestamp, file_name));
+    // 書き込み途中のファイル名と、書き込み完了済みのリカバリー用ファイル名
+    let writing_path = dir.join(format!(".~writing_{}", file_name));
+    let ready_path = dir.join(format!(".~ready_{}", file_name));
 
-    let mut file = fs::File::create(&tmp_path).map_err(|e| e.to_string())?;
+    // 前回のゴミがあれば消す
+    let _ = fs::remove_file(&writing_path);
+
+    // 1. 一時ファイルに書き込む（まだ元データは安全）
+    let mut file = fs::File::create(&writing_path).map_err(|e| e.to_string())?;
     if let Err(e) = file.write_all(content) {
-        let _ = fs::remove_file(&tmp_path);
-        return Err(e.to_string());
-    }
-    
-    if let Err(e) = file.sync_all() {
-        let _ = fs::remove_file(&tmp_path);
+        let _ = fs::remove_file(&writing_path);
         return Err(e.to_string());
     }
 
-    if let Err(e) = fs::rename(&tmp_path, path) {
-        let _ = fs::remove_file(&tmp_path);
+    // 2. ディスクに確実に保存
+    if let Err(e) = file.sync_all() {
+        let _ = fs::remove_file(&writing_path);
         return Err(e.to_string());
     }
+
+    // 3. アトミックにリネームして「完全なデータ」として確定させる
+    if let Err(e) = fs::rename(&writing_path, &ready_path) {
+        let _ = fs::remove_file(&writing_path);
+        return Err(e.to_string());
+    }
+
+    // 4. 完全なデータから、元のファイルへ中身を「コピー上書き」する（これによりOSの作成日時が維持される）
+    if let Err(e) = fs::copy(&ready_path, path) {
+        return Err(format!("ファイルのコピー上書きに失敗しました: {}", e));
+    }
+
+    // 5. 成功したらリカバリー用ファイルを消す
+    let _ = fs::remove_file(&ready_path);
 
     Ok(())
 }
@@ -134,6 +173,12 @@ use encoding_rs::{UTF_8, SHIFT_JIS};
 
 #[tauri::command]
 pub fn read_file_content(path: String) -> Result<String, String> {
+    // 読み込む前にリカバリー処理を走らせて安全を確保
+    let file_path = Path::new(&path);
+    if let Some(dir) = file_path.parent() {
+        recover_temp_files(dir);
+    }
+
     let bytes = fs::read(&path).map_err(|e| format!("Failed to read file: {}", e))?;
     
     // 1. まずUTF-8としてデコードを試みる
@@ -154,6 +199,12 @@ pub fn read_directory(
     sort_by: Option<String>,
     sort_order: Option<String>
 ) -> Result<Vec<VirtualNode>, String> {
+        // フォルダを展開する前にリカバリー処理を走らせて安全を確保
+    let dir_path = Path::new(&path);
+    if dir_path.exists() && dir_path.is_dir() {
+        recover_temp_files(dir_path);
+    }
+
     let mut nodes = Vec::new();
     let entries = fs::read_dir(path).map_err(|e| e.to_string())?;
 

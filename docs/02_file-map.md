@@ -480,6 +480,7 @@ A03_Obcowa/
   └── use/mod std::io::Write
   └── use/mod tauri::{AppHandle, Manager}
   └── use/mod crate::{Workspace, VirtualNode}
+  └── use/mod std::path::Path
   └── use/mod encoding_rs::{UTF_8, SHIFT_JIS}
   └── use/mod tests {
     use super::*
@@ -503,6 +504,7 @@ A03_Obcowa/
   └── use/mod std::fs::{self, File, metadata}
   └── use/mod std::io::{self, BufRead, Write}
   └── use/mod std::path::{Path}
+  └── use/mod crate::file_ops::atomic_write
 
 📄 `svelte.config.js`
   └── import @sveltejs/adapter-static
@@ -775,7 +777,7 @@ A03_Obcowa/
   - `pub fn load_dashboard(app: AppHandle, workspace_id: String) -> Result<String, String>`
   - `pub fn save_dashboard(app: AppHandle, workspace_id: String, content: String) -> Result<(), String>`
 - `src-tauri/src/file_ops.rs` : ファイル保存、読み込み関係。
-  - `pub fn atomic_write(path: &std::path::Path, content: &[u8]) -> Result<(), String>`
+  - `pub fn atomic_write(path: &Path, content: &[u8]) -> Result<(), String>`
   - `pub fn get_file_modified(path: String) -> Result<u64, String>`
   - `pub fn save_workspaces(app: AppHandle, workspaces: Vec<Workspace>) -> Result<(), String>`
   - `pub fn load_workspaces(app: AppHandle) -> Result<Vec<Workspace>, String>`

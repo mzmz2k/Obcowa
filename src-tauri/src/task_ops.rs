@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fs::{self, File, metadata};
 use std::io::{self, BufRead, Write};
 use std::path::{Path};
-
+use crate::file_ops::atomic_write;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -200,22 +200,12 @@ pub fn complete_task(
         }
     }
 
-    // アトミック書き込み: 一時ファイルに書き込んでからリネーム
-    let parent = path.parent().unwrap_or(Path::new(""));
-    let temp_file_path = parent.join(format!(".{}.tmp", path.file_name().unwrap().to_string_lossy()));
-
-    {
-        let mut temp_file = File::create(&temp_file_path).map_err(|e| e.to_string())?;
-        for line in lines {
-            writeln!(temp_file, "{}", line).map_err(|e| e.to_string())?;
-        }
+    // 強化版のアトミック書き込み関数（コピー上書き）を使用する
+    // lines 配列を "\n" で結合して文字列に戻し、バイト配列として渡す
+    let new_content = lines.join("\n");
+    if let Err(e) = atomic_write(path, new_content.as_bytes()) {
+        return Err(format!("タスクの保存に失敗しました: {}", e));
     }
-
-    fs::rename(&temp_file_path, path).map_err(|e| {
-        // リネーム失敗時は一時ファイルを削除してクリーンアップ
-        let _ = fs::remove_file(&temp_file_path);
-        e.to_string()
-    })?;
 
     Ok(())
 }
