@@ -1,6 +1,51 @@
 // ワークスペースのノードツリー最新化およびスマートフォルダ評価、ワークスペースのファイル一覧取得
 import { invoke } from '@tauri-apps/api/core';
 
+
+/**
+ * ピン留めされた情報から、ツリー上の実体ノードを再帰的に検索する
+ */
+export function getPinnedNode(pin: any, workspace: any) {
+  if (!workspace) return pin;
+
+  function findNode(nodes: any[]): any {
+    for (const n of nodes) {
+      const path = n.type === 'Folder' ? n.original_path : n.path;
+      if (n.type === pin.item_type && n.name === pin.name && path === pin.path) return n;
+      if (n.children) {
+        const found = findNode(n.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  let realNode = findNode(workspace.nodes);
+  if (realNode) return realNode;
+
+  return { type: pin.item_type, name: pin.name, path: pin.path, original_path: pin.path, children: [] };
+}
+
+/**
+ * フォルダとファイルを区別してソートする純粋関数
+ */
+export function getSortedNodes(nodes: any[], sortBy = 'name', sortOrder = 'asc') {
+  if (!nodes) return [];
+  return [...nodes].sort((a, b) => {
+    const isDirA = a.type === 'Folder';
+    const isDirB = b.type === 'Folder';
+    if (isDirA !== isDirB) return isDirA ? -1 : 1;
+    
+    let comp = 0;
+    if (sortBy === 'created') comp = (a.created || 0) - (b.created || 0);
+    else if (sortBy === 'modified') comp = (a.modified || 0) - (b.modified || 0);
+    else comp = a.name.localeCompare(b.name);
+    
+    return sortOrder === 'asc' ? comp : -comp;
+  });
+}
+
+
 export async function refreshTree(nodes: any[], workspaceNodes: any[]): Promise<any[]> {
   const updatedNodes = [];
   for (let node of nodes) {

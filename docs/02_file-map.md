@@ -300,6 +300,7 @@ A03_Obcowa/
   └── import lucide-svelte
   └── import ../../lib/stores
   └── import ../../lib/workspace/workspaceManager
+  └── import ../../lib/workspace/treeUtils
 
 📄 `src/components/TreeNode.svelte`
   └── import @tauri-apps/api/core
@@ -739,6 +740,8 @@ A03_Obcowa/
   - `export function buildCommonFileMenu(params: FileMenuParams)`
 - `src/lib/workspace/treeUtils.test.ts` : 責務: treeUtils関数の単体テスト
 - `src/lib/workspace/treeUtils.ts` : ワークスペースのノードツリー最新化およびスマートフォルダ評価、ワークスペースのファイル一覧取得
+  - `export function getPinnedNode(pin: any, workspace: any)`
+  - `export function getSortedNodes(nodes: any[], sortBy = 'name', sortOrder = 'asc')`
   - `export async function refreshTree(nodes: any[], workspaceNodes: any[])`
   - `export function buildFilenameIndex(nodes: any[])`
   - `export function searchFilesByName(nodes: any[], query: string)`

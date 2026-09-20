@@ -1,6 +1,6 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
-  import { openFileInCurrentTab, openFileInNewTab, activeTabId, openTabs, switchTab, registeredTags, expandTreeRequest } from '../lib/stores'; 
+  import { workspacesStore, openFileInCurrentTab, openFileInNewTab, activeTabId, openTabs, switchTab, registeredTags, expandTreeRequest } from '../lib/stores'; 
   import { getContext, tick } from 'svelte';
   import { ChevronDown, ChevronRight, Library, FolderOpen, Folder, FileText, Tag, Pin, PinOff, Search, Pencil, ArrowUpDown, ExternalLink } from 'lucide-svelte';
 
@@ -8,8 +8,19 @@
   import ContextMenu from '../features/ContextMenu.svelte';
   import { buildCommonFileMenu, type MenuItem } from '../lib/workspace/menuUtils';
 
-    // コンテキストアクションから新しい関数も受け取る
-  const { removeNode, pinNode, unpinNode, checkIsPinned, getClickBehavior, saveWorkspace, editSmartFolder, openNewFileModal, getGlobalSort, setNodeSort } = getContext('workspaceActions') as any;
+    import { 
+    requestSaveWorkspaces, 
+    removeNodeFromWorkspace, 
+    pinNodeToWorkspace, 
+    unpinNodeFromWorkspace, 
+    isNodePinned, 
+    getWorkspaceClickBehavior, 
+    getWorkspaceGlobalSort, 
+    setWorkspaceNodeSort 
+  } from '../lib/workspace/workspaceManager';
+
+    // UI操作（モーダル）に関するものだけを Context から受け取る
+  const { editSmartFolder, openNewFileModal } = getContext('workspaceActions') as any;
 
   export let node: any;
   // isReadonly を削除し、親から引き継ぐ情報に変更
@@ -68,7 +79,10 @@
               // 普通のフォルダでまだ中身を読み込んでいない場合はバックエンドから読み込む
               if (node.children && node.children.length === 0 && node.original_path && !node.smart_rules) {
                   invoke('read_directory', { path: node.original_path }).then(res => {
-                      node.children = res as any[];
+                          workspacesStore.update(ws => {
+                          node.children = res as any[];
+                          return ws;
+                      });
                   }).catch(e => console.error("フォルダ自動展開エラー:", e));
               }
           }
@@ -85,8 +99,8 @@
       }
   }
 
-  // 💥 追加: 現在のソート設定（個別設定があれば優先、なければ全体設定）を計算し、常にソートされた配列を作る
-  $: globalSort = getGlobalSort();
+  // 現在のソート設定（個別設定があれば優先、なければ全体設定）を計算し、常にソートされた配列を作る
+  $: globalSort = getWorkspaceGlobalSort();
   $: sortBy = node.sort_by || globalSort.by;
   $: sortOrder = node.sort_order || globalSort.order;
 
@@ -111,13 +125,17 @@
   async function handleClick() {
     if (node.type === 'Folder') {
           isOpen = !isOpen;
-      // 💥 変更: !node.smart_rules を追加し、スマートフォルダの場合はこの処理をスキップさせる
+      // !node.smart_rules を追加し、スマートフォルダの場合はこの処理をスキップさせる
       if (isOpen && node.children && node.children.length === 0 && node.original_path && !node.smart_rules) {
         try {
-          node.children = await invoke('read_directory', { 
+          const children = await invoke('read_directory', {  
               path: node.original_path,
               sortBy,
               sortOrder
+          });
+            workspacesStore.update(ws => {
+            node.children = children as any[];
+            return ws;
           });
         } catch (e) {
           console.error("フォルダ読み込み失敗:", e);
@@ -126,7 +144,7 @@
     } else if (node.type === 'File') {
       try {
         const content = await loadFileContent(node.path);
-        const openInNewTab = getClickBehavior(); // 💥 設定を取得
+        const openInNewTab = getWorkspaceClickBehavior(); // 💥 設定を取得
 
         if (openInNewTab) {
           // すでに開いている場合はそのタブをアクティブにする
@@ -184,10 +202,10 @@
 
     // ピン留め
     items.push({
-      label: checkIsPinned(node) ? 'ピン留め解除' : 'ピン留め',
-      icon: checkIsPinned(node) ? PinOff : Pin,
+      label: isNodePinned(node) ? 'ピン留め解除' : 'ピン留め',
+      icon: isNodePinned(node) ? PinOff : Pin,
       accent: true,
-      action: () => checkIsPinned(node) ? unpinNode(node) : pinNode(node)
+      action: () => isNodePinned(node) ? unpinNodeFromWorkspace(node.path) : pinNodeToWorkspace(node)
     });
 
     // フォルダ専用メニュー
@@ -205,12 +223,12 @@
         label: 'ソート順変更',
         icon: ArrowUpDown,
         submenu: [
-          { label: '昇順', checked: sortOrder !== 'desc', action: () => setNodeSort(node, sortBy, 'asc') },
-          { label: '降順', checked: sortOrder === 'desc', action: () => setNodeSort(node, sortBy, 'desc') },
+          { label: '昇順', checked: sortOrder !== 'desc', action: () => setWorkspaceNodeSort(node, sortBy, 'asc') },
+          { label: '降順', checked: sortOrder === 'desc', action: () => setWorkspaceNodeSort(node, sortBy, 'desc') },
           { divider: true },
-          { label: '名前', checked: sortBy === 'name', action: () => setNodeSort(node, 'name', sortOrder) },
-          { label: '作成日', checked: sortBy === 'created', action: () => setNodeSort(node, 'created', sortOrder) },
-          { label: '更新日', checked: sortBy === 'modified', action: () => setNodeSort(node, 'modified', sortOrder) },
+          { label: '名前', checked: sortBy === 'name', action: () => setWorkspaceNodeSort(node, 'name', sortOrder) },
+          { label: '作成日', checked: sortBy === 'created', action: () => setWorkspaceNodeSort(node, 'created', sortOrder) },
+          { label: '更新日', checked: sortBy === 'modified', action: () => setWorkspaceNodeSort(node, 'modified', sortOrder) },
         ]
       });
       items.push({ divider: true });
@@ -225,7 +243,7 @@
       items.push({
         label: 'リストから削除',
         danger: true,
-        action: () => removeNode(node, ownerId)
+        action: () => removeNodeFromWorkspace(node, ownerId)
       });
     }
 
@@ -296,18 +314,25 @@ async function loadFileContent(path: string): Promise<string> {
   async function renameFolder() {
     const newName = prompt("リストに表示する名前を入力してください（実フォルダ名は変わりません）", node.name);
     if (newName && newName.trim() !== '') {
-      node.name = newName;
+        workspacesStore.update(ws => {
+        node.name = newName.trim();
+        return ws;
+      });
       await tick();
-      saveWorkspace();
+      requestSaveWorkspaces();
     }
   }
 
   function createNewFileInFolder() {
     openNewFileModal(node.original_path, async () => {
       isOpen = true;
-      node.children = await invoke('read_directory', { path: node.original_path });
+      const children = await invoke('read_directory', { path: node.original_path });
+      workspacesStore.update(ws => {
+        node.children = children as any[];
+        return ws;
+      });
       await tick();
-      saveWorkspace();
+      requestSaveWorkspaces();
     });
   }
 
