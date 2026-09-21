@@ -3,11 +3,11 @@
   import { invoke } from '@tauri-apps/api/core';
   import { workspacesStore, openFileInCurrentTab, openFileInNewTab, activeTabId, openTabs, switchTab, registeredTags, expandTreeRequest } from '../lib/stores'; 
   import { getContext, tick } from 'svelte';
-  import { ChevronDown, ChevronRight, Library, FolderOpen, Folder, FileText, Tag, Pin, PinOff, Search, Pencil, ArrowUpDown, ExternalLink, Layers } from 'lucide-svelte';
+  import { Library, FolderOpen, Folder, FileText } from 'lucide-svelte';
 
   import { extractTags, updateTagsInContent } from '../lib/utils/tagUtils';
   import ContextMenu from '../features/ContextMenu.svelte';
-  import { buildCommonFileMenu, type MenuItem } from '../lib/workspace/menuUtils';
+  import { buildTreeNodeMenu, type MenuItem } from '../lib/workspace/menuUtils';
 
     import { 
     requestSaveWorkspaces, 
@@ -187,77 +187,31 @@
         adjustedY = Math.max(0, window.innerHeight - estimatedMenuHeight);
     }
 
-    // ==== メニュー項目の構築 ====
-    const items: MenuItem[] = [];
 
-    if (node.type === 'File') {
-      items.push(...buildCommonFileMenu({
-        registeredTags: $registeredTags,
-        currentFileTags,
-        onOpenInNewTab: async () => {
-          const content = await loadFileContent(node.path);
-          openFileInNewTab(node.path, node.name, content);
-        },
-        onAddTag: (tag) => operateTag(tag, true),
-        onRemoveTag: (tag) => operateTag(tag, false)
-      }));
-    }
+    // 💥 メニュー構築を外部ファイルに委譲
+    menuItems = buildTreeNodeMenu({
+      node,
+      isPinned: isNodePinned(node),
+      sortBy,
+      sortOrder,
+      registeredTags: $registeredTags,
+      currentFileTags,
+      actions: {
+        openInNewTab: async () => openFileInNewTab(node.path, node.name, await loadFileContent(node.path)),
+        addTag: (tag) => operateTag(tag, true),
+        removeTag: (tag) => operateTag(tag, false),
+        togglePin: () => isNodePinned(node) ? unpinNodeFromWorkspace(node.path) : pinNodeToWorkspace(node),
+        editSmartFolder: () => editSmartFolder(node),
+        renameFolder: () => renameFolder(),
+        createNewFile: () => createNewFileInFolder(),
+        setSort: (by, order) => setWorkspaceNodeSort(node, by, order),
+        openExplorer: () => openInExplorer(),
+        setCategory: () => setCategory(),
+        removeNode: () => removeNodeFromWorkspace(node, ownerId)
 
-    // ピン留め
-    items.push({
-      label: isNodePinned(node) ? 'ピン留め解除' : 'ピン留め',
-      icon: isNodePinned(node) ? PinOff : Pin,
-      accent: true,
-      action: () => isNodePinned(node) ? unpinNodeFromWorkspace(node.path) : pinNodeToWorkspace(node)
-    });
-
-    // フォルダ専用メニュー
-    if (node.type === 'Folder' && !node.is_virtual_wrapper) {
-      if (node.smart_rules) {
-        items.push({ label: '条件を編集', icon: Search, action: () => editSmartFolder(node) });
-      } else {
-        items.push({ label: '表示名を変更', icon: Pencil, action: () => renameFolder() });
-        if (node.original_path) {
-          items.push({ label: '新規ファイル作成', icon: FileText, action: () => createNewFileInFolder() });
-        }
       }
-      
-      items.push({
-        label: 'ソート順変更',
-        icon: ArrowUpDown,
-        submenu: [
-          { label: '昇順', checked: sortOrder !== 'desc', action: () => setWorkspaceNodeSort(node, sortBy, 'asc') },
-          { label: '降順', checked: sortOrder === 'desc', action: () => setWorkspaceNodeSort(node, sortBy, 'desc') },
-          { divider: true },
-          { label: '名前', checked: sortBy === 'name', action: () => setWorkspaceNodeSort(node, 'name', sortOrder) },
-          { label: '作成日', checked: sortBy === 'created', action: () => setWorkspaceNodeSort(node, 'created', sortOrder) },
-          { label: '更新日', checked: sortBy === 'modified', action: () => setWorkspaceNodeSort(node, 'modified', sortOrder) },
-        ]
-      });
-      items.push({ divider: true });
-    }
 
-    if (node.type === 'Folder' && node.original_path) {
-      items.push({ label: 'エクスプローラーで開く', icon: ExternalLink, action: () => openInExplorer() });
-    }
-    
-    if (!node.is_virtual_wrapper) {
-
-      // カテゴリ設定
-      items.push({
-        label: 'カテゴリを設定',
-        icon: Layers,
-        action: () => setCategory()
-      });
-
-      items.push({
-        label: 'リストから削除',
-        danger: true,
-        action: () => removeNodeFromWorkspace(node, ownerId)
-      });
-    }
-
-    menuItems = items;
+    });
 
     showMenu = true;
     menuX = e.clientX;

@@ -743,6 +743,8 @@ A03_Obcowa/
   - `export interface MenuItem`
   - `export interface FileMenuParams`
   - `export function buildCommonFileMenu(params: FileMenuParams)`
+  - `export interface TreeNodeMenuParams`
+  - `export function buildTreeNodeMenu(params: TreeNodeMenuParams)`
 - `src/lib/workspace/treeUtils.test.ts` : 責務: treeUtils関数の単体テスト
 - `src/lib/workspace/treeUtils.ts` : ワークスペースのノードツリー最新化およびスマートフォルダ評価、ワークスペースのファイル一覧取得
   - `export function getPinnedNode(pin: any, workspace: any)`
