@@ -119,6 +119,11 @@ export async function refreshTree(nodes: any[], workspaceNodes: any[]): Promise<
               if (oldFolders.has(fresh.original_path)) {
                 const old = oldFolders.get(fresh.original_path);
                 fresh.name = old.name;
+                // 表示名や子要素だけでなく、ソートとカテゴリの設定も引き継ぐ
+                fresh.sort_by = old.sort_by;
+                fresh.sort_order = old.sort_order;
+                fresh.category = old.category;
+
                 fresh.children = old.children || [];
               } else {
                 fresh.children = [];

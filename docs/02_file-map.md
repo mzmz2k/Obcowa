@@ -609,7 +609,7 @@ A03_Obcowa/
 - `src/components/Sidebar/SidebarTree.svelte` : サイドバーのツリー表示とピン留め
 
 ### src/components/
-- `src/components/TreeNode.svelte` : （説明未記載）
+- `src/components/TreeNode.svelte` : 責務: ワークスペース内の単一ファイル・フォルダ（ノード）を表示し、再帰的な展開とユーザー操作（開く・右クリックメニュー・インライン編集）を処理するUIコンポーネント
   - `export let node`
   - `export let ownerId`
 
