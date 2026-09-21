@@ -77,7 +77,7 @@
             on:click={executeSearch} 
             disabled={isSearching} 
             class="px-6 py-2 rounded text-sm font-bold transition text-white hover:brightness-110 disabled:opacity-50"
-            style="background-color: var(--accent-color);"
+            style="background-color: color-mix(in srgb, var(--accent-color) 80%, transparent);"
         >
             検索
         </button>
