@@ -1,3 +1,4 @@
+<!-- 責務: ワークスペース内の単一ファイル・フォルダ（ノード）を表示し、再帰的な展開とユーザー操作（開く・右クリックメニュー・インライン編集）を処理するUIコンポーネント -->
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
   import { workspacesStore, openFileInCurrentTab, openFileInNewTab, activeTabId, openTabs, switchTab, registeredTags, expandTreeRequest } from '../lib/stores'; 
@@ -44,9 +45,11 @@
   let lastProcessedTimestamp = 0; 
   let lastScrolledTimestamp = 0;
 
+  // インライン入力用の状態管理
+  let editMode: 'none' | 'name' | 'category' = 'none';
+  let editInput = "";
 
-
-  // 💥 追加: スマートフォルダ用に、自分の中身(子や孫)に目的のファイルが含まれているか調べる関数
+  // スマートフォルダ用に、自分の中身(子や孫)に目的のファイルが含まれているか調べる関数
   function containsPath(folderNode: any, targetPath: string): boolean {
     if (!folderNode.children) return false;
     for (const child of folderNode.children) {
@@ -319,15 +322,8 @@ async function loadFileContent(path: string): Promise<string> {
 }
 
   async function renameFolder() {
-    const newName = prompt("リストに表示する名前を入力してください（実フォルダ名は変わりません）", node.name);
-    if (newName && newName.trim() !== '') {
-        workspacesStore.update(ws => {
-        node.name = newName.trim();
-        return ws;
-      });
-      await tick();
-      requestSaveWorkspaces();
-    }
+    editMode = 'name';
+    editInput = node.name;
   }
 
   function createNewFileInFolder() {
@@ -344,16 +340,31 @@ async function loadFileContent(path: string): Promise<string> {
   }
 
   async function setCategory() {
-    const currentCat = node.category || '';
-    const newCat = prompt("カテゴリ名を入力してください（空欄でカテゴリなしになります）", currentCat);
-    if (newCat !== null) {
-      workspacesStore.update(wsList => {
-        node.category = newCat.trim();
-        return wsList;
-      });
-      await tick();
-      requestSaveWorkspaces();
-    }
+
+    editMode = 'category';
+    editInput = node.category || '';
+  }
+
+  // 💥 追加: 入力確定処理
+  async function saveEdit() {
+    if (editMode === 'none') return;
+    
+    const val = editInput.trim();
+    workspacesStore.update(wsList => {
+      if (editMode === 'name' && val !== '') node.name = val;
+      if (editMode === 'category') node.category = val;
+      return wsList;
+    });
+    
+    editMode = 'none';
+    await tick();
+    requestSaveWorkspaces();
+  }
+
+  // エンター・エスケープキーの制御
+  function handleEditKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter') saveEdit();
+    else if (e.key === 'Escape') editMode = 'none';
   }
 
   async function openInExplorer() {
@@ -393,7 +404,21 @@ async function loadFileContent(path: string): Promise<string> {
     </span>
 
 
-    <span class="truncate">{node.name}</span>
+    <!-- 💥 名前変更時のみ、インライン入力欄を表示 -->
+    {#if editMode === 'name'}
+      <!-- svelte-ignore a11y-autofocus -->
+      <input 
+        type="text" 
+        bind:value={editInput} 
+        on:keydown={handleEditKeydown}
+        on:blur={saveEdit}
+        class="text-sm bg-black/20 text-white border border-[var(--accent-color)] rounded px-1 py-0.5 w-full outline-none"
+        autofocus
+        on:click|stopPropagation
+      />
+    {:else}
+      <span class="truncate">{node.name}</span>
+    {/if}
   </div>
 
  <!-- 💥 カスタムコンテキストメニュー -->
@@ -407,6 +432,29 @@ async function loadFileContent(path: string): Promise<string> {
     />
 
   {/if}
+
+    <!-- 💥 カテゴリ設定用の独立したポップアップ -->
+  {#if editMode === 'category'}
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <div class="fixed inset-0 z-[60]" on:click|stopPropagation={saveEdit} on:contextmenu|preventDefault|stopPropagation></div>
+    <div 
+      class="fixed z-[70] p-2 rounded shadow-xl border border-black/20 flex flex-col gap-1"
+      style="left: {menuX}px; top: {menuY}px; background-color: var(--menu-bg); color: var(--text-color);"
+    >
+      <label class="text-xs font-bold opacity-70">カテゴリを設定（空欄でカテゴリ解除）</label>
+      <!-- svelte-ignore a11y-autofocus -->
+      <input 
+        type="text" 
+        bind:value={editInput} 
+        on:keydown={handleEditKeydown}
+        class="text-sm bg-black/20 text-[var(--text-color)] border border-[var(--accent-color)] rounded px-2 py-1 w-48 outline-none"
+        placeholder="カテゴリなし（空欄）"
+        autofocus
+      />
+    </div>
+  {/if}
+
 
   {#if isOpen && sortedChildren && sortedChildren.length > 0}
     <div class="border-l border-black/10 ml-2 pl-1">
