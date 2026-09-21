@@ -391,17 +391,15 @@ async function loadFileContent(path: string): Promise<string> {
     on:click={handleClick}
     on:contextmenu={handleContextMenu}
   >
-    <span class="mr-1.5 flex items-center justify-center w-4">
-      {#if node.type === 'Folder'}
+    {#if node.type === 'Folder'}
+      <span class="mr-1.5 flex items-center justify-center w-4 shrink-0 opacity-70">
         {#if node.is_virtual_wrapper}
           <Library size={14} />
         {:else}
           {#if isOpen}<FolderOpen size={14} />{:else}<Folder size={14} />{/if}
-        {/if}
-      {:else}
-        <FileText size={14} />
-      {/if}
-    </span>
+        {/if}       
+      </span>
+    {/if}
 
 
     <!-- 💥 名前変更時のみ、インライン入力欄を表示 -->
@@ -457,7 +455,10 @@ async function loadFileContent(path: string): Promise<string> {
 
 
   {#if isOpen && sortedChildren && sortedChildren.length > 0}
-    <div class="border-l border-black/10 ml-2 pl-1">
+    <div 
+      class="ml-[9px] pl-[7px] border-l transition-colors hover:border-[color-mix(in_srgb,var(--text-color)_30%,transparent)]"
+      style="border-color: color-mix(in srgb, var(--text-color) 10%, transparent);"
+    >
       {#each sortedChildren as childNode}
         <svelte:self node={childNode} {ownerId} />
       {/each}
