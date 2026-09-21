@@ -85,7 +85,7 @@ export interface TreeNodeMenuParams {
     createNewFile: () => void;
     setSort: (by: string, order: string) => void;
     openExplorer: () => void;
-    setCategory: () => void;
+    requestCategoryEdit: () => void;
     removeNode: () => void;
   }
 }
@@ -137,7 +137,7 @@ export function buildTreeNodeMenu(params: TreeNodeMenuParams): MenuItem[] {
 
   if (node.type === 'Folder' && node.original_path) items.push({ label: 'エクスプローラーで開く', icon: ExternalLink, action: actions.openExplorer });
   if (!node.is_virtual_wrapper) {
-    items.push({ label: 'カテゴリを設定', icon: Layers, action: actions.setCategory });
+    items.push({ label: 'カテゴリを設定', icon: Layers, action: actions.requestCategoryEdit });
     items.push({ label: 'リストから削除', danger: true, action: actions.removeNode });
   }
 

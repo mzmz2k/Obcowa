@@ -17,7 +17,8 @@
     isNodePinned, 
     getWorkspaceClickBehavior, 
     getWorkspaceGlobalSort, 
-    setWorkspaceNodeSort 
+    setWorkspaceNodeSort,
+    setWorkspaceNodeCategory
   } from '../lib/workspace/workspaceManager';
 
     // UI操作（モーダル）に関するものだけを Context から受け取る
@@ -206,7 +207,7 @@
         createNewFile: () => createNewFileInFolder(),
         setSort: (by, order) => setWorkspaceNodeSort(node, by, order),
         openExplorer: () => openInExplorer(),
-        setCategory: () => setCategory(),
+        requestCategoryEdit: () => { editMode = 'category'; editInput = node.category || ''; },
         removeNode: () => removeNodeFromWorkspace(node, ownerId)
 
       }
@@ -293,26 +294,27 @@ async function loadFileContent(path: string): Promise<string> {
     });
   }
 
-  async function setCategory() {
 
-    editMode = 'category';
-    editInput = node.category || '';
-  }
-
-  // 💥 追加: 入力確定処理
+  // 入力確定処理
   async function saveEdit() {
     if (editMode === 'none') return;
     
     const val = editInput.trim();
-    workspacesStore.update(wsList => {
-      if (editMode === 'name' && val !== '') node.name = val;
-      if (editMode === 'category') node.category = val;
-      return wsList;
-    });
+    
+    if (editMode === 'name' && val !== '') {
+      workspacesStore.update(wsList => {
+        node.name = val;
+        return wsList;
+      });
+      await tick();
+      requestSaveWorkspaces();
+    } else if (editMode === 'category') {
+      // カテゴリ処理はマネージャーに委譲
+      setWorkspaceNodeCategory(node, val);
+    }
     
     editMode = 'none';
-    await tick();
-    requestSaveWorkspaces();
+
   }
 
   // エンター・エスケープキーの制御

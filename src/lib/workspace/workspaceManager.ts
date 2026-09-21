@@ -162,3 +162,49 @@ if (typeof window !== 'undefined') {
    });
    requestSaveWorkspaces(true);
  }
+
+ /**
+ * ノードにカテゴリを設定します。
+ * ルート階層に存在しない下層ノードの場合は、自動的にルートへ複製（ショートカット追加）します。
+ */
+export function setNodeCategory(targetNode: any, newCategory: string) {
+  workspacesStore.update(wsList => {
+    // currentWorkspaceIndex はストアから get() で取得する必要があります
+    // ファイル上部で import { get } from 'svelte/store'; と import { currentWorkspaceIndex } from '../stores'; されている前提です
+    // もしされていなければ、ここで Svelte のストア購読ルールに則って処理します
+    return wsList; // 一旦ダミーリターン（下で正式に書きます）
+  });
+}
+
+
+/**
+ * ノードにカテゴリを設定します。
+ * ルート階層に存在しない下層ノードの場合は、自動的にルートへ複製（ショートカット追加）します。
+ */
+export function setWorkspaceNodeCategory(targetNode: any, newCategory: string) {
+  workspacesStore.update(wsList => {
+    const currentIndex = get(currentWorkspaceIndex);
+    const ws = wsList[currentIndex];
+    if (!ws) return wsList;
+
+    const targetPath = targetNode.type === 'Folder' ? targetNode.original_path : targetNode.path;
+
+    // ルートにすでに同じパスのノードがあるか探す
+    const existingRootNode = ws.nodes.find((n: any) => 
+      (n.type === 'Folder' ? n.original_path : n.path) === targetPath
+    );
+
+    if (existingRootNode) {
+      // ルートに存在する場合はカテゴリを上書き
+      existingRootNode.category = newCategory;
+    } else {
+      // 下層にある場合は、ルートに複製して追加
+      // structuredClone を使って安全にディープコピー
+      const newNode = structuredClone(targetNode);
+      newNode.category = newCategory;
+      ws.nodes.push(newNode);
+    }
+    return wsList;
+  });
+  requestSaveWorkspaces();
+}

@@ -445,6 +445,8 @@ A03_Obcowa/
   └── import @tauri-apps/api/core
   └── import @tauri-apps/api/event
   └── import ../stores
+  └── import svelte/store
+  └── import ../stores
 
 📄 `src/routes/+page.svelte`
   └── import svelte
@@ -768,6 +770,8 @@ A03_Obcowa/
   - `export function getWorkspaceClickBehavior()`
   - `export function getWorkspaceGlobalSort()`
   - `export function setWorkspaceNodeSort(node: any, by: string, order: string)`
+  - `export function setNodeCategory(targetNode: any, newCategory: string)`
+  - `export function setWorkspaceNodeCategory(targetNode: any, newCategory: string)`
 
 ### src/routes/
 - `src/routes/+layout.svelte` : （説明未記載）
