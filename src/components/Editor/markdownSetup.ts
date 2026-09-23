@@ -475,7 +475,8 @@ export function sanitizeHtml(rawHtml: string): string {
             'data-img-filename', 'data-task-index', 'type', 'checked', 'class',
             'data-widget-type', 'data-query', 'data-wiki-target', 'data-embed-target',
             'data-embed-heading', 'data-embed-block', 'style', 'width', 'alt',
-            'data-callout', 'data-callout-fold', 'dir'
+            'data-callout', 'data-callout-fold', 'dir',
+            'align'
         ]
     });
 }
@@ -494,6 +495,7 @@ export async function parseMarkdown(content: string, tabPath: string, options: P
 
     const processor = unified()
         .use(remarkParse)
+        .use(remarkGfm)                    // ★ テーブル等の構文拡張は必ずパース直後に行う
         .use(remarkFrontmatter, ['yaml'])
         .use(remarkEscapeUserHtml)         // ユーザ起因のタグを無害化(既存仕様維持)
         .use(remarkPropertiesCard, { showProperties: showProperties && !extractHeading && !extractBlock }) // 抽出時はプロパティ非表示

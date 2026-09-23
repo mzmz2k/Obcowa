@@ -315,6 +315,12 @@
     color: var(--text-color) !important;
 }
 
+
+/* Tailwindによる強制左寄せを上書きし、Markdownの配置指定（:---: など）を効かせる */
+.editor-preview th[align="left"], .editor-preview td[align="left"] { text-align: left !important; }
+.editor-preview th[align="center"], .editor-preview td[align="center"] { text-align: center !important; }
+.editor-preview th[align="right"], .editor-preview td[align="right"] { text-align: right !important; }
+
 /* マウスを行に乗せた時のほんのりハイライト（見やすくなります）
 .editor-preview tbody tr:hover {
     background-color: color-mix(in srgb, var(--text-color) 4%, transparent);
