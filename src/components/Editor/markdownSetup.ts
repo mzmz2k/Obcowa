@@ -1,203 +1,227 @@
 // Markdown文字列や独自ウィジェットなどを安全なHTMLに変換する
 
-import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { COPY_ICON_SVG } from './previewExtensions';
-import { parseDataviewQuery } from '../../lib/utils/queryParser'; 
+import { parseDataviewQuery } from '../../lib/utils/queryParser';
 
-let isMarkedInitialized = false;
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
+import remarkFrontmatter from 'remark-frontmatter';
+import remarkRehype from 'remark-rehype';
+import rehypeRaw from 'rehype-raw';
+import rehypeStringify from 'rehype-stringify';
+import { visit } from 'unist-util-visit';
+import type { Parent } from 'unist';
+import type { Root as MdastRoot, Text, HTML, Code, Heading, Yaml } from 'mdast';
+import type { Root as HastRoot, Element as HastElement } from 'hast';
 
-// marked レンダラーの this 型定義
-interface MarkedRendererThis {
-    parser?: {
-        parse(tokens: unknown[]): string;
-        parseInline(tokens: unknown[]): string;
-    };
-    lexer?: {
-        inlineTokens(src: string): any[];
-    };
-}
-
-/**
- * 初回のみ marked のカスタマイズ設定を適用する
- */
-function initMarked() {
-    if (isMarkedInitialized) return;
-
-    // 1. < のエスケープ
-    const hooks = {
-        preprocess(src: string) {
-            return src.replace(/</g, "&lt;");
-        }
-    };
-
-    // 2. ==ハイライト== 記法
-    const highlightExtension = {
-        name: 'highlight',
-        level: 'inline',
-        start(src: string) { return src.match(/==/)?.index; },
-        tokenizer(src: string, tokens: any) {
-            const rule = /^==([\s\S]+?)==/;
-            const match = rule.exec(src);
-            if (match) {
-                return {
-                    type: 'highlight',
-                    raw: match[0],
-                    text: match[1],
-                    tokens: this.lexer.inlineTokens(match[1]) 
-                };
-            }
-        },
-        renderer(token: any) {
-            return `<mark class="obsidian-highlight">${this.parser.parseInline(token.tokens)}</mark>`;
-        }
-    };
-
-    // 3. ![[画像]] 記法
-    const obsidianImageExtension = {
-        name: 'obsidianImage',
-        level: 'inline',
-        start(src: string) { return src.match(/!\[\[/)?.index; },
-        tokenizer(src: string, tokens: any) {
-            const rule = /^!\[\[([\s\S]+?)\]\]/;
-            const match = rule.exec(src);
-            if (match) return { type: 'obsidianImage', raw: match[0], filename: match[1] };
-        },
-        renderer(token: any) {
-            // ストアやパスに依存せず、プレースホルダーを返すだけにする
-            const parts = token.filename.split('|');
-            const rawFilename = parts[0].trim();
-            const filename = rawFilename.split(/[/\\]/).pop() || rawFilename;
-            const sizeAttr = parts.length > 1 ? ` width="${parts[1].trim()}"` : ' class="max-w-full h-auto"';
-            return `<img data-img-filename="${filename}"${sizeAttr} alt="${filename}" style="border-radius: 4px; display: inline-block; margin: 0.5rem 0; min-height: 40px; min-width: 40px; background-color: var(--active-highlight-bg);" />`;
-        }
-    };
-
-        // 3.5. [[Wikiリンク]] 記法 (エイリアス対応: [[リンク先|表示名]])
-    const wikiLinkExtension = {
-        name: 'wikiLink',
-        level: 'inline',
-        start(src: string) { return src.match(/\[\[/)?.index; },
-        tokenizer(src: string, tokens: any) {
-            const rule = /^\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/;
-            const match = rule.exec(src);
-            if (match) {
-                return {
-                    type: 'wikiLink',
-                    raw: match[0],
-                    target: match[1], // リンク先のファイル名
-                    text: match[2] || match[1] // エイリアスがあればそれを使用
-                };
-            }
-        },
-        renderer(token: any) {
-            return `<a href="#" class="obsidian-wiki-link" data-wiki-target="${token.target}">${token.text}</a>`;
-        }
-    };
-
-
-    // 4. 標準要素のカスタマイズ
-    const customRenderer = {
-        heading(this: MarkedRendererThis, textOrToken: any, levelArg?: number) {
-            let text = '';
-            let level = 1;
-            if (typeof textOrToken === 'object' && textOrToken !== null) {
-                level = textOrToken.depth || 1;
-                if (textOrToken.tokens && this.parser) {
-                    try { text = this.parser.parseInline(textOrToken.tokens); } 
-                    catch { text = textOrToken.text || ''; }
-                } else {
-                    text = textOrToken.text || '';
-                }
-            } else {
-                text = String(textOrToken || '');
-                level = levelArg || 1;
-            }
-            return `<h${level}><span class="heading-toggle" title="折りたたみ"></span>${text}</h${level}>\n`;
-        },
-
-        code(codeOrToken: any, infostring?: string, escaped?: boolean) {
-            let codeStr = '';
-            let lang = '';
-            let isEscaped = false;
-
-            if (typeof codeOrToken === 'object' && codeOrToken !== null) {
-                codeStr = codeOrToken.text || '';
-                lang = codeOrToken.lang || '';
-                isEscaped = !!codeOrToken.escaped;
-            } else {
-                codeStr = String(codeOrToken || '');
-                lang = infostring || '';
-                isEscaped = !!escaped;
-            }
-
-            // ★ ダッシュボード用ウィジェットの判定
-            if (lang.startsWith('obcowa-search')) {
-                const match = lang.match(/obcowa-search\((.*?)\)/);
-                const query = match ? match[1] : '';
-                return `<div class="dashboard-widget" data-widget-type="search" data-query="${query}"></div>`;
-            }
-
-            const matchedLang = lang.match(/\S*/)?.[0] || '';
-            const escapedCode = isEscaped ? codeStr : codeStr.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            return `
-                <div class="code-block-wrapper">
-                    <button type="button" class="code-copy-btn" title="コードをコピー">${COPY_ICON_SVG}</button>
-                    <pre><code class="language-${matchedLang}">${escapedCode}</code></pre>
-                </div>
-            `;
-        },
-
-        listitem(this: MarkedRendererThis, itemOrText: any, taskArg?: boolean, checkedArg?: boolean) {
-            let text = '';
-            let isTask = false;
-            let isChecked = false;
-
-            if (typeof itemOrText === 'object' && itemOrText !== null) {
-                isTask = !!itemOrText.task;
-                isChecked = !!itemOrText.checked;
-                if (itemOrText.tokens && this.parser) {
-                    try { text = this.parser.parse(itemOrText.tokens); } 
-                    catch { text = itemOrText.text || ''; }
-                } else {
-                    text = itemOrText.text || '';
-                }
-            } else {
-                text = String(itemOrText || '');
-                isTask = !!taskArg;
-                isChecked = !!checkedArg;
-            }
-
-            if (isTask) {
-                const cleanText = text
-                    .replace(/^<p>/, '')
-                    .replace(/<\/p>\n?$/, '')
-                    .replace(/^<input[^>]*>\s*/, '')
-                    .replace(/^\[[ xX]\]\s*/, '');
-                const checkedAttr = isChecked ? 'checked' : '';
-                return `<li class="task-list-item"><input type="checkbox" class="task-checkbox" ${checkedAttr} /><span class="task-content">${cleanText}</span></li>\n`;
-            }
-            return `<li>${text}</li>\n`;
-        }
-    };
-
-    marked.use({ 
-        breaks: true, 
-        hooks, 
-        extensions: [highlightExtension, obsidianImageExtension, wikiLinkExtension],
-        renderer: customRenderer
-    });
-
-    isMarkedInitialized = true;
-}
 
 const FRONTMATTER_REGEX = /^\uFEFF?---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 /**
- * BOMやフロントマター(メタデータ)を除去する
+ * BOMやフロントマター(メタデータ)を除去する（外部モジュール参照用）
  */
 export function removeFrontmatter(content: string) {
         return content.replace(FRONTMATTER_REGEX, '');
 }
+
+
+/**
+ * [AST Plugin] ユーザ入力の生HTMLタグを安全なテキストにエスケープ（既存のpreprocess互換）
+ */
+function remarkEscapeUserHtml() {
+    return (tree: MdastRoot) => {
+        visit(tree, 'html', (node: HTML) => {
+            const textNode = node as unknown as Text;
+            textNode.type = 'text';
+            textNode.value = node.value.replace(/</g, "&lt;");
+        });
+    };
+}
+
+/**
+ * [AST Plugin] フロントマターYAMLを抽出し、プロパティカードのHTMLに置換する
+ */
+function remarkPropertiesCard(options: { showProperties: boolean }) {
+    return (tree: MdastRoot) => {
+        let yamlNodeIndex = -1;
+        let yamlContent = '';
+
+        visit(tree, 'yaml', (node: Yaml, index: number | undefined) => {
+            if (yamlNodeIndex === -1 && index !== undefined) {
+                yamlNodeIndex = index;
+                yamlContent = node.value;
+            }
+        });
+
+        if (yamlNodeIndex !== -1) {
+            if (options.showProperties) {
+                const html = renderPropertiesCard(yamlContent);
+                tree.children.splice(yamlNodeIndex, 1, { type: 'html', value: html } as HTML);
+            } else {
+                tree.children.splice(yamlNodeIndex, 1);
+            }
+        }
+    };
+}
+
+/**
+ * [AST Plugin] Obsidian独自記法（ハイライト, 画像, Wikiリンク）のパース
+ */
+function remarkObsidianExtensions() {
+    return (tree: MdastRoot) => {
+        visit(tree, 'text', (node: Text, index: number | undefined, parent: Parent | undefined) => {
+            if (!parent || index === undefined) return;
+            
+            const text = node.value;
+            const regex = /(==[\s\S]+?==|!\[\[[\s\S]+?\]\]|\[\[[^\]]+\]\])/g;
+            let lastIndex = 0;
+            let match;
+            const newNodes: (Text | HTML)[] = [];
+
+            while ((match = regex.exec(text)) !== null) {
+                if (match.index > lastIndex) {
+                    newNodes.push({ type: 'text', value: text.slice(lastIndex, match.index) });
+                }
+
+                const matchedStr = match[0];
+                if (matchedStr.startsWith('==') && matchedStr.endsWith('==')) {
+                    const innerText = matchedStr.slice(2, -2);
+                    newNodes.push({
+                        type: 'html',
+                        value: `<mark class="obsidian-highlight">${innerText}</mark>`
+                    });
+                } else if (matchedStr.startsWith('![[') && matchedStr.endsWith(']]')) {
+                    const innerText = matchedStr.slice(3, -2);
+                    const parts = innerText.split('|');
+                    const rawFilename = parts[0].trim();
+                    const filename = rawFilename.split(/[/\\]/).pop() || rawFilename;
+                    const sizeAttr = parts.length > 1 ? ` width="${parts[1].trim()}"` : ' class="max-w-full h-auto"';
+                    newNodes.push({
+                        type: 'html',
+                        value: `<img data-img-filename="${filename}"${sizeAttr} alt="${filename}" style="border-radius: 4px; display: inline-block; margin: 0.5rem 0; min-height: 40px; min-width: 40px; background-color: var(--active-highlight-bg);" />`
+                    });
+                } else if (matchedStr.startsWith('[[') && matchedStr.endsWith(']]')) {
+                    const innerText = matchedStr.slice(2, -2);
+                    const parts = innerText.split('|');
+                    const target = parts[0];
+                    const displayText = parts[1] || target;
+                    newNodes.push({
+                        type: 'html',
+                        value: `<a href="#" class="obsidian-wiki-link" data-wiki-target="${target}">${displayText}</a>`
+                    });
+                }
+                lastIndex = regex.lastIndex;
+            }
+
+            if (lastIndex < text.length) {
+                newNodes.push({ type: 'text', value: text.slice(lastIndex) });
+            }
+
+            if (newNodes.length > 0) {
+                parent.children.splice(index, 1, ...newNodes);
+                return index + newNodes.length; // 追加した分だけインデックスを進める
+            }
+        });
+    };
+}
+
+/**
+ * [AST Plugin] 見出しに折りたたみ用トグルを付与
+ */
+function remarkHeadings() {
+    return (tree: MdastRoot) => {
+        visit(tree, 'heading', (node: Heading) => {
+            node.children.unshift({
+                type: 'html',
+                value: '<span class="heading-toggle" title="折りたたみ"></span>'
+            } as HTML);
+        });
+    };
+}
+
+/**
+ * [AST Plugin] コードブロックのパース（ウィジェットやコピーボタンラッパーの付与）
+ */
+function remarkCodeBlocks() {
+    return (tree: MdastRoot) => {
+        visit(tree, 'code', (node: Code, index: number | undefined, parent: Parent | undefined) => {
+            if (!parent || index === undefined) return;
+            const lang = node.lang || '';
+
+            // ダッシュボードウィジェット判定
+            let query = '';
+            let sortKey = '';
+            let sortOrder = '';
+            let isWidget = false;
+
+            if (lang.startsWith('obcowa-search')) {
+                const match = lang.match(/obcowa-search\((.*?)\)/);
+                query = match ? match[1] : '';
+                isWidget = true;
+            } else if (lang === 'search') {
+                const parsed = parseDataviewQuery(node.value);
+                query = parsed.query;
+                sortKey = parsed.sortKey;
+                sortOrder = parsed.sortOrder;
+                isWidget = true;
+            }
+
+            if (isWidget) {
+                parent.children.splice(index, 1, {
+                    type: 'html',
+                    value: `<div class="dashboard-widget" data-widget-type="search" data-query="${query}" data-sort-key="${sortKey}" data-sort-order="${sortOrder}"></div>`
+                } as HTML);
+                return index + 1;
+            }
+
+            // 通常のコードブロック
+            const matchedLang = lang.match(/\S*/)?.[0] || '';
+            const codeContent = node.value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            
+            parent.children.splice(index, 1, {
+                type: 'html',
+                value: `
+                <div class="code-block-wrapper">
+                    <button type="button" class="code-copy-btn" title="コードをコピー">${COPY_ICON_SVG}</button>
+                    <pre><code class="language-${matchedLang}">${codeContent}</code></pre>
+                </div>
+                `
+            } as HTML);
+            return index + 1;
+        });
+    };
+}
+
+/**
+ * [AST Plugin] GFMのタスクリストを既存のCSSに合わせた構造に整形 (Rehype/HASTフェーズ)
+ */
+function rehypeTaskLists() {
+    return (tree: HastRoot) => {
+        visit(tree, 'element', (node: HastElement) => {
+            if (node.tagName === 'li' && node.properties?.className && Array.isArray(node.properties.className) && node.properties.className.includes('task-list-item')) {
+                const inputIndex = node.children.findIndex((c) => c.type === 'element' && c.tagName === 'input' && c.properties?.type === 'checkbox');
+                if (inputIndex !== -1) {
+                    const inputNode = node.children[inputIndex] as HastElement;
+                    if (inputNode.properties) {
+                        delete inputNode.properties.disabled;
+                        inputNode.properties.className = ['task-checkbox'];
+                    }
+                    
+                    const contentChildren = node.children.slice(inputIndex + 1);
+                    const spanNode: HastElement = {
+                        type: 'element',
+                        tagName: 'span',
+                        properties: { className: ['task-content'] },
+                        children: contentChildren
+                    };
+                    node.children = [...node.children.slice(0, inputIndex + 1), spanNode];
+                }
+            }
+        });
+    };
+}
+
 
 // 折りたたみ用の矢印アイコン (下向きChevron)
 const CHEVRON_DOWN_SVG = `<svg class="properties-toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
@@ -294,25 +318,22 @@ export function sanitizeHtml(rawHtml: string): string {
 /**
  * Markdown文字列をパースしてHTMLに変換するメイン関数
  */
-export function parseMarkdown(content: string, tabPath: string, showProperties: boolean = false): string {
-    initMarked();
- 
-    let propertiesHtml = '';
-    const match = content.match(FRONTMATTER_REGEX);
+export async function parseMarkdown(content: string, tabPath: string, showProperties: boolean = false): Promise<string> {
+    const processor = unified()
+        .use(remarkParse)
+        .use(remarkFrontmatter, ['yaml'])
+        .use(remarkEscapeUserHtml)         // ユーザ起因のタグを無害化(既存仕様維持)
+        .use(remarkPropertiesCard, { showProperties })
+        .use(remarkGfm)
+        .use(remarkObsidianExtensions)
+        .use(remarkHeadings)
+        .use(remarkCodeBlocks)
+        .use(remarkRehype, { allowDangerousHtml: true }) // 生成したHTMLノードを許可
+        .use(rehypeRaw)                                  // HTML文字列をHASTに変換
+        .use(rehypeTaskLists)                            // タスクリストのDOM構造最適化
+        .use(rehypeStringify);
 
-    if (match) {
-        if (showProperties) {
-            propertiesHtml = renderPropertiesCard(match[1]);
-        }
-        content = content.replace(FRONTMATTER_REGEX, '');
-    }
+    const vfile = await processor.process(content);
+    return String(vfile);
 
-    // Dataview風検索ブロックの置換
-    content = content.replace(/```search([\s\S]*?)```/g, (match, queryBody) => {
-    const { query, sortKey, sortOrder } = parseDataviewQuery(queryBody);
-    return `<div class="dashboard-widget" data-widget-type="search" data-query="${query}" data-sort-key="${sortKey}" data-sort-order="${sortOrder}"></div>`;
-    });
-
-    const rawHtml = marked(removeFrontmatter(content));
-    return propertiesHtml + (rawHtml as string);
 }

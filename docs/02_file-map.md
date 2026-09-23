@@ -213,10 +213,20 @@ A03_Obcowa/
   └── import ../../lib/utils/pathUtils
 
 📄 `src/components/Editor/markdownSetup.ts`
-  └── import marked
   └── import dompurify
   └── import ./previewExtensions
   └── import ../../lib/utils/queryParser
+  └── import unified
+  └── import remark-parse
+  └── import remark-gfm
+  └── import remark-frontmatter
+  └── import remark-rehype
+  └── import rehype-raw
+  └── import rehype-stringify
+  └── import unist-util-visit
+  └── import unist
+  └── import mdast
+  └── import hast
 
 📄 `src/components/Editor/previewExtensions.test.ts`
   └── import vitest
@@ -545,7 +555,7 @@ A03_Obcowa/
 - `src/components/Editor/markdownSetup.ts` : Markdown文字列や独自ウィジェットなどを安全なHTMLに変換する
   - `export function removeFrontmatter(content: string)`
   - `export function sanitizeHtml(rawHtml: string)`
-  - `export function parseMarkdown(content: string, tabPath: string, showProperties: boolean = false)`
+  - `export async function parseMarkdown(content: string, tabPath: string, showProperties: boolean = false)`
 - `src/components/Editor/previewExtensions.test.ts` : 前後のコード明確化: src/features/previewExtensions/previewExtensions.test.ts
 - `src/components/Editor/previewExtensions.ts` : プレビュー表示拡張機能（タスク切り替え、コードコピー、見出し折りたたみ）のロジックとDOM操作（描画・変換はしない）
   - `export const COPY_ICON_SVG`
