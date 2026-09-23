@@ -573,6 +573,7 @@ A03_Obcowa/
   - `export function toggleTaskMarkdown(content: string, targetIndex: number)`
   - `export async function copyCodeBlock(buttonEl: HTMLElement)`
   - `export function toggleHeadingCollapse(headingEl: HTMLElement)`
+  - `export function toggleCalloutCollapse(titleEl: HTMLElement)`
   - `export async function handleWikiLinkClick(targetEl: HTMLElement)`
 
 ### src/components/Modals/

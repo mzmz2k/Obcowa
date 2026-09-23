@@ -8,7 +8,7 @@
   import { loadEmbedsInDom } from '../../lib/editor/embedViewer';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { FileQuestion } from 'lucide-svelte';
-  import { toggleTaskMarkdown, copyCodeBlock, toggleHeadingCollapse, handleWikiLinkClick, COPY_ICON_SVG, CHECK_ICON_SVG } from './previewExtensions';
+  import { toggleTaskMarkdown, copyCodeBlock, toggleHeadingCollapse, toggleCalloutCollapse, handleWikiLinkClick, COPY_ICON_SVG, CHECK_ICON_SVG } from './previewExtensions';
   import { mountWidgets, unmountAllWidgets } from '../../features/Dashboard/DashboardManager';
   import { parseMarkdown, sanitizeHtml } from './markdownSetup';
   import DOMPurify from 'dompurify'; // .txt用のシンプルなサニタイズ用に残す
@@ -117,6 +117,13 @@
       if (propHeader) {
           const card = propHeader.closest<HTMLElement>('.obsidian-properties-card');
           if (card) card.classList.toggle('is-collapsed');
+          return;
+      }
+
+      // ★追加: コールアウトの折りたたみ
+      const calloutTitle = target.closest<HTMLElement>('.callout-title');
+      if (calloutTitle) {
+          toggleCalloutCollapse(calloutTitle);
           return;
       }
 

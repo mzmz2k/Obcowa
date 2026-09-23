@@ -117,6 +117,16 @@ export function toggleHeadingCollapse(headingEl: HTMLElement): void {
   }
 }
 
+ /**
+ * コールアウトの折りたたみ状態をトグルします。
+ */
+export function toggleCalloutCollapse(titleEl: HTMLElement): void {
+    const callout = titleEl.closest('.obsidian-callout');
+    if (callout && callout.hasAttribute('data-callout-fold')) {
+        callout.classList.toggle('is-collapsed');
+    }
+}
+
 /**
  * Wikiリンクがクリックされた時の処理
  */
