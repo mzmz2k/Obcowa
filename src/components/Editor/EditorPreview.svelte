@@ -6,6 +6,7 @@
   import { editorFont, workspacesStore, currentWorkspaceIndex } from '../../lib/stores';
   import { loadImagesInDom } from '../../lib/editor/imageViewer';
   import { loadEmbedsInDom } from '../../lib/editor/embedViewer';
+  import { loadMermaidInDom } from '../../lib/editor/mermaidViewer';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { FileQuestion } from 'lucide-svelte';
   import { toggleTaskMarkdown, copyCodeBlock, toggleHeadingCollapse, toggleCalloutCollapse, handleWikiLinkClick, COPY_ICON_SVG, CHECK_ICON_SVG } from './previewExtensions';
@@ -68,6 +69,8 @@
               loadImagesInDom(scrollContainer, tab.path || '', folders);
               // ★ ノートの埋め込み処理を発火（画面描画をブロックしないように await はしない）
               loadEmbedsInDom(scrollContainer, tab.path || '');
+              // ★ Mermaidの描画処理を発火
+              loadMermaidInDom(scrollContainer);
           }
           assignTaskIndexes();
           

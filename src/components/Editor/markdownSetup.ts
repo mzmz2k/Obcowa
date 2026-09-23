@@ -339,6 +339,16 @@ function remarkCodeBlocks() {
                 return index + 1;
             }
 
+            // Mermaidの判定
+            if (lang === 'mermaid') {
+                const codeContent = node.value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                parent.children.splice(index, 1, {
+                    type: 'html',
+                    value: `<div class="obsidian-mermaid-placeholder" style="display: none;">${codeContent}</div>`
+                } as HTML);
+                return index + 1;
+            }
+
             // 通常のコードブロック
             const matchedLang = lang.match(/\S*/)?.[0] || '';
             const codeContent = node.value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

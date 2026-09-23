@@ -82,6 +82,7 @@ A03_Obcowa/
 │   │   │   ├── embedViewer.ts
 │   │   │   ├── imageViewer.test.ts
 │   │   │   ├── imageViewer.ts
+│   │   │   ├── mermaidViewer.ts
 │   │   │   ├── scrollSync.test.ts
 │   │   │   └── scrollSync.ts
 │   │   ├── settings
@@ -188,6 +189,7 @@ A03_Obcowa/
   └── import ../../lib/stores
   └── import ../../lib/editor/imageViewer
   └── import ../../lib/editor/embedViewer
+  └── import ../../lib/editor/mermaidViewer
   └── import @tauri-apps/plugin-opener
   └── import lucide-svelte
   └── import ./previewExtensions
@@ -410,6 +412,9 @@ A03_Obcowa/
 
 📄 `src/lib/editor/imageViewer.ts`
   └── import @tauri-apps/api/core
+
+📄 `src/lib/editor/mermaidViewer.ts`
+  └── import mermaid
 
 📄 `src/lib/editor/scrollSync.test.ts`
   └── import vitest
@@ -699,6 +704,8 @@ A03_Obcowa/
 - `src/lib/editor/imageViewer.test.ts` : --- START OF src/lib/imageViewer.test.ts ---
 - `src/lib/editor/imageViewer.ts` : プレビュー内の画像プレースホルダーを検出し、ローカル画像の検索・バイナリ読込・Blobキャッシュと表示反映を行う
   - `export async function loadImagesInDom(container: HTMLElement, activeTabPath: string, imageFolders: string[] = [])`
+- `src/lib/editor/mermaidViewer.ts` : Mermaid記法のプレースホルダーを見つけ、SVG画像に変換して画面にマウントする責務を持つ
+  - `export async function loadMermaidInDom(container: HTMLElement)`
 - `src/lib/editor/scrollSync.test.ts` : scrollSync関数の単体テスト
 - `src/lib/editor/scrollSync.ts` : 編集エリアとプレビューエリア間のスクロール位置比率の計算を行う純粋関数
   - `export function calculateScrollRatio(scrollTop: number, scrollHeight: number)`
