@@ -79,6 +79,7 @@ A03_Obcowa/
 │   │   │   ├── diffUtils.ts
 │   │   │   ├── editorSave.test.ts
 │   │   │   ├── editorSave.ts
+│   │   │   ├── embedViewer.ts
 │   │   │   ├── imageViewer.test.ts
 │   │   │   ├── imageViewer.ts
 │   │   │   ├── scrollSync.test.ts
@@ -186,6 +187,7 @@ A03_Obcowa/
   └── import svelte/store
   └── import ../../lib/stores
   └── import ../../lib/editor/imageViewer
+  └── import ../../lib/editor/embedViewer
   └── import @tauri-apps/plugin-opener
   └── import lucide-svelte
   └── import ./previewExtensions
@@ -394,6 +396,13 @@ A03_Obcowa/
 
 📄 `src/lib/editor/editorSave.ts`
   └── import ../utils/pathUtils
+
+📄 `src/lib/editor/embedViewer.ts`
+  └── import @tauri-apps/api/core
+  └── import svelte/store
+  └── import ../stores
+  └── import ../workspace/treeUtils
+  └── import ../../components/Editor/markdownSetup
 
 📄 `src/lib/editor/imageViewer.test.ts`
   └── import vitest
@@ -683,6 +692,8 @@ A03_Obcowa/
 - `src/lib/editor/editorSave.ts` : エディタの保存処理、競合ダイアログハンドリングの純粋・抽象化ロジック
   - `export interface SaveDependencies`
   - `export interface BaseTabData`
+- `src/lib/editor/embedViewer.ts` : プレビュー内のノート埋め込みプレースホルダーを検出し、非同期でコンテンツを取得して描画する
+  - `export async function loadEmbedsInDom(container: HTMLElement, currentFilePath: string, embedStack: string[] = [])`
 - `src/lib/editor/imageViewer.test.ts` : --- START OF src/lib/imageViewer.test.ts ---
 - `src/lib/editor/imageViewer.ts` : プレビュー内の画像プレースホルダーを検出し、ローカル画像の検索・バイナリ読込・Blobキャッシュと表示反映を行う
   - `export async function loadImagesInDom(container: HTMLElement, activeTabPath: string, imageFolders: string[] = [])`

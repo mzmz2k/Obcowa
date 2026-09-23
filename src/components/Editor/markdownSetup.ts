@@ -94,13 +94,26 @@ function remarkObsidianExtensions() {
                 } else if (matchedStr.startsWith('![[') && matchedStr.endsWith(']]')) {
                     const innerText = matchedStr.slice(3, -2);
                     const parts = innerText.split('|');
-                    const rawFilename = parts[0].trim();
-                    const filename = rawFilename.split(/[/\\]/).pop() || rawFilename;
+                    const rawTarget = parts[0].trim();
+                    // 将来のブロックID対応のため、ここで名前だけ抽出（今回はそのまま使う）
+                    const targetName = rawTarget.split(/[/\\]/).pop() || rawTarget;
                     const sizeAttr = parts.length > 1 ? ` width="${parts[1].trim()}"` : ' class="max-w-full h-auto"';
-                    newNodes.push({
-                        type: 'html',
-                        value: `<img data-img-filename="${filename}"${sizeAttr} alt="${filename}" style="border-radius: 4px; display: inline-block; margin: 0.5rem 0; min-height: 40px; min-width: 40px; background-color: var(--active-highlight-bg);" />`
-                    });
+
+                    // 画像ファイルかどうかの簡易判定
+                    const isImage = /\.(png|jpe?g|gif|svg|webp|bmp)$/i.test(targetName);
+                    
+                    if (isImage) {
+                        newNodes.push({
+                            type: 'html',
+                            value: `<img data-img-filename="${targetName}"${sizeAttr} alt="${targetName}" style="border-radius: 4px; display: inline-block; margin: 0.5rem 0; min-height: 40px; min-width: 40px; background-color: var(--active-highlight-bg);" />`
+                        });
+                    } else {
+                        // ノートの場合は、後でDOM操作で中身を入れるためのプレースホルダーを配置
+                        newNodes.push({
+                            type: 'html',
+                            value: `<div class="obsidian-embed-placeholder" data-embed-target="${targetName}"></div>`
+                        });
+                    }
                 } else if (matchedStr.startsWith('[[') && matchedStr.endsWith(']]')) {
                     const innerText = matchedStr.slice(2, -2);
                     const parts = innerText.split('|');
@@ -309,7 +322,7 @@ export function sanitizeHtml(rawHtml: string): string {
         ADD_TAGS: ['button', 'input'],
         ADD_ATTR: [
             'data-img-filename', 'data-task-index', 'type', 'checked', 'class',
-            'data-widget-type', 'data-query', 'data-wiki-target',
+            'data-widget-type', 'data-query', 'data-wiki-target', 'data-embed-target',
             'style', 'width', 'alt' // ★追加: 画像の表示崩れを防ぐ
         ]
     });

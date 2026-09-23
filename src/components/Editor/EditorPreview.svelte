@@ -5,6 +5,7 @@
   import { get } from 'svelte/store';
   import { editorFont, workspacesStore, currentWorkspaceIndex } from '../../lib/stores';
   import { loadImagesInDom } from '../../lib/editor/imageViewer';
+  import { loadEmbedsInDom } from '../../lib/editor/embedViewer';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { FileQuestion } from 'lucide-svelte';
   import { toggleTaskMarkdown, copyCodeBlock, toggleHeadingCollapse, handleWikiLinkClick, COPY_ICON_SVG, CHECK_ICON_SVG } from './previewExtensions';
@@ -65,6 +66,8 @@
               const currentWs = get(workspacesStore)[get(currentWorkspaceIndex)];
               const folders = currentWs?.image_folders || [];
               loadImagesInDom(scrollContainer, tab.path || '', folders);
+              // ★ ノートの埋め込み処理を発火（画面描画をブロックしないように await はしない）
+              loadEmbedsInDom(scrollContainer, tab.path || '');
           }
           assignTaskIndexes();
           
