@@ -2,37 +2,36 @@
 
 import mermaid from 'mermaid';
 
-let initialized = false;
-
 export async function loadMermaidInDom(container: HTMLElement) {
     const placeholders = container.querySelectorAll('.obsidian-mermaid-placeholder');
     if (placeholders.length === 0) return;
 
-    // 初回のみ設定を初期化（アプリのCSS変数をそのまま渡してテーマに追従させる）
-    if (!initialized) {
-        mermaid.initialize({
-            startOnLoad: false,
-            theme: 'base',
-            themeVariables: {
-                // 背景は透過、線や文字はアプリの文字色に合わせる
-                background: 'transparent',
-                primaryColor: 'transparent',
-                primaryTextColor: 'var(--text-color)',
-                primaryBorderColor: 'var(--text-color)',
-                lineColor: 'var(--text-color)',
-                textColor: 'var(--text-color)',
-                mainBkg: 'color-mix(in srgb, var(--text-color) 5%, transparent)',
-                nodeBorder: 'var(--text-color)',
-                clusterBkg: 'color-mix(in srgb, var(--text-color) 3%, transparent)',
-                clusterBorder: 'color-mix(in srgb, var(--text-color) 30%, transparent)'
-            }
-        });
-        initialized = true;
-    }
+    // ★修正: MermaidはCSS変数名や color-mix を内部で計算できないため、
+    // 現在の画面に適用されている「実際の色の計算値（rgb(255,255,255)など）」を取得する
+    const styles = getComputedStyle(container);
+    const textColor = styles.getPropertyValue('--text-color').trim() || '#ffffff';
+    const bgColor = styles.getPropertyValue('--bg-color').trim() || '#1e293b'; // 取得できない場合のフォールバック
+
+    // 描画のたびに設定を上書きすることで、テーマ変更にも動的に追従させる
+    mermaid.initialize({
+        startOnLoad: false,
+        theme: 'base',
+        themeVariables: {
+            background: bgColor,
+            primaryColor: bgColor,
+            primaryTextColor: textColor,
+            primaryBorderColor: textColor,
+            lineColor: textColor,
+            textColor: textColor,
+            mainBkg: bgColor,
+            nodeBorder: textColor,
+            clusterBkg: bgColor,
+            clusterBorder: textColor
+        }
+    });
 
     for (let i = 0; i < placeholders.length; i++) {
         const el = placeholders[i] as HTMLElement;
-        // サニタイズを避けて安全にコードを取り出すため、textContentから取得する
         const code = el.textContent?.trim();
         if (!code) continue;
 
@@ -51,6 +50,7 @@ export async function loadMermaidInDom(container: HTMLElement) {
             el.style.justifyContent = 'center';
             el.style.margin = '1.5rem 0';
             el.style.overflowX = 'auto';
+            
             const svgNode = el.querySelector('svg');
             if (svgNode) {
                 svgNode.style.maxWidth = '100%';
@@ -58,7 +58,7 @@ export async function loadMermaidInDom(container: HTMLElement) {
             }
         } catch (err) {
             console.error("Mermaid render error:", err);
-            el.innerHTML = `<div class="obsidian-embed-error" style="border: 1px solid red; padding: 1rem;">Mermaid Syntax Error</div>`;
+            el.innerHTML = `<div class="obsidian-embed-error" style="border: 1px solid red; padding: 1rem; border-radius: 4px;">Mermaid構文エラー: 記述が正しくありません</div>`;
             el.style.display = 'block';
         }
     }
