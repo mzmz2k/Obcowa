@@ -28,6 +28,8 @@ export async function loadEmbedsInDom(container: HTMLElement, currentFilePath: s
 
     for (const placeholder of placeholders) {
         const targetName = placeholder.getAttribute('data-embed-target');
+        const heading = placeholder.getAttribute('data-embed-heading');
+        const blockId = placeholder.getAttribute('data-embed-block');
         if (!targetName) continue;
 
         // 見た目のクラスを確定済みのものに切り替え
@@ -49,12 +51,22 @@ export async function loadEmbedsInDom(container: HTMLElement, currentFilePath: s
 
                 // ファイルの中身を読み込んでパース（埋め込み内はプロパティカード非表示）
                 const contentStr: string = await invoke('read_file_content', { path: filePath });
-                const rawHtml = await parseMarkdown(contentStr, filePath, false);
+                
+                const rawHtml = await parseMarkdown(contentStr, filePath, { 
+                    showProperties: false,
+                    extractHeading: heading || undefined,
+                    extractBlock: blockId || undefined
+                });
                 const safeHtml = sanitizeHtml(rawHtml);
+
+                // タイトル表示（見出しやブロック指定があればそれも表示）
+                let titleDisplay = targetName;
+                if (heading) titleDisplay += ` > ${heading}`;
+                else if (blockId) titleDisplay += ` > ^${blockId}`;
 
                 placeholder.innerHTML = `
                     <div class="obsidian-embed-header">
-                        <span class="obsidian-embed-title obsidian-wiki-link" data-wiki-target="${targetName}">${targetName}</span>
+                        <span class="obsidian-embed-title obsidian-wiki-link" data-wiki-target="${targetName}">${titleDisplay}</span>
                         <a href="#" class="obsidian-embed-link obsidian-wiki-link" data-wiki-target="${targetName}" title="開く">${LINK_ICON_SVG}</a>
                     </div>
                     <div class="obsidian-embed-content editor-preview">${safeHtml}</div>

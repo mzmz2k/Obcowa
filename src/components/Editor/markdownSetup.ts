@@ -65,6 +65,66 @@ function remarkPropertiesCard(options: { showProperties: boolean }) {
     };
 }
 
+ /**
+ * [AST Plugin] 埋め込み用に、指定された「見出し」または「ブロックID」のみを抽出し、他を全て削除する
+ */
+function remarkExtractContent(options: { extractHeading?: string; extractBlock?: string }) {
+    return (tree: MdastRoot) => {
+        if (!options.extractHeading && !options.extractBlock) return;
+
+        if (options.extractBlock) {
+            let targetNode: any = null;
+            // ツリー全体から末尾に ^block-id を持つテキストノードを探す
+            visit(tree, 'text', (node: Text, index, parent) => {
+                if (node.value.match(new RegExp(`\\s+\\^${options.extractBlock}$`))) {
+                    // 親ノード（段落やリストアイテム等）を抽出対象にする
+                    targetNode = parent;
+                }
+            });
+            tree.children = targetNode ? [targetNode] : [];
+            return;
+        }
+
+        if (options.extractHeading) {
+            let capturing = false;
+            let targetDepth = 0;
+            const extractedNodes = [];
+
+            for (const node of tree.children) {
+                if (node.type === 'heading') {
+                    const headingNode = node as Heading;
+                    // 見出しのテキストを抽出
+                    const headingText = headingNode.children
+                        .filter(c => c.type === 'text' || c.type === 'inlineCode')
+                        .map(c => (c as any).value).join('');
+
+                    if (capturing) {
+                        // 同じか上のレベルの見出しが来たら抽出終了
+                        if (headingNode.depth <= targetDepth) break;
+                    } else if (headingText.trim() === options.extractHeading) {
+                        capturing = true;
+                        targetDepth = headingNode.depth;
+                    }
+                }
+                if (capturing) extractedNodes.push(node);
+            }
+            tree.children = extractedNodes;
+        }
+    };
+}
+
+/**
+ * [AST Plugin] プレビュー上でブロックIDマーカー（^block-id）を非表示にする
+ */
+function remarkHideBlockIds() {
+    return (tree: MdastRoot) => {
+        visit(tree, 'text', (node: Text) => {
+            node.value = node.value.replace(/\s+\^[A-Za-z0-9-]+$/, '');
+        });
+    };
+}
+
+
 /**
  * [AST Plugin] Obsidian独自記法（ハイライト, 画像, Wikiリンク）のパース
  */
@@ -74,7 +134,7 @@ function remarkObsidianExtensions() {
             if (!parent || index === undefined) return;
             
             const text = node.value;
-            const regex = /(==[\s\S]+?==|!\[\[[\s\S]+?\]\]|\[\[[^\]]+\]\])/g;
+            const regex = /(==[\s\S]+?==|!\[\[[^\]]+\]\]|\[\[[^\]]+\]\])/g;
             let lastIndex = 0;
             let match;
             const newNodes: (Text | HTML)[] = [];
@@ -94,9 +154,14 @@ function remarkObsidianExtensions() {
                 } else if (matchedStr.startsWith('![[') && matchedStr.endsWith(']]')) {
                     const innerText = matchedStr.slice(3, -2);
                     const parts = innerText.split('|');
-                    const rawTarget = parts[0].trim();
-                    // 将来のブロックID対応のため、ここで名前だけ抽出（今回はそのまま使う）
-                    const targetName = rawTarget.split(/[/\\]/).pop() || rawTarget;
+
+                    // ファイル名、見出し(#)、ブロックID(^)を分解
+                    const linkMatch = parts[0].match(/^([^#\^]+)(?:#([^#\^]+))?(?:\^([^#\^]+))?/);
+                    const rawTarget = linkMatch ? linkMatch[1].trim() : parts[0].trim();
+                    const heading = linkMatch && linkMatch[2] ? linkMatch[2].trim() : '';
+                    const blockId = linkMatch && linkMatch[3] ? linkMatch[3].trim() : '';
+
+                    const targetName = rawTarget.split(/[/\\]/).pop() || rawTarget; // パスを除去
                     const sizeAttr = parts.length > 1 ? ` width="${parts[1].trim()}"` : ' class="max-w-full h-auto"';
 
                     // 画像ファイルかどうかの簡易判定
@@ -108,17 +173,21 @@ function remarkObsidianExtensions() {
                             value: `<img data-img-filename="${targetName}"${sizeAttr} alt="${targetName}" style="border-radius: 4px; display: inline-block; margin: 0.5rem 0; min-height: 40px; min-width: 40px; background-color: var(--active-highlight-bg);" />`
                         });
                     } else {
-                        // ノートの場合は、後でDOM操作で中身を入れるためのプレースホルダーを配置
+                        const headingAttr = heading ? ` data-embed-heading="${heading}"` : '';
+                        const blockAttr = blockId ? ` data-embed-block="${blockId}"` : '';
                         newNodes.push({
                             type: 'html',
-                            value: `<div class="obsidian-embed-placeholder" data-embed-target="${targetName}"></div>`
+                            value: `<div class="obsidian-embed-placeholder" data-embed-target="${targetName}"${headingAttr}${blockAttr}></div>`
                         });
                     }
                 } else if (matchedStr.startsWith('[[') && matchedStr.endsWith(']]')) {
                     const innerText = matchedStr.slice(2, -2);
                     const parts = innerText.split('|');
-                    const target = parts[0];
-                    const displayText = parts[1] || target;
+
+                    const linkMatch = parts[0].match(/^([^#\^]+)(?:#([^#\^]+))?(?:\^([^#\^]+))?/);
+                    const target = linkMatch ? linkMatch[1].trim() : parts[0].trim();
+                    const displayText = parts[1] || parts[0];
+
                     newNodes.push({
                         type: 'html',
                         value: `<a href="#" class="obsidian-wiki-link" data-wiki-target="${target}">${displayText}</a>`
@@ -323,20 +392,30 @@ export function sanitizeHtml(rawHtml: string): string {
         ADD_ATTR: [
             'data-img-filename', 'data-task-index', 'type', 'checked', 'class',
             'data-widget-type', 'data-query', 'data-wiki-target', 'data-embed-target',
-            'style', 'width', 'alt' // ★追加: 画像の表示崩れを防ぐ
+            'data-embed-heading', 'data-embed-block', 'style', 'width', 'alt'
         ]
     });
+}
+
+export interface ParseOptions {
+    showProperties?: boolean;
+    extractHeading?: string;
+    extractBlock?: string;
 }
 
 /**
  * Markdown文字列をパースしてHTMLに変換するメイン関数
  */
-export async function parseMarkdown(content: string, tabPath: string, showProperties: boolean = false): Promise<string> {
+export async function parseMarkdown(content: string, tabPath: string, options: ParseOptions = {}): Promise<string> {
+    const { showProperties = false, extractHeading, extractBlock } = options;
+
     const processor = unified()
         .use(remarkParse)
         .use(remarkFrontmatter, ['yaml'])
         .use(remarkEscapeUserHtml)         // ユーザ起因のタグを無害化(既存仕様維持)
-        .use(remarkPropertiesCard, { showProperties })
+        .use(remarkPropertiesCard, { showProperties: showProperties && !extractHeading && !extractBlock }) // 抽出時はプロパティ非表示
+        .use(remarkExtractContent, { extractHeading, extractBlock }) // 指定があれば抽出
+        .use(remarkHideBlockIds)           // ビューモード用に ^block-id を非表示化
         .use(remarkGfm)
         .use(remarkObsidianExtensions)
         .use(remarkHeadings)

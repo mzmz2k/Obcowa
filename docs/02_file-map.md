@@ -564,7 +564,8 @@ A03_Obcowa/
 - `src/components/Editor/markdownSetup.ts` : Markdown文字列や独自ウィジェットなどを安全なHTMLに変換する
   - `export function removeFrontmatter(content: string)`
   - `export function sanitizeHtml(rawHtml: string)`
-  - `export async function parseMarkdown(content: string, tabPath: string, showProperties: boolean = false)`
+  - `export interface ParseOptions`
+  - `export async function parseMarkdown(content: string, tabPath: string, options: ParseOptions = {})`
 - `src/components/Editor/previewExtensions.test.ts` : 前後のコード明確化: src/features/previewExtensions/previewExtensions.test.ts
 - `src/components/Editor/previewExtensions.ts` : プレビュー表示拡張機能（タスク切り替え、コードコピー、見出し折りたたみ）のロジックとDOM操作（描画・変換はしない）
   - `export const COPY_ICON_SVG`

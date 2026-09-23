@@ -56,7 +56,7 @@
               // ★変更: markdownSetup に切り出した純粋関数を呼び出すだけ！
               const currentWs = get(workspacesStore)[get(currentWorkspaceIndex)];
               const showProps = currentWs?.show_properties ?? false;
-              const rawHtml = await parseMarkdown(tab.content, tab.path || '', showProps);
+              const rawHtml = await parseMarkdown(tab.content, tab.path || '', { showProperties: showProps });
               renderedHtml = sanitizeHtml(rawHtml);
           }
           
