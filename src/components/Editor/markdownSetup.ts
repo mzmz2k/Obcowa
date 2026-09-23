@@ -11,6 +11,7 @@ import remarkFrontmatter from 'remark-frontmatter';
 import remarkRehype from 'remark-rehype';
 import rehypeRaw from 'rehype-raw';
 import rehypeStringify from 'rehype-stringify';
+import remarkBreaks from 'remark-breaks';
 import { visit } from 'unist-util-visit';
 import type { Parent } from 'unist';
 import type { Root as MdastRoot, Text, HTML, Code, Heading, Yaml } from 'mdast';
@@ -505,7 +506,8 @@ export async function parseMarkdown(content: string, tabPath: string, options: P
 
     const processor = unified()
         .use(remarkParse)
-        .use(remarkGfm)                    // ★ テーブル等の構文拡張は必ずパース直後に行う
+        .use(remarkGfm)                    // テーブル等の構文拡張は必ずパース直後に行う
+        .use(remarkBreaks)                 // Enter 1回を <br> に変換
         .use(remarkFrontmatter, ['yaml'])
         .use(remarkEscapeUserHtml)         // ユーザ起因のタグを無害化(既存仕様維持)
         .use(remarkPropertiesCard, { showProperties: showProperties && !extractHeading && !extractBlock }) // 抽出時はプロパティ非表示
