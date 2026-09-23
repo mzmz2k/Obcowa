@@ -87,10 +87,15 @@ export function groupNodesByCategory(nodes: any[], categoryOrder: string[] = [],
   return { groups, sortedCategories };
 }
 
-
+/** パスの表記ゆれ（スラッシュ・バックスラッシュ・大文字小文字）を統一する補助関数 */
+function normalizePath(p: string | undefined | null): string {
+  if (!p) return '';
+  return p.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+}
 
 export async function refreshTree(nodes: any[], workspaceNodes: any[]): Promise<any[]> {
   const updatedNodes = [];
+
   for (let node of nodes) {
     if (node.type === 'Folder' && node.original_path) {
       if (node.smart_rules) {
@@ -103,33 +108,33 @@ export async function refreshTree(nodes: any[], workspaceNodes: any[]): Promise<
         } catch {}
       } else {
         try {
+          // 💥 1. 自身のソート設定を使ってディスクから中身を読み込む
           let freshChildren: any[] = await invoke('read_directory', { 
               path: node.original_path,
-              sortBy: node.sort_by,
-              sortOrder: node.sort_order
+              sortBy: node.sort_by || null,
+              sortOrder: node.sort_order || null
           });
-          const oldFolders = new Map();
+          // 💥 2. 以前の階層情報をパスで引けるようにMap化
+          const oldChildrenMap = new Map();
           if (node.children) {
             for (const c of node.children) {
-              if (c.type === 'Folder') oldFolders.set(c.original_path, c);
+               const key = normalizePath(c.original_path || c.path || c.name);
+              oldChildrenMap.set(key, c);
             }
           }
+          // 💥 3. ディスクから読んだ新しいアイテムに、前回の設定（sort_by, category等）を完全に復元
           for (let fresh of freshChildren) {
-            if (fresh.type === 'Folder') {
-              if (oldFolders.has(fresh.original_path)) {
-                const old = oldFolders.get(fresh.original_path);
-                fresh.name = old.name;
-                // 表示名や子要素だけでなく、ソートとカテゴリの設定も引き継ぐ
-                fresh.sort_by = old.sort_by;
-                fresh.sort_order = old.sort_order;
-                fresh.category = old.category;
-
-                fresh.children = old.children || [];
-              } else {
-                fresh.children = [];
-              }
+            const freshKey = normalizePath(fresh.original_path || fresh.path || fresh.name);
+            if (oldChildrenMap.has(freshKey)) {
+              const old = oldChildrenMap.get(freshKey);
+              fresh.name = old.name;
+              fresh.sort_by = old.sort_by;
+              fresh.sort_order = old.sort_order;
+              fresh.category = old.category;
+              fresh.children = old.children || [];
             }
           }
+          // 💥 4. 設定が復元された freshChildren を次の階層へ渡して再帰処理を行う
           node.children = await refreshTree(freshChildren, workspaceNodes);
         } catch (e) {}
       }
