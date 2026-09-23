@@ -504,22 +504,57 @@
     overflow: hidden;
 }
 
-/* 警告系は文字色ベースで少し濃くする */
-.editor-preview .obsidian-callout[data-callout="warning"],
+/* ===================================================
+   警告系（Warning / Error / Danger / Bug）: 赤ベース
+   =================================================== */
+.editor-preview .obsidian-callout[data-callout="failure"],
 .editor-preview .obsidian-callout[data-callout="error"],
 .editor-preview .obsidian-callout[data-callout="danger"],
 .editor-preview .obsidian-callout[data-callout="bug"] {
-    --callout-blend-color: var(--text-color);
-    background-color: color-mix(in srgb, var(--text-color) 8%, transparent);
-    border-color: color-mix(in srgb, var(--text-color) 30%, transparent);
+  /* 基準となる赤色 */
+  --callout-base-color: #e53935;
+
+  /* 背景色：赤を10%だけ背景色(--bg-color)に混ぜる */
+  background-color: color-mix(in srgb, var(--callout-base-color) 10%, var(--bg-color));
+
+  /* 左枠線・境界線：赤を35%混ぜてアクセントを出す */
+  border-color: color-mix(in srgb, var(--callout-base-color) 35%, var(--bg-color));
+  border-left-color: var(--callout-base-color); /* 左端の太線はハッキリ見せる場合 */
 }
 
-/* 完了・成功系はハイライト色をベースにする */
+/* ===================================================
+   完了・成功系（Success / Done / Check）: 青ベース
+   =================================================== */
 .editor-preview .obsidian-callout[data-callout="success"],
 .editor-preview .obsidian-callout[data-callout="done"],
 .editor-preview .obsidian-callout[data-callout="check"] {
-    --callout-blend-color: var(--active-highlight-bg);
-    border-color: color-mix(in srgb, var(--text-color) 20%, transparent);
+  /* 基準となる青色 */
+  --callout-base-color: #1e88e5;
+
+  /* 背景色：青を10%だけ背景色(--bg-color)に混ぜる */
+  background-color: color-mix(in srgb, var(--callout-base-color) 15%, var(--bg-color));
+
+  /* 境界線：青を35%混ぜる */
+  border-color: color-mix(in srgb, var(--callout-base-color) 35%, var(--bg-color));
+  border-left-color: var(--callout-base-color);
+}
+
+/* ===================================================
+   注意・質問系（Warning / Question / Help / FAQ）: 黄色（アンバー）ベース
+   =================================================== */
+.editor-preview .obsidian-callout[data-callout="warning"],
+.editor-preview .obsidian-callout[data-callout="question"],
+.editor-preview .obsidian-callout[data-callout="help"],
+.editor-preview .obsidian-callout[data-callout="faq"] {
+  /* 白背景でも沈みにくい山吹色（アンバー） */
+  --callout-base-color: #f59e0b;
+
+  /* 背景色：黄色を10%だけ背景色(--bg-color)に混ぜる */
+  background-color: color-mix(in srgb, var(--callout-base-color) 10%, var(--bg-color));
+
+  /* 境界線：黄色を35%混ぜる */
+  border-color: color-mix(in srgb, var(--callout-base-color) 35%, var(--bg-color));
+  border-left-color: var(--callout-base-color);
 }
 
 .editor-preview .callout-title {
@@ -539,6 +574,30 @@
 
 .editor-preview .obsidian-callout[data-callout-fold] .callout-title:hover {
     background-color: color-mix(in srgb, var(--text-color) 4%, transparent);
+}
+
+/* 完了・成功系のアイコン・タイトル色 */
+.editor-preview .obsidian-callout[data-callout="success"] .callout-title,
+.editor-preview .obsidian-callout[data-callout="done"] .callout-title,
+.editor-preview .obsidian-callout[data-callout="check"] .callout-title {
+  color: color-mix(in srgb, var(--callout-base-color) 85%, var(--text-color));
+}
+
+/* 警告系のアイコン・タイトル色 */
+.editor-preview .obsidian-callout[data-callout="failure"] .callout-title,
+.editor-preview .obsidian-callout[data-callout="error"] .callout-title,
+.editor-preview .obsidian-callout[data-callout="danger"] .callout-title,
+.editor-preview .obsidian-callout[data-callout="bug"] .callout-title {
+  color: color-mix(in srgb, var(--callout-base-color) 85%, var(--text-color));
+}
+
+/* 注意・質問系のアイコン・タイトル色 */
+.editor-preview .obsidian-callout[data-callout="warning"] .callout-title,
+.editor-preview .obsidian-callout[data-callout="question"] .callout-title,
+.editor-preview .obsidian-callout[data-callout="help"] .callout-title,
+.editor-preview .obsidian-callout[data-callout="faq"] .callout-title {
+  /* 文字色はコントラストを保つため、ベース色85%＋テキスト色15%で濃いめに抽出 */
+  color: color-mix(in srgb, var(--callout-base-color) 85%, var(--text-color));
 }
 
 .editor-preview .callout-icon {
