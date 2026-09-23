@@ -2,15 +2,27 @@
 
 import mermaid from 'mermaid';
 
+/**
+ * CSS変数（スペース区切りRGBなど）をブラウザの標準機能を使って
+ * Mermaidが確実に認識できる rgb(r, g, b) 形式の文字列に変換するヘルパー関数
+ */
+function getResolvedColor(cssVar: string): string {
+    const dummy = document.createElement('div');
+    dummy.style.color = cssVar;
+    dummy.style.display = 'none';
+    document.body.appendChild(dummy);
+    const computedColor = getComputedStyle(dummy).color;
+    document.body.removeChild(dummy);
+    return computedColor || '#888888';
+}
+
 export async function loadMermaidInDom(container: HTMLElement) {
     const placeholders = container.querySelectorAll('.obsidian-mermaid-placeholder');
     if (placeholders.length === 0) return;
 
-    // ★修正: MermaidはCSS変数名や color-mix を内部で計算できないため、
-    // 現在の画面に適用されている「実際の色の計算値（rgb(255,255,255)など）」を取得する
-    const styles = getComputedStyle(container);
-    const textColor = styles.getPropertyValue('--text-color').trim() || '#ffffff';
-    const bgColor = styles.getPropertyValue('--bg-color').trim() || '#1e293b'; // 取得できない場合のフォールバック
+    // 現在のテーマから具体的なRGBカラーを取得する
+    const textColor = getResolvedColor('var(--text-color)');
+    const bgColor = getResolvedColor('var(--bg-color)');
 
     // 描画のたびに設定を上書きすることで、テーマ変更にも動的に追従させる
     mermaid.initialize({
@@ -18,15 +30,17 @@ export async function loadMermaidInDom(container: HTMLElement) {
         theme: 'base',
         themeVariables: {
             background: bgColor,
-            primaryColor: bgColor,
+            primaryColor: bgColor,       // 四角の中の基本色
             primaryTextColor: textColor,
             primaryBorderColor: textColor,
             lineColor: textColor,
             textColor: textColor,
-            mainBkg: bgColor,
+            mainBkg: bgColor,            // 囲みなどの背景色
             nodeBorder: textColor,
             clusterBkg: bgColor,
-            clusterBorder: textColor
+            clusterBorder: textColor,
+            titleColor: textColor,
+            edgeLabelBackground: bgColor // 線の途中の文字の背景
         }
     });
 
@@ -45,15 +59,19 @@ export async function loadMermaidInDom(container: HTMLElement) {
             el.classList.remove('obsidian-mermaid-placeholder');
             el.classList.add('obsidian-mermaid-rendered');
             
-            // はみ出さないようにスタイリング
+            // 中央寄せにしつつ、はみ出しを防ぐ
             el.style.display = 'flex';
-            el.style.justifyContent = 'center';
+            el.style.justifyContent = 'left';
             el.style.margin = '1.5rem 0';
             el.style.overflowX = 'auto';
             
             const svgNode = el.querySelector('svg');
             if (svgNode) {
-                svgNode.style.maxWidth = '100%';
+                // ★修正: Mermaidが勝手に付ける 100% 幅指定を削除し、本来のサイズに戻す
+                svgNode.removeAttribute('width');
+                svgNode.removeAttribute('height');
+                // 親要素（画面幅）を超えないようにだけ制限をかける
+                svgNode.style.maxWidth = '50%';
                 svgNode.style.height = 'auto';
             }
         } catch (err) {
