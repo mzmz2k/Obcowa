@@ -36,7 +36,9 @@ export const searchState = writable({
     results: [] as any[],
     hasSearched: false,
     sortKey: 'updated',
-    sortOrder: 'desc'
+    sortOrder: 'desc',
+    autoRunSearch: false, // 追加: 検索タブを開いた時に自動で検索を走らせるためのフラグ
+
 });
 
 currentWorkspace.subscribe(ws => {

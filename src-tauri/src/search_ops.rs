@@ -53,8 +53,28 @@ pub async fn search_files(
         } else {
             // 必要なファイルのみ本文を読み込む
             if let Ok(content) = fs::read_to_string(&path) {
-                for line in content.lines() {
-                    if line.to_lowercase().contains(&query_lower) {
+                let mut in_frontmatter = false;
+                let is_tag_query = query_lower.starts_with('#');
+                let query_no_hash = if is_tag_query { &query_lower[1..] } else { &query_lower };
+
+                for (i, line) in content.lines().enumerate() {
+                    let line_lower = line.to_lowercase();
+
+                    // フロントマター領域の判定 (ファイルの先頭が --- で始まり、次の --- まで)
+                    if i == 0 && line.trim() == "---" {
+                        in_frontmatter = true;
+                    } else if in_frontmatter && i > 0 && line.trim() == "---" {
+                        in_frontmatter = false;
+                    }
+
+                    // 通常の部分一致、またはフロントマター内のハッシュ無しタグ一致
+                    let matched = if line_lower.contains(&query_lower) {
+                        true
+                    } else {
+                        is_tag_query && in_frontmatter && line_lower.contains(query_no_hash)
+                    };
+
+                    if matched {
                         let trimmed = line.trim();
                         let snippet = if trimmed.chars().count() > 100 {
                             format!("{}...", trimmed.chars().take(100).collect::<String>())

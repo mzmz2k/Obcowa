@@ -200,6 +200,7 @@ export function handleTagClick(targetEl: HTMLElement) {
         ...state,
         query: `#${tagName}`,
         searchByFilename: false, // タグは本文中に含まれるためファイル名検索をオフにする
-        hasSearched: false       // 検索タブの自動再検索を促すためフラグをリセットする
+        hasSearched: false,
+        autoRunSearch: true // 検索機能側でこのフラグを検知して自動検索を走らせるための目印
     }));
 }

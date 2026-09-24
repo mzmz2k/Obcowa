@@ -10,6 +10,12 @@
 
     let isSearching = false;
 
+    // ▼ 追加: 外部から自動検索フラグが立てられたら検知して検索を実行する
+    $: if ($searchState.autoRunSearch) {
+        $searchState.autoRunSearch = false; // 無限ループを防ぐためすぐに下ろす
+        executeSearch();
+    }
+
    // 検索の実行
     async function executeSearch() {
         if (!$searchState.query.trim()) return;
