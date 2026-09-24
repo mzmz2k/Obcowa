@@ -291,6 +291,55 @@ function remarkObsidianExtensions() {
     };
 }
 
+
+ /**
+ * [AST Plugin] 本文中の #タグ をパース
+ * 直前が行頭または空白である場合のみマッチさせ、見出しやURL内アンカーの誤爆を防ぎます
+ */
+function remarkTags() {
+    return (tree: MdastRoot) => {
+        visit(tree, 'text', (node: Text, index: number | undefined, parent: Parent | undefined) => {
+            if (!parent || index === undefined) return;
+            
+            const text = node.value;
+            // \p{L} = 文字全般, \p{N} = 数字
+            const regex = /(^|\s)#([\p{L}\p{N}_\-\/]+)/gu;
+            let lastIndex = 0;
+            let match;
+            const newNodes: (Text | HTML)[] = [];
+
+            while ((match = regex.exec(text)) !== null) {
+                if (match.index > lastIndex) {
+                    newNodes.push({ type: 'text', value: text.slice(lastIndex, match.index) });
+                }
+
+                // 行頭以外のマッチ時の「直前の空白」を保持
+                if (match[1]) {
+                    newNodes.push({ type: 'text', value: match[1] });
+                }
+
+                const tagName = match[2];
+                newNodes.push({
+                    type: 'html',
+                    value: `<span class="obsidian-tag" data-tag="${tagName}">#${tagName}</span>`
+                });
+
+                lastIndex = regex.lastIndex;
+            }
+
+            if (lastIndex < text.length) {
+                newNodes.push({ type: 'text', value: text.slice(lastIndex) });
+            }
+
+            if (newNodes.length > 0) {
+                parent.children.splice(index, 1, ...newNodes);
+                return index + newNodes.length; 
+            }
+        });
+    };
+}
+
+
 /**
  * [AST Plugin] 見出しに折りたたみ用トグルを付与
  */
@@ -487,7 +536,7 @@ export function sanitizeHtml(rawHtml: string): string {
             'data-widget-type', 'data-query', 'data-wiki-target', 'data-embed-target',
             'data-embed-heading', 'data-embed-block', 'style', 'width', 'alt',
             'data-callout', 'data-callout-fold', 'dir',
-            'align'
+            'align', 'data-tag'
         ]
     });
 }
@@ -514,6 +563,7 @@ export async function parseMarkdown(content: string, tabPath: string, options: P
         .use(remarkExtractContent, { extractHeading, extractBlock }) // 指定があれば抽出
         .use(remarkHideBlockIds)           // ビューモード用に ^block-id を非表示化
         .use(remarkCallouts)               // Calloutのパース
+        .use(remarkTags)                   // 本文中の #タグ のパース
         .use(remarkObsidianExtensions)
         .use(remarkHeadings)
         .use(remarkCodeBlocks)

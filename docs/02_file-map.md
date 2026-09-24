@@ -581,6 +581,7 @@ A03_Obcowa/
   - `export function toggleHeadingCollapse(headingEl: HTMLElement)`
   - `export function toggleCalloutCollapse(titleEl: HTMLElement)`
   - `export async function handleWikiLinkClick(targetEl: HTMLElement)`
+  - `export function handleTagClick(targetEl: HTMLElement)`
 
 ### src/components/Modals/
 - `src/components/Modals/ConflictDialog.svelte` : 責務：ファイル競合時にローカルとリモートの差分を表示し、「上書き」「再読み込み」「保留」を選択させるダイアログ

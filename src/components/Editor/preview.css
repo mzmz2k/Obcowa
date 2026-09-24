@@ -223,6 +223,27 @@
     padding: 0.1em 0.3em;
     border-radius: 0.25rem;
 }
+ 
+/* --- 本文中のタグ (#tag) --- */
+.editor-preview .obsidian-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.4em;
+    margin: 0 0.1em;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-weight: 500;
+    background-color: color-mix(in srgb, var(--accent-color) 10%, transparent);
+    color: color-mix(in srgb, var(--accent-color) 90%, var(--text-color));
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    text-decoration: none;
+}
+
+.editor-preview .obsidian-tag:hover {
+    background-color: color-mix(in srgb, var(--accent-color) 20%, transparent);
+    color: var(--accent-color);
+}
 
 /* --- タスク箇条書き --- */
 .editor-preview ul:has(li.task-list-item),
@@ -512,14 +533,14 @@
 .editor-preview .obsidian-callout[data-callout="danger"],
 .editor-preview .obsidian-callout[data-callout="bug"] {
   /* 基準となる赤色 */
-  --callout-base-color: #e53935;
+  --callout-base-color-red: #e53935;
 
   /* 背景色：赤を10%だけ背景色(--bg-color)に混ぜる */
-  background-color: color-mix(in srgb, var(--callout-base-color) 10%, var(--bg-color));
+  background-color: color-mix(in srgb, var(--callout-base-color-red) 10%, var(--bg-color));
 
   /* 左枠線・境界線：赤を35%混ぜてアクセントを出す */
-  border-color: color-mix(in srgb, var(--callout-base-color) 35%, var(--bg-color));
-  border-left-color: var(--callout-base-color); /* 左端の太線はハッキリ見せる場合 */
+  border-color: color-mix(in srgb, var(--callout-base-color-red) 35%, var(--bg-color));
+  border-left-color: var(--callout-base-color-red); /* 左端の太線はハッキリ見せる場合 */
 }
 
 /* ===================================================
@@ -588,7 +609,7 @@
 .editor-preview .obsidian-callout[data-callout="error"] .callout-title,
 .editor-preview .obsidian-callout[data-callout="danger"] .callout-title,
 .editor-preview .obsidian-callout[data-callout="bug"] .callout-title {
-  color: color-mix(in srgb, var(--callout-base-color) 85%, var(--text-color));
+  color: color-mix(in srgb, var(--callout-base-color-red) 85%, var(--text-color));
 }
 
 /* 注意・質問系のアイコン・タイトル色 */

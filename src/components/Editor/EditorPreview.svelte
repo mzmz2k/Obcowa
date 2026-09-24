@@ -9,7 +9,7 @@
   import { loadMermaidInDom } from '../../lib/editor/mermaidViewer';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { FileQuestion } from 'lucide-svelte';
-  import { toggleTaskMarkdown, copyCodeBlock, toggleHeadingCollapse, toggleCalloutCollapse, handleWikiLinkClick, COPY_ICON_SVG, CHECK_ICON_SVG } from './previewExtensions';
+  import { toggleTaskMarkdown, copyCodeBlock, toggleHeadingCollapse, toggleCalloutCollapse, handleWikiLinkClick, handleTagClick, COPY_ICON_SVG, CHECK_ICON_SVG } from './previewExtensions';
   import { mountWidgets, unmountAllWidgets } from '../../features/Dashboard/DashboardManager';
   import { parseMarkdown, sanitizeHtml } from './markdownSetup';
   import DOMPurify from 'dompurify'; // .txt用のシンプルなサニタイズ用に残す
@@ -91,6 +91,14 @@
             handleWikiLinkClick(wikiLinkEl);
             return;
         }
+        
+      // タグのクリック検知 (本文中のタグ & フロントマターのタグ)
+      const tagEl = target.closest('.obsidian-tag, .obsidian-property-tag') as HTMLElement | null;
+      if (tagEl) {
+          event.preventDefault();
+          handleTagClick(tagEl);
+          return;
+      }
 
       const taskInput = target.closest<HTMLInputElement>('.task-checkbox');
       if (taskInput) {

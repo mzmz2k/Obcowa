@@ -187,3 +187,19 @@ export async function handleWikiLinkClick(targetEl: HTMLElement) {
         console.error("[WikiLink] Search failed:", e);
     }
 }
+
+/**
+ * タグがクリックされた時の処理
+ */
+export function handleTagClick(targetEl: HTMLElement) {
+    const tagName = targetEl.getAttribute('data-tag');
+    if (!tagName) return;
+
+    openSearchTab();
+    searchState.update(state => ({
+        ...state,
+        query: `#${tagName}`,
+        searchByFilename: false, // タグは本文中に含まれるためファイル名検索をオフにする
+        hasSearched: false       // 検索タブの自動再検索を促すためフラグをリセットする
+    }));
+}
